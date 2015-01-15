@@ -11,7 +11,7 @@ pip install requests-toolbelt
 To run this program, type the following:
 
 ```shell
-python upload-to-ndex -u <username> -p <password> -d <directory>
+python upload-to-ndex <username> <password> <directory>
 ```
 
 Where <username> and <password> are the username and password for the NDEx account you want to upload to and <directory>

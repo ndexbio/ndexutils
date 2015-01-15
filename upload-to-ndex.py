@@ -25,7 +25,10 @@ def upload_file(filename, username, password):
 
     auth = HTTPBasicAuth(username, password)
     r = requests.post(url, auth=auth, data=m, headers=headers)
-    print r.status_code
+    if r.status_code == 204:
+        print "Successfully uploaded " + filename
+    else:
+        print "Failed to upload " + filename
 
 def get_filenames(dir):
     files = [ f for f in listdir(dir) if isfile(join(dir,f)) ]
@@ -34,11 +37,16 @@ def get_filenames(dir):
 # body
 
 import argparse
-parser = argparse.ArgumentParser()
-parser.parse_args()
 
+parser = argparse.ArgumentParser(description='Example with non-optional arguments')
 
-# filenames = get_filenames('files-to-upload')
-# for filename in filenames:
-#     full_path = 'files-to-upload/' + filename
-#     upload_file(full_path, 'sync_source', 'ndex')
+parser.add_argument('username', action='store')
+parser.add_argument('password', action='store')
+parser.add_argument('directory', action='store')
+
+arg = parser.parse_args()
+
+filenames = get_filenames(arg.directory)
+for filename in filenames:
+    full_path = arg.directory + '/' + filename
+    upload_file(full_path, arg.username, arg.password)
