@@ -1,6 +1,4 @@
 import requests
-import json
-from requests import Request, Session
 from requests_toolbelt import MultipartEncoder
 from os import listdir
 from os.path import isfile, join
@@ -38,7 +36,7 @@ def get_filenames(dir):
 
 import argparse
 
-parser = argparse.ArgumentParser(description='Example with non-optional arguments')
+parser = argparse.ArgumentParser(description='upload-to-ndex arguments')
 
 parser.add_argument('username', action='store')
 parser.add_argument('password', action='store')
