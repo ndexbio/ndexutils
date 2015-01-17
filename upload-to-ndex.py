@@ -38,10 +38,10 @@ import argparse
 
 parser = argparse.ArgumentParser(description='upload-to-ndex arguments')
 
-parser.add_argument('server', action='store')
 parser.add_argument('username', action='store')
 parser.add_argument('password', action='store')
 parser.add_argument('directory', action='store')
+parser.add_argument('server', action='store')
 
 arg = parser.parse_args()
 
