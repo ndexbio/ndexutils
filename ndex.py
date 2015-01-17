@@ -2,8 +2,8 @@ import requests, json
 from requests.auth import HTTPBasicAuth
 
 
-def get_networks_administered_ids(username, password):
-    url = 'http://54.148.42.155/rest/network/search/0/1000'
+def get_networks_administered_ids(server, username, password):
+    url = 'http://'+server+'/rest/network/search/0/1000'
     payload = {"accountName":username,"permission":"ADMIN","searchString":""}
     headers = {
         'content-type': 'application/json',
@@ -16,8 +16,8 @@ def get_networks_administered_ids(username, password):
         network_ids.append(network['externalId'] )
     return network_ids
 
-def get_networks_administered(username, password):
-    url = 'http://54.148.42.155/rest/network/search/0/1000'
+def get_networks_administered(server, username, password):
+    url = 'http://'+server+'/rest/network/search/0/1000'
     payload = {"accountName":username,"permission":"ADMIN","searchString":""}
     headers = {
         'content-type': 'application/json',

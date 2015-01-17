@@ -5,7 +5,7 @@ from os.path import isfile, join
 from requests.auth import HTTPBasicAuth
 
 
-def upload_file(filename, username, password):
+def upload_file(filename, server, username, password):
     fields = {
 
         'fileUpload': (filename, open(filename, 'rb'), 'application/octet-stream'),
@@ -16,7 +16,7 @@ def upload_file(filename, username, password):
         fields=fields
     )
 
-    url = 'http://54.148.42.155/rest/network/upload'
+    url = 'http://'+server+'/rest/network/upload'
     headers = {
         'content-type': m.content_type,
     }
@@ -38,6 +38,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='upload-to-ndex arguments')
 
+parser.add_argument('server', action='store')
 parser.add_argument('username', action='store')
 parser.add_argument('password', action='store')
 parser.add_argument('directory', action='store')
@@ -47,4 +48,4 @@ arg = parser.parse_args()
 filenames = get_filenames(arg.directory)
 for filename in filenames:
     full_path = arg.directory + '/' + filename
-    upload_file(full_path, arg.username, arg.password)
+    upload_file(full_path, arg.server, arg.username, arg.password)
