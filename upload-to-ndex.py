@@ -16,7 +16,7 @@ def upload_file(filename, server, username, password):
         fields=fields
     )
 
-    url = 'http://'+server+'/rest/network/upload'
+    url = 'http://'+server+'/network/upload'
     headers = {
         'content-type': m.content_type,
     }
@@ -24,9 +24,9 @@ def upload_file(filename, server, username, password):
     auth = HTTPBasicAuth(username, password)
     r = requests.post(url, auth=auth, data=m, headers=headers)
     if r.status_code == 204:
-        print "Successfully uploaded " + filename
+        print("Successfully uploaded " + filename)
     else:
-        print "Failed to upload " + filename
+        print("Failed to upload " + filename)
 
 def get_filenames(dir):
     files = [ f for f in listdir(dir) if isfile(join(dir,f)) ]

@@ -3,7 +3,7 @@ from requests.auth import HTTPBasicAuth
 
 
 def get_networks_administered_ids(server, username, password):
-    url = 'http://'+server+'/rest/network/search/0/1000'
+    url = 'http://'+server+'/network/search/0/1000'
     payload = {"accountName":username,"permission":"ADMIN","searchString":""}
     headers = {
         'content-type': 'application/json',
@@ -17,7 +17,7 @@ def get_networks_administered_ids(server, username, password):
     return network_ids
 
 def get_networks_administered(server, username, password):
-    url = 'http://'+server+'/rest/network/search/0/1000'
+    url = 'http://'+server+'/network/search/0/1000'
     payload = {"accountName":username,"permission":"ADMIN","searchString":""}
     headers = {
         'content-type': 'application/json',
