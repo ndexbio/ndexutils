@@ -39,7 +39,7 @@ for network in networks:
     else:
         num_already_private += 1
         print("'" + network['name'] + "'" + " is already PRIVATE")
-print()
+print
 print("Made " + str(changes) + " networks PRIVATE for account: " + arg.username)
 if num_already_private > 0:
     print( str(num_already_private) + " were already PRIVATE" )

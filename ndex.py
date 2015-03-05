@@ -18,6 +18,7 @@ def get_networks_administered_ids(server, username, password):
 
 def get_networks_administered(server, username, password):
     url = 'http://'+server+'/network/search/0/1000'
+    print 'Getting list of networks from ' + url + ' for ' + username;
     payload = {"accountName":username,"permission":"ADMIN","searchString":""}
     headers = {
         'content-type': 'application/json',

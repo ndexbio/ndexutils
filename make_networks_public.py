@@ -39,7 +39,7 @@ for network in networks:
     else:
         num_already_public += 1
         print("'" + network['name'] + "'" + " is already PUBLIC")
-print()
+print
 print("Made " + str(changes) + " networks PUBLIC for account: " + arg.username)
 if num_already_public > 0:
     print( str(num_already_public) + " were already PUBLIC" )
