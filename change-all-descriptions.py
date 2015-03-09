@@ -3,9 +3,9 @@ import json
 from requests.auth import HTTPBasicAuth
 import ndex
 
-def make_network_public(network_id, server, username, password):
+def change_network_description(network_id, server, username, password, description):
     url = 'http://'+server+'/network/' + network_id + '/summary'
-    payload = {"visibility":"PUBLIC"}
+    payload = {"description":description}
     headers = {
         'content-type': 'application/json',
     }
@@ -22,24 +22,19 @@ parser = argparse.ArgumentParser(description='get_account_statistics')
 parser.add_argument('username', action='store')
 parser.add_argument('password', action='store')
 parser.add_argument('server', action='store')
+parser.add_argument('description', action='store')
 
 arg = parser.parse_args()
 
 networks = ndex.get_networks_administered(arg.server, arg.username, arg.password)
-num_already_public = 0
 changes = 0
 for network in networks:
-    if network['visibility'] != 'PUBLIC':
-        status_code = make_network_public(network['externalId'], arg.server, arg.username, arg.password)
-        if status_code == 204:
-            changes += 1
-            print("Made '" + network['name'] + "' PUBLIC")
-        else:
-            print("FAILED to make '" + network['name'] + "' PUBLIC")
+    status_code = change_network_description(network['externalId'], arg.server, arg.username, arg.password, arg.description)
+    if status_code == 204:
+        changes += 1
+        print("Changed the description of: " + network['name'])
     else:
-        num_already_public += 1
-        print("'" + network['name'] + "'" + " is already PUBLIC")
+        print("FAILED to change the description of: " + network['name'])
+
 print("")
-print("Made " + str(changes) + " networks PUBLIC for account: " + arg.username)
-if num_already_public > 0:
-    print( str(num_already_public) + " were already PUBLIC" )
+print("Changed the description of " + str(changes) + " networks for account: " + arg.username)

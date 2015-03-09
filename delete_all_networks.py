@@ -38,7 +38,7 @@ for network in networks:
         num_networks_not_deleted += 1
         print("FAILED to delete " + network['name'])
 
-print
+print("")
 print("Deleted " + str(num_networks_deleted) + " networks for account: " + arg.username)
 if num_networks_not_deleted > 0:
     print( str(num_already_private) + " networks were not deleted." )
