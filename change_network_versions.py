@@ -3,9 +3,9 @@ import json
 from requests.auth import HTTPBasicAuth
 import ndex
 
-def change_network_description(network_id, server, username, password, description):
+def change_network_version(network_id, server, username, password, version):
     url = 'http://'+server+'/network/' + network_id + '/summary'
-    payload = {"description":description}
+    payload = {"version":version}
     headers = {
         'content-type': 'application/json',
     }
@@ -21,20 +21,21 @@ parser = argparse.ArgumentParser(description='get_account_statistics')
 
 parser.add_argument('username', action='store')
 parser.add_argument('password', action='store')
+parser.add_argument('version', action='store')
 parser.add_argument('server', action='store')
-parser.add_argument('description', action='store')
+
 
 arg = parser.parse_args()
 
 networks = ndex.get_networks_administered(arg.server, arg.username, arg.password)
 changes = 0
 for network in networks:
-    status_code = change_network_description(network['externalId'], arg.server, arg.username, arg.password, arg.description)
+    status_code = change_network_version(network['externalId'], arg.server, arg.username, arg.password, arg.version)
     if status_code == 204:
         changes += 1
-        print("Changed the description of: " + network['name'])
+        print("Changed the version of: " + network['name'])
     else:
-        print("FAILED to change the description of: " + network['name'])
+        print("FAILED to change the version of: " + network['name'])
 
 print("")
-print("Changed the description of " + str(changes) + " networks for account: " + arg.username)
+print("Changed the version of " + str(changes) + " networks for account: " + arg.username)
