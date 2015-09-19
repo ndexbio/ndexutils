@@ -1,8 +1,5 @@
-import requests
-import json
-from requests.auth import HTTPBasicAuth
-import ndex
 
+import common_ndex_utilities
 
 # body
 
@@ -16,7 +13,7 @@ parser.add_argument('server', action='store')
 
 arg = parser.parse_args()
 
-networks = ndex.get_networks_administered(arg.server, arg.username, arg.password)
+networks = common_ndex_utilities.get_networks_administered(arg.server, arg.username, arg.password)
 num_public = 0
 num_private = 0
 num_discoverable = 0

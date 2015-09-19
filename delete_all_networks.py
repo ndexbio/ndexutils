@@ -1,17 +1,5 @@
-import requests
-import json
-from requests.auth import HTTPBasicAuth
-import ndex
 
-def make_network_public(network_id, server, username, password):
-    url = 'http://'+server+'/network/' + network_id;
-    payload = {"visibility":"PRIVATE"}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.delete(url, auth=auth, data=json.dumps(payload), headers=headers)
-    return r.status_code
+import common_ndex_utilities
 
 # body
 
@@ -25,11 +13,11 @@ parser.add_argument('server', action='store')
 
 arg = parser.parse_args()
 
-networks = ndex.get_networks_administered(arg.server, arg.username, arg.password)
+networks = common_ndex_utilities.get_networks_administered(arg.server, arg.username, arg.password)
 num_networks_deleted = 0
 num_networks_not_deleted = 0;
 for network in networks:
-    status_code = make_network_public(network['externalId'], arg.server, arg.username, arg.password)
+    status_code = common_ndex_utilities.delete_network(network['externalId'], arg.server, arg.username, arg.password)
     print 'status code = ' + str(status_code)
     if status_code == 204:
         print("Deleted " + network['name'] + "' PRIVATE")
@@ -41,4 +29,4 @@ for network in networks:
 print("")
 print("Deleted " + str(num_networks_deleted) + " networks for account: " + arg.username)
 if num_networks_not_deleted > 0:
-    print( str(num_already_private) + " networks were not deleted." )
+    print( str(num_networks_not_deleted) + " networks were not deleted." )

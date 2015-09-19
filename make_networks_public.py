@@ -1,17 +1,5 @@
-import requests
-import json
-from requests.auth import HTTPBasicAuth
-import ndex
 
-def make_network_public(network_id, server, username, password):
-    url = 'http://'+server+'/network/' + network_id + '/summary'
-    payload = {"visibility":"PUBLIC"}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.post(url, auth=auth, data=json.dumps(payload), headers=headers)
-    return r.status_code
+import common_ndex_utilities
 
 # body
 
@@ -25,12 +13,12 @@ parser.add_argument('server', action='store')
 
 arg = parser.parse_args()
 
-networks = ndex.get_networks_administered(arg.server, arg.username, arg.password)
+networks = common_ndex_utilities.get_networks_administered(arg.server, arg.username, arg.password)
 num_already_public = 0
 changes = 0
 for network in networks:
     if network['visibility'] != 'PUBLIC':
-        status_code = make_network_public(network['externalId'], arg.server, arg.username, arg.password)
+        status_code = common_ndex_utilities.set_network_visibility(network['externalId'], arg.server, arg.username, arg.password, "PUBLIC")
         if status_code == 204:
             changes += 1
             print("Made '" + network['name'] + "' PUBLIC")
