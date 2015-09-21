@@ -12,7 +12,7 @@ pip install ndex
 
 Utility Scripts:
 
-In all scripts that have arguments <username> and <password>, these will be the username and password for the NDEx account that you are using. 
+In all scripts that have arguments username and password, these will be the username and password for the NDEx account that you are using. 
 
 upload-to-ndex.py
 
@@ -20,7 +20,7 @@ upload-to-ndex.py
 python upload-to-ndex.py <username> <password> <directory>
 ```
 
-Where <directory> contains all of the network files you want to upload.
+Where <i>directory</i> contains all of the network files you want to upload.
 
 create_network_from_tsv.py
 
