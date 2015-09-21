@@ -1,17 +1,21 @@
-# ndex-python-uploader
+# ndex-python-utilities
 
-In addition to installing python, it may be necessary to install some python dependencies before running this. Type
-the following commands:
+In addition to python, these utilities require some additional modules.
+
+To install these modules, type the following commands:
 
 ```shell
 pip install requests
 pip install requests-toolbelt
+pip install ndex
 ```
 
-To run this program, type the following:
+Utility Scripts:
+
+upload-to-ndex.py
 
 ```shell
-python upload-to-ndex <username> <password> <directory>
+python upload-to-ndex.py <username> <password> <directory>
 ```
 
 Where <username> and <password> are the username and password for the NDEx account you want to upload to and <directory>
