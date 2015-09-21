@@ -1,6 +1,7 @@
 import requests, json
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt import MultipartEncoder
+import string
 
 
 def get_networks_administered_ids(server, username, password):
@@ -91,3 +92,7 @@ def upload_file(filename, server, username, password):
         print("Successfully uploaded " + filename)
     else:
         print("Failed to upload " + filename)
+
+def sanitize_filename(filename):
+    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    return ''.join(c for c in filename if c in valid_chars)
