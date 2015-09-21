@@ -3,5 +3,7 @@
 .idea
 session/*
 import/*
+!import/bindingdb_example.txt
 import_plans/*
+!import_plans/bindingdb_example_plan.json
 downloads/*
