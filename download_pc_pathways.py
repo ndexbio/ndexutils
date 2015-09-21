@@ -43,7 +43,6 @@ if datasource and format:
     info = pc.get_pathway_info_for_datasource(datasource)
     hits = info.get("searchHit")
 
-    count = 0
     # iterate over the pathways to get the data and save in a new file in the directory
     for pathway in hits:
         #print str(pathway)
@@ -51,14 +50,10 @@ if datasource and format:
         print pathway_name + " (" + pathway.get("uri") + ")"
         
         text = pc.get_pathway_ebs_by_uri(pathway.get("uri"))
-        filename = join(output_directory, pathway_name + ".txt")
+        filename = join(output_directory, pathway_name + ".sif")
         file = open(filename, "w")
         file.write(text)
         file.close()
-        
-        count = count + 1
-        if count > 5:
-            break
 
 else:
     if not datasource:

@@ -31,7 +31,7 @@ arg = parser.parse_args()
 try:
     current_directory = os.path.dirname(os.path.abspath(__file__))
 
-    plan_filename = os.path.join(current_directory, arg.plan)
+    plan_filename = os.path.join(current_directory, "import_plans", arg.plan)
 
     print "loading plan from: " + plan_filename
 
@@ -41,7 +41,7 @@ try:
     # set up the tsv -> cx converter
     tsv_converter = d2c.TSV2CXConverter(import_plan)
 
-    tsv_filename = os.path.join(current_directory, arg.tsv)
+    tsv_filename = os.path.join(current_directory, "import", arg.tsv)
 
     print "loading tsv from: " + tsv_filename
 
