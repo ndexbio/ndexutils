@@ -28,6 +28,8 @@ pc = pca.PathwayCommonsV2()
 # check that the datasource is known and the format is known
 datasource = pc.check_datasource(arg.datasource)
 format = pc.check_format(arg.format)
+extension = pc.format_extension(format)
+
 failures = []
 if datasource and format:
 
@@ -53,14 +55,14 @@ if datasource and format:
         print pathway_name + " (" + pathway.get("uri") + ")"
 
         try:
-            text = pc.get_pathway_ebs_by_uri(pathway.get("uri"))
-            filename = join(output_directory, pathway_name + ".sif")
+            text = pc.get_pathway_by_uri(pathway.get("uri"), format)
+            filename = join(output_directory, pathway_name + "." + extension)
             file = open(filename, "w")
             file.write(text)
             file.close()
         except Exception, e:
             failures.append(pathway_name)
-            #print "error getting pathway file: " + pathway_name + " => " + str(e)
+            print "error getting pathway file: " + pathway_name + " => " + str(e)
 
 else:
     if not datasource:

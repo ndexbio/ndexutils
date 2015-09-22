@@ -100,6 +100,18 @@ class PathwayCommonsV2:
         else:
             return False
 
+    def format_extension(self, format):
+        if format == "EXTENDED_BINARY_SIF" or format == "BINARY_SIF":
+            return "sif"
+        if format == "BIOPAX":
+            return "owl"
+        if format == "GSEA":
+            return "txt"
+        if format == "SBGN":
+            return "sbgn"
+        else:
+            return "txt"
+
     def get_pathway_info_for_datasource(self, datasource_abbreviation):
 
         # look up the datasource uri by the abbreviation
@@ -118,8 +130,11 @@ class PathwayCommonsV2:
 
 
     # Get a pathway as text in Extended Binary SIF format based on its pathway commons uri
-    def get_pathway_ebs_by_uri(self, pathway_uri):
-        uri = self.pc_service_base_uri + "get?uri=" + pathway_uri + "&format=EXTENDED_BINARY_SIF"
+    def get_pathway_by_uri(self, pathway_uri, format):
+        if format == "BIOPAX":
+            uri = self.pc_service_base_uri + "get?uri=" + pathway_uri
+        else:
+            uri = self.pc_service_base_uri + "get?uri=" + pathway_uri + "&format=" + format
         print "GET " + uri
         r = requests.get(uri)
         r.raise_for_status()
