@@ -55,13 +55,19 @@ if datasource and format:
         print pathway_name + " (" + pathway.get("uri") + ")"
 
         try:
-            text = pc.get_pathway_by_uri(pathway.get("uri"), format)
+            pathway_uri = pathway.get("uri")
+            text = pc.get_pathway_by_uri(pathway_uri, format)
             filename = join(output_directory, pathway_name + "." + extension)
             file = open(filename, "w")
             file.write(text)
             file.close()
         except Exception, e:
             failures.append(pathway_name)
+            if format == "BIOPAX":
+                uri = pc.pc_service_base_uri + "get?uri=" + pathway_uri
+            else:
+                uri = pc.pc_service_base_uri + "get?uri=" + pathway_uri + "&format=" + format
+            failures.append(uri)
             print "error getting pathway file: " + pathway_name + " => " + str(e)
 
 else:

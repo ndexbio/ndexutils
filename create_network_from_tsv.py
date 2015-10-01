@@ -47,7 +47,7 @@ try:
 
     # (prototype) cx from tsv
     # this is NOT the standard CX under development as of september 2015
-    cx_network = tsv_converter.convert_tsv(tsv_filename, 3)
+    cx_network = tsv_converter.convert_tsv(tsv_filename)
 
     # set up the cx -> ndex converter
     c2n_converter = c2n.Cx2NdexConverter(cx_network)
@@ -59,6 +59,8 @@ try:
     ndex_network['name'] = arg.name
     ndex_network['description'] = arg.desc
 
+    #print json.dumps(ndex_network, sort_keys=True, indent=4, separators=(',', ': '))
+
     # set up the ndex connection
     my_ndex = nc.Ndex("http://" + arg.server, arg.username, arg.password)
 
@@ -67,6 +69,9 @@ try:
 
 except requests.exceptions.RequestException, e:
     print "error in request to NDEx server: " + str(e)
+    raise e
+
+
 
 
 

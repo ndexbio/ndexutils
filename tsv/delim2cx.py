@@ -72,24 +72,37 @@ class TSV2CXConverter:
         self.default_context = plan.get('default_context')
 
         self.source_plan = plan.get('source_plan')
+        self.source_use_names_as_identifiers = False;
+        self.target_use_names_as_identifiers = False;
 
 
         if self.source_plan:
+
             self.source_context = self.source_plan.get('context')
             if not self.source_context:
                 self.source_context = self.default_context
             self.source_id_column = self.source_plan.get('id_column')
             self.source_node_name_column = self.source_plan.get('node_name_column')
+            if not self.source_id_column and not self.source_node_name_column:
+                raise Exception("Invalid Plan: no source id or source name column")
+            if not self.source_id_column:
+                self.source_use_names_as_identifiers = True;
             self.source_columns = self.source_plan.get('property_columns')
 
         self.target_plan = plan.get('target_plan')
         if self.target_plan:
+
             self.target_context = self.target_plan.get('context')
             if not self.target_context:
                 self.target_context = self.default_context
             self.target_id_column = self.target_plan.get('id_column')
             self.target_node_name_column = self.target_plan.get('node_name_column')
+            if not self.target_id_column and not self.target_node_name_column:
+                raise Exception("Invalid Plan: no target id or target name column")
+            if not self.target_id_column:
+                self.target_use_names_as_identifiers = True;
             self.target_columns = self.target_plan.get('property_columns')
+
 
         self.edge_plan = plan.get('edge_plan')
         if self.edge_plan:
@@ -129,7 +142,7 @@ class TSV2CXConverter:
         self.id_counter += 1
         return '_:' + str(self.id_counter)
 
-    def convert_tsv(self, filename, max_rows):
+    def convert_tsv(self, filename, max_rows = None):
         self.init_for_convert()
         self.init_context(self.default_context)
         self.init_context(self.source_context)
@@ -141,9 +154,9 @@ class TSV2CXConverter:
             reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab')
             row_count = 0;
             for row in reader:
-                if self.handle_row(row):       
+                if self.handle_row(row):
                     row_count = row_count + 1
-                if row_count > max_rows:
+                if max_rows and row_count > max_rows:
                     break
 
         # We add the citation to cx_out at the very end because
@@ -153,6 +166,17 @@ class TSV2CXConverter:
 
         return self.cx_out
 
+    def check_string(self, my_string):
+        try:
+            my_string.decode('ascii')
+        except UnicodeDecodeError:
+            print "Skipping Non-Ascii String: " + my_string
+            #print "type: " + str(type(my_string))
+            #print "could try  " + my_string.decode('utf-8')
+            return False
+        else:
+            return True
+
     def handle_row(self, row):
 
         # For each row, we create an edge + edge properties
@@ -160,38 +184,79 @@ class TSV2CXConverter:
         # - source node + properties
         # - target node + properties
         # - predicate term
-
-        source_id = row.get(self.source_id_column)
-        target_id = row.get(self.target_id_column)
-
-        #print row
-
-        if not source_id or not target_id:
+        source_node_cx_id = self.handle_row_source(row)
+        if not source_node_cx_id:
+            print "Bad Row (source problem) :" + str(row)
             return False
 
-        prefix = self.source_context.get('prefix')
-        source_term = self.get_term(source_id, prefix)
-
-        if self.source_node_name_column:
-            source_node_name = row.get(self.source_node_name_column)
-        else:
-            source_node_name = None
-
-        source_node_cx_id = self.handle_node(row, source_id, source_term, self.source_columns, source_node_name)
-
-
-        prefix = self.target_context.get('prefix')
-        target_term = self.get_term(target_id, prefix)
-        if self.target_node_name_column:
-            target_node_name = row.get(self.target_node_name_column)
-        else:
-            target_node_name = None
-
-        target_node_cx_id = self.handle_node(row, target_id, target_term, self.target_columns, target_node_name)
+        target_node_cx_id = self.handle_row_target(row)
+        if not target_node_cx_id:
+            print "Bad Row (target problem) :" + str(row)
+            return False
 
         self.handle_edge(row, source_node_cx_id, target_node_cx_id)
-        
+
         return True
+
+    def handle_row_source(self, row):
+        cx_id = False
+        if self.source_use_names_as_identifiers:
+            source_node_name = row.get(self.source_node_name_column)
+            if not self.check_string(source_node_name):
+                return False
+            cx_id = self.handle_node(row, source_node_name, None, self.source_columns, source_node_name)
+
+        else:
+            source_id = row.get(self.source_id_column)
+            if not self.check_string(source_id):
+                return False
+
+            prefix = None
+            if self.source_context:
+                prefix = self.source_context.get('prefix')
+
+            source_term = self.get_term(source_id, prefix)
+
+            if self.source_node_name_column:
+                source_node_name = row.get(self.source_node_name_column)
+                if not self.check_string(source_node_name):
+                    return False
+            else:
+                source_node_name = None
+
+            cx_id = self.handle_node(row, source_id, source_term, self.source_columns, source_node_name)
+
+        return cx_id
+
+    def handle_row_target(self, row):
+        cx_id = False
+        if self.target_use_names_as_identifiers:
+            target_node_name = row.get(self.target_node_name_column)
+            if not self.check_string(target_node_name):
+                    return False
+            cx_id = self.handle_node(row, target_node_name, None, self.target_columns, target_node_name)
+
+        else:
+            target_id = row.get(self.target_id_column)
+            if not self.check_string(target_id):
+                return False
+
+            prefix = None
+            if self.target_context:
+                prefix = self.target_context.get('prefix')
+
+            target_term = self.get_term(target_id, prefix)
+
+            if self.target_node_name_column:
+                target_node_name = row.get(self.target_node_name_column)
+                if not self.check_string(target_node_name):
+                    return False
+            else:
+                target_node_name = None
+
+            cx_id = self.handle_node(row, target_id, target_term, self.target_columns, target_node_name)
+        return cx_id
+
 
     def init_context(self, context):
         if not context:
@@ -203,7 +268,10 @@ class TSV2CXConverter:
         self.cx_out.append({"@context": [cx_context]})
 
     def get_term(self, identifier, context_prefix):
-        return context_prefix + ":" + identifier
+        if context_prefix:
+            return context_prefix + ":" + identifier
+        else:
+            return identifier
 
     def handle_node(self, row, identifier, term_string, property_columns, node_name):
         cx_id = self.get_cx_id_for_identifier('nodes', identifier, False)
@@ -215,20 +283,23 @@ class TSV2CXConverter:
         self.cx_out.append({"nodes": [cx_node]})
 
         # create the node identity element
-        cx_node_identity = {'node': cx_id, 'represents': term_string}
+        cx_node_identity = {'node': cx_id}
+        if term_string:
+            cx_node_identity['represents'] = term_string
         if node_name:
-            cx_node_identity['name'] = node_name;
+            cx_node_identity['name'] = node_name
         self.cx_out.append({"nodeIdentities": [cx_node_identity]})
 
 
-        # now handle the properties
-        for column in property_columns:
-            value = row.get(column)
-            if value:
-                prop = {"node": cx_id,
-                        "property": column,
-                        "value": value}
-                self.cx_out.append({'elementProperties': [prop]})
+        # now handle the properties, if any
+        if property_columns:
+            for column in property_columns:
+                value = row.get(column)
+                if value:
+                    prop = {"node": cx_id,
+                            "property": column,
+                            "value": value}
+                    self.cx_out.append({'elementProperties': [prop]})
 
         return cx_id
 
@@ -242,25 +313,33 @@ class TSV2CXConverter:
                  'target': target_node_cx_id}]})
 
         if self.predicate_id_column:
-            predicate = row.get(self.predicate_id_column)
+            predicate_string = row.get(self.predicate_id_column)
         else:
-            predicate = self.default_predicate
+            predicate_string = self.default_predicate
 
-        predicate = self.get_term(predicate, self.predicate_context.get('prefix'))
+        if self.predicate_context and self.predicate_context.get('prefix'):
+            predicate_prefix = self.predicate_context.get('prefix')
+
+        else:
+            predicate_prefix = None
+
+        predicate = self.get_term(predicate_string, predicate_prefix)
 
         self.cx_out.append({'edgeIdentities': [{'edge': edge_cx_id, 'relationship': predicate}]})
 
         citation_plan = self.edge_plan.get('citation_plan')
+
         if citation_plan:
             self.handle_citation('edges', edge_cx_id, row, citation_plan)
 
-        for column in self.edge_columns:
-            value = row.get(column)
-            if value:
-                property = {"edge": edge_cx_id,
-                            "property": column,
-                            "value": value}
-                self.cx_out.append({'elementProperties': [property]})
+        if self.edge_columns:
+            for column in self.edge_columns:
+                value = row.get(column)
+                if value:
+                    property = {"edge": edge_cx_id,
+                                "property": column,
+                                "value": value}
+                    self.cx_out.append({'elementProperties': [property]})
 
     def handle_citation(self, aspect, element_id, row, citation_plan):
         # iterate through possible key columns:
