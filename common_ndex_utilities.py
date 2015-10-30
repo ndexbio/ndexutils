@@ -2,73 +2,39 @@ import requests, json
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt import MultipartEncoder
 import string
-
+import ndex.client as nc
 
 def get_networks_administered_ids(server, username, password):
-    url = 'http://'+server+'/network/search/0/1000'
-    payload = {"accountName":username,"permission":"ADMIN","searchString":""}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.post(url, auth=auth, data=json.dumps(payload), headers=headers)
+    ndex = nc.Ndex(server, username, password)
+    networks = ndex.search_networks("", username, block_size=1000)
     network_ids = []
-    networks = r.json()
     for network in networks:
         network_ids.append(network['externalId'] )
     return network_ids
 
 def get_networks_administered(server, username, password):
-    url = 'http://'+server+'/network/search/0/1000'
-    print 'Getting list of networks from ' + url + ' for ' + username;
-    payload = {"accountName":username,"permission":"ADMIN","searchString":""}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.post(url, auth=auth, data=json.dumps(payload), headers=headers)
-    r.raise_for_status()
-    return r.json()
+    ndex = nc.Ndex(server, username, password)
+    networks = ndex.search_networks("", username, block_size=1000)
+    return networks
 
 def change_network_version(network_id, server, username, password, version):
-    url = 'http://'+server+'/network/' + network_id + '/summary'
-    payload = {"version":version}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.post(url, auth=auth, data=json.dumps(payload), headers=headers)
-    return r.status_code
+    ndex = nc.Ndex(server, username, password)
+    network_profile = {"version":version}
+    return ndex.update_network_profile(network_id, network_profile)
 
 def change_network_description(network_id, server, username, password, description):
-    url = 'http://'+server+'/network/' + network_id + '/summary'
-    payload = {"description":description}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.post(url, auth=auth, data=json.dumps(payload), headers=headers)
-    return r.status_code
+    ndex = nc.Ndex(server, username, password)
+    network_profile = {"description":description}
+    return ndex.update_network_profile(network_id, network_profile)
 
 def delete_network(network_id, server, username, password):
-    url = 'http://'+server+'/network/' + network_id;
-    payload = {"visibility":"PRIVATE"}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.delete(url, auth=auth, data=json.dumps(payload), headers=headers)
-    return r.status_code
+    ndex = nc.Ndex(server, username, password)
+    return ndex.delete_network(network_id)
 
 def set_network_visibility(network_id, server, username, password, visibility):
-    url = 'http://'+server+'/network/' + network_id + '/summary'
-    payload = {"visibility": visibility}
-    headers = {
-        'content-type': 'application/json',
-    }
-    auth = HTTPBasicAuth(username, password)
-    r = requests.post(url, auth=auth, data=json.dumps(payload), headers=headers)
-    return r.status_code
+    ndex = nc.Ndex(server, username, password)
+    network_profile = {"visibility": visibility}
+    return ndex.update_network_profile(network_id, network_profile)
 
 def upload_file(filename, server, username, password):
     fields = {
