@@ -167,15 +167,22 @@ class TSV2CXConverter:
         return self.cx_out
 
     def check_string(self, my_string):
-        try:
-            my_string.decode('ascii')
-        except UnicodeDecodeError:
-            print "Skipping Non-Ascii String: " + my_string
-            #print "type: " + str(type(my_string))
-            #print "could try  " + my_string.decode('utf-8')
-            return False
+        if my_string:
+            if my_string == "":
+                print "Skipping Blank String"
+                return False
+            try:
+                my_string.decode('ascii')
+            except UnicodeDecodeError:
+                print "Skipping Non-Ascii String: " + my_string
+                #print "type: " + str(type(my_string))
+                #print "could try  " + my_string.decode('utf-8')
+                return False
+            else:
+                return True
         else:
-            return True
+            print "Skipping Null String"
+            return False
 
     def handle_row(self, row):
 
