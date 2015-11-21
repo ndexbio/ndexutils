@@ -78,7 +78,8 @@
       "citation_id_columns": [
         {
           "id": "PMID",
-          "type": "pmid"
+          "type": "pmid",
+
         },
         {
           "id": "Article DOI",

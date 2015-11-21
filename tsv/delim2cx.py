@@ -350,20 +350,28 @@ class TSV2CXConverter:
 
     def handle_citation(self, aspect, element_id, row, citation_plan):
         # iterate through possible key columns:
-        identifier = None
+        identifiers = []
         idType = None
         for id_column in citation_plan.get('citation_id_columns'):
             col = id_column.get('id')
-            id = row.get(col)
-            if id:
-                identifier = id
+            delimiter = id_column.get('delimiter')
+            id_string = row.get(col)
+            if id_string:
+                if delimiter:
+                    for id in id_string.split(delimiter):
+                        trimmed = id.strip()
+                        identifiers.append(trimmed)
+                else:
+                    identifiers.append(id_string)
                 idType = id_column.get('type')
                 break
-        if identifier:
+        for identifier in identifiers:
             # special handling for Pmid type
+            citation_id_type = idType
             if idType.lower() == 'pmid' :
                 identifier = 'pmid:' + identifier
-                idType = 'URI'
+                citation_id_type = 'URI'
+                print identifier
 
             citation = self.cx_identifier_to_citation_map.get(identifier)
             if not citation:
@@ -371,7 +379,7 @@ class TSV2CXConverter:
                 citation_cx_id = self.get_cx_id_for_identifier('citations', identifier, False)
                 citation = {"@id": citation_cx_id,
                             "identifier": identifier,
-                            "idType": idType,
+                            "idType": citation_cx_id,
                             'edges': []}
                 self.cx_identifier_to_citation_map[identifier] = citation
                 # add title and contributors if known
