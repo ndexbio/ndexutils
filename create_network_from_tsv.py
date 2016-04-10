@@ -29,12 +29,17 @@ parser.add_argument('desc', action='store')
 arg = parser.parse_args()
 
 try:
+    # set up the ndex connection
+    # error thrown if cannot authenticate
+    my_ndex = nc.Ndex("http://" + arg.server, arg.username, arg.password)
+
     current_directory = os.path.dirname(os.path.abspath(__file__))
 
     plan_filename = os.path.join(current_directory, "import_plans", arg.plan)
 
     print "loading plan from: " + plan_filename
 
+    # error thrown if no plan is found
     with open(plan_filename) as json_file:
         import_plan = json.load(json_file)
 
@@ -45,27 +50,42 @@ try:
 
     print "loading tsv from: " + tsv_filename
 
-    # (prototype) cx from tsv
-    # this is NOT the standard CX under development as of september 2015
-    cx_network = tsv_converter.convert_tsv(tsv_filename)
+    cx = tsv_converter.convert_tsv_to_cx(tsv_filename)
 
-    # set up the cx -> ndex converter
-    c2n_converter = c2n.Cx2NdexConverter(cx_network)
+    # print json.dumps(cx)
 
-    # ndex json object converted from prototype cx
-    ndex_network = c2n_converter.convertToNdex()
+    for element in cx:
+        print element
 
-    # add a name and description
-    ndex_network['name'] = arg.name
-    ndex_network['description'] = arg.desc
+    cx_stream = tsv_converter.convert_cx_to_stream(cx)
 
-    #print json.dumps(ndex_network, sort_keys=True, indent=4, separators=(',', ': '))
+    response_json = my_ndex.save_cx_stream_as_new_network(cx_stream)
 
-    # set up the ndex connection
-    my_ndex = nc.Ndex("http://" + arg.server, arg.username, arg.password)
 
-    # save the network
-    response_json = my_ndex.save_new_network(ndex_network)
+
+    # # OLD Prototype CODE
+    # # (prototype) cx from tsv
+    # # this is NOT the standard CX under development as of september 2015
+    # cx_network = tsv_converter.convert_tsv_to_cx(tsv_filename)
+    #
+    # # add a name and description
+    #
+    # response_json = my_ndex.save_new_network(ndex_network)
+    #
+    # # set up the cx -> ndex converter
+    # c2n_converter = c2n.Cx2NdexConverter(cx_network)
+    #
+    # # ndex json object converted from prototype cx
+    # ndex_network = c2n_converter.convertToNdex()
+    #
+    # # add a name and description
+    # ndex_network['name'] = arg.name
+    # ndex_network['description'] = arg.desc
+    #
+    # #print json.dumps(ndex_network, sort_keys=True, indent=4, separators=(',', ': '))
+    #
+    # # save the network
+    # response_json = my_ndex.save_new_network(ndex_network)
 
 except requests.exceptions.RequestException, e:
     print "error in request to NDEx server: " + str(e)
