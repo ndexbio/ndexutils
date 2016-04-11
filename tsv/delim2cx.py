@@ -77,6 +77,9 @@ class TSV2CXConverter:
 
         self.node_count = 0
         self.edge_count = 0
+        self.citation_count = 0
+
+        self.context_map = {}
 
         if self.source_plan:
 
@@ -159,10 +162,11 @@ class TSV2CXConverter:
         self.edge_count = 0
         self.cx_out = []
         self.emit_number_verification()
-        # self.init_context(self.default_context)
-        # self.init_context(self.source_context)
-        # self.init_context(self.target_context)
-        # self.init_context(self.predicate_context)
+        self.add_context(self.default_context)
+        self.add_context(self.source_context)
+        self.add_context(self.target_context)
+        self.add_context(self.predicate_context)
+        self.emit_context()
         self.cx_identifier_to_citation_map = {}
 
         network_name = ntpath.basename(filename)
@@ -177,12 +181,6 @@ class TSV2CXConverter:
                     row_count = row_count + 1
                 if max_rows and row_count > max_rows:
                     break
-
-        # We add the citations aspect to cx_out at the very end because
-        # they may accumulate edges over the entire TSV
-
-        # for identifier, citation in self.cx_identifier_to_citation_map.iteritems():
-        #     self.cx_out.append({'citations': [citation]})
 
         self.emit_post_metadata()
         return self.cx_out
@@ -293,14 +291,20 @@ class TSV2CXConverter:
 
             return self.handle_node(row, target_id, target_term, self.target_columns, target_node_name)
 
-    def init_context(self, context):
+    def emit_context(self):
+        if len(self.context_map.values()) > 0:
+            self.cx_out.append({"@context": [self.context_map]})
+
+    def add_context(self, context):
         if not context:
             return None
-        cx_context = {}
-        uri = context.get('uri')
         prefix = context.get('prefix')
-        cx_context = {prefix: uri}
-        self.cx_out.append({"@context": [cx_context]})
+        mapped_uri = self.context_map.get(prefix)
+        if not mapped_uri:
+            self.context_map[prefix] = context.get('uri')
+        else:
+            if not mapped_uri == context.get('uri'):
+                raise Exception("Context conflict: prefix " + prefix + ' maps to both ' + mapped_uri + ' and ' + context.get('uri'))
 
     def get_term(self, identifier, context_prefix):
         if context_prefix:
@@ -360,10 +364,10 @@ class TSV2CXConverter:
                  'i': predicate}]})
         self.edge_count += 1
 
-        # citation_plan = self.edge_plan.get('citation_plan')
-        #
-        # if citation_plan:
-        #     self.handle_citation('edges', edge_cx_id, row, citation_plan)
+        citation_plan = self.edge_plan.get('citation_plan')
+
+        if citation_plan:
+             self.handle_citation('edges', edge_cx_id, row, citation_plan)
 
         if self.edge_columns:
             for column in self.edge_columns:
@@ -387,6 +391,14 @@ class TSV2CXConverter:
 #     "attributes" : [ ]
 #   } ]
 # }
+
+# "edgeCitations": [
+# {
+# "citations": [590],
+# "po": [24]
+# }
+# ]
+
         # iterate through possible key columns:
         identifiers = []
         idType = None
@@ -414,13 +426,14 @@ class TSV2CXConverter:
                 # print identifier
 
             citation = self.cx_identifier_to_citation_map.get(identifier)
+
             if not citation:
-                # need to create a new citation
+                # no citation found by that id. create a new citation
                 citation_cx_id = self.get_cx_id_for_identifier('citations', identifier, False)
                 citation = {"@id": citation_cx_id,
                             "dc:identifier": identifier,
-                            "dc:type": citation_cx_id,
-                            'edges': []}
+                            "dc:type": citation_cx_id
+                            }
                 self.cx_identifier_to_citation_map[identifier] = citation
                 # add title and contributors if known
                 title_column = citation_plan.get('title_column')
@@ -435,10 +448,15 @@ class TSV2CXConverter:
                     contributors_string = row.get(contributors_column)
                     contributors = contributors_string.split(';')
                     if contributors:
-                        citation['contributors'] = contributors
+                        citation['dc:contributors'] = contributors
 
-            # now we need to add the edge id to the citation's edges or nodes
-            citation[aspect].append(element_id)
+                self.cx_out.append({'citations': [citation]})
 
-            # we don't output the citation now.  Wait until all elements have been processed
+            citation_id = citation.get('@id')
+            # now we need to output the edgeCitation or nodeCitation aspect
+            if aspect == 'edges':
+                self.cx_out.append({'edgeCitations': [{'po': [identifier], 'citations' : [citation_id]}]})
+
+
+
 

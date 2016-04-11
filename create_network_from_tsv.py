@@ -55,7 +55,7 @@ try:
     # print json.dumps(cx)
 
     for element in cx:
-        print element
+        print json.dumps(element)
 
     cx_stream = tsv_converter.convert_cx_to_stream(cx)
 
