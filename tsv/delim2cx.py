@@ -428,11 +428,11 @@ class TSV2CXConverter:
             citation = self.cx_identifier_to_citation_map.get(identifier)
 
             if not citation:
-                # no citation found by that id. create a new citation
-                citation_cx_id = self.get_cx_id_for_identifier('citations', identifier, False)
+                # no citation found by that identifier. create a new citation
+                citation_cx_id = self.get_cx_id_for_identifier('citations', identifier, True)
                 citation = {"@id": citation_cx_id,
                             "dc:identifier": identifier,
-                            "dc:type": citation_cx_id
+                            "dc:type": citation_id_type
                             }
                 self.cx_identifier_to_citation_map[identifier] = citation
                 # add title and contributors if known
@@ -440,7 +440,7 @@ class TSV2CXConverter:
                 if title_column:
                     title = row.get(title_column)
                     if title:
-                        citation['title'] = title
+                        citation['dc:title'] = title
 
                 # add title and contributors if known
                 contributors_column = citation_plan.get('contributors_column')
@@ -455,7 +455,7 @@ class TSV2CXConverter:
             citation_id = citation.get('@id')
             # now we need to output the edgeCitation or nodeCitation aspect
             if aspect == 'edges':
-                self.cx_out.append({'edgeCitations': [{'po': [identifier], 'citations' : [citation_id]}]})
+                self.cx_out.append({'edgeCitations': [{'po': [element_id], 'citations' : [citation_id]}]})
 
 
 
