@@ -174,7 +174,8 @@ class TSV2CXConverter:
         self.cx_out.append({"networkAttributes" : [ {"n" : "name", "v" : network_name} ]})
 
         with open(filename, 'rU') as tsvfile:
-            reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab')
+            header = [h.strip() for h in tsvfile.next().split('\t')]
+            reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab', fieldnames=header)
             row_count = 0
             for row in reader:
                 if self.handle_row(row):
