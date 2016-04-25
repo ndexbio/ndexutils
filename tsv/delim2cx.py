@@ -69,8 +69,8 @@ default_specs = {
 class TSV2CXConverter:
     def __init__(self, plan):
 
+        self.plan = plan
         self.default_context = plan.get('default_context')
-
         self.source_plan = plan.get('source_plan')
         self.source_use_names_as_identifiers = False
         self.target_use_names_as_identifiers = False
@@ -151,6 +151,31 @@ class TSV2CXConverter:
         stream = io.BytesIO(json.dumps(cx))
         return stream
 
+    def check_header_vs_plan(self, header):
+        # each column name referenced in the plan must be in the header, otherwise raise an exception
+        if self.source_plan:
+            self.check_column(self.source_plan.get('id_column'), header)
+            self.check_column(self.source_plan.get('node_name_column'), header)
+            for column_name in self.source_plan.get('property_columns'):
+                self.check_column(column_name, header)
+
+        if self.target_plan:
+            self.check_column(self.target_plan.get('id_column'), header)
+            self.check_column(self.target_plan.get('node_name_column'), header)
+            for column_name in self.target_plan.get('property_columns'):
+                self.check_column(column_name, header)
+
+        if self.edge_plan:
+            self.check_column(self.edge_plan.get('id_column'), header)
+            self.check_column(self.edge_plan.get('predicate_id_column'), header)
+            for column_name in self.edge_plan.get('property_columns'):
+                self.check_column(column_name, header)
+
+    def check_column(self, column_name, header):
+        if column_name:
+            if not column_name in header:
+                raise Exception("Error in import plan: column name " + column_name + " in import plan is not in header " + str(header))
+
     def convert_tsv_to_cx(self, filename, max_rows = None):
         self.identifier_to_cx_id_map = {
             "nodes": {},
@@ -175,6 +200,7 @@ class TSV2CXConverter:
 
         with open(filename, 'rU') as tsvfile:
             header = [h.strip() for h in tsvfile.next().split('\t')]
+            self.check_header_vs_plan(header);
             reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab', fieldnames=header)
             row_count = 0
             for row in reader:
@@ -195,7 +221,7 @@ class TSV2CXConverter:
             {'idCounter': self.edge_count, 'name': 'edges'}
         ]})
 
-    def check_string(self, my_string):
+    def check_string(self, my_string, context = ""):
         if my_string:
             if my_string == "":
                 print "Skipping Blank String"
@@ -210,7 +236,7 @@ class TSV2CXConverter:
             else:
                 return True
         else:
-            print "Skipping Null String"
+            print "Skipping Null String " + context
             return False
 
     def handle_row(self, row):
@@ -274,7 +300,7 @@ class TSV2CXConverter:
 
         else:
             target_id = row.get(self.target_id_column)
-            if not self.check_string(target_id):
+            if not self.check_string(target_id, 'target_id in ' + self.target_id_column):
                 return False
 
             prefix = None
