@@ -14,7 +14,7 @@ class PathwayCommonsV2:
         self.formats = ["BINARY_SIF", "BIOPAX", "EXTENDED_BINARY_SIF", "GSEA", "SBGN"]
 
         # convenience map of datasource abbreviations to the Pathway Commons Web Service V7 uri
-        self.datasources = {
+        self.datasourcesv7 = {
             "reactome": {
                 "uri": "http://purl.org/pc2/7/reactome_human",
                 "pathways": 1597
@@ -80,6 +80,71 @@ class PathwayCommonsV2:
             }
         }
 
+
+        # convenience map of datasource abbreviations to the Pathway Commons Web Service V8 uri
+        self.datasources = {
+            "reactome": {
+                "uri": "http://www.pathwaycommons.org/pc2/reactome_human",
+            },
+            "pid": {
+                "uri": "http://www.pathwaycommons.org/pc2/pid",
+            },
+            "phosphositeplus": {
+                "uri": "http://www.pathwaycommons.org/pc2/psp"
+            },
+            "humancyc": {
+                "uri": "http://www.pathwaycommons.org/pc2/hprd",
+            },
+            "hprd": {
+                "uri": "http://www.pathwaycommons.org/pc2/pid"
+            },
+            "panther": {
+                "uri": "http://www.pathwaycommons.org/pc2/panther_human",
+            },
+            "dip": {
+                "uri": "http://www.pathwaycommons.org/pc2/dip_human"
+            },
+            "biogrid": {
+                "uri": "http://www.pathwaycommons.org/pc2/biogrid_human"
+            },
+            "intact": {
+                "uri": "http://www.pathwaycommons.org/pc2/intact_human"
+            },
+            "intactcomplex": {
+                "uri": "http://www.pathwaycommons.org/pc2/intact_complex_human"
+            },
+            "bind": {
+                "uri": "http://www.pathwaycommons.org/pc2/bind_human",
+            },
+            "corum": {
+                "uri": "http://www.pathwaycommons.org/pc2/corum_human"
+            },
+            "transfac": {
+                "uri": "http://www.pathwaycommons.org/pc2/transfac",
+                "pathways": 427
+            },
+            "mirtarbase": {
+                "uri": "http://www.pathwaycommons.org/pc2/mirtarbase_human",
+                "pathways": 5
+            },
+            "drugbank": {
+                "uri": "http://www.pathwaycommons.org/pc2/drugbank"
+            },
+            "reconx": {
+                "uri": "http://www.pathwaycommons.org/pc2/reconx",
+                "pathways": 1
+            },
+            "ctd": {
+                "uri": "http://www.pathwaycommons.org/pc2/ctdbase",
+                "pathways": 28155
+            },
+            "kegg": {
+                "uri": "http://www.pathwaycommons.org/pc2/kegg_hsa",
+                "pathways": 195
+            }
+        }
+
+
     def check_datasource(self, datasource_abbreviation):
         checked = datasource_abbreviation.lower()
         if self.datasources.get(checked):
@@ -118,7 +183,7 @@ class PathwayCommonsV2:
         datasource = self.datasources.get(datasource_abbreviation)
 
         # compose the uri to get the "top pathways" for the datasource
-        uri = self.pc_service_base_uri + "top_pathways.json?datasource=" + datasource.get("uri")
+        uri = self.pc_service_base_uri + "top_pathways.json?datasource=" + datasource_abbreviation
         print "GET " + uri
 
         # perform the request and check the status
