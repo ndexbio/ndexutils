@@ -11,7 +11,7 @@ class PathwayCommonsV2:
     def __init__(self):
         self.pc_service_base_uri = "http://www.pathwaycommons.org/pc2/"
 
-        self.formats = ["BINARY_SIF", "BIOPAX", "EXTENDED_BINARY_SIF", "GSEA", "SBGN"]
+        self.formats = ["BINARY_SIF", "BIOPAX", "EXTENDED_BINARY_SIF", "GSEA", "SBGN", "JSONLD"]
 
         # convenience map of datasource abbreviations to the Pathway Commons Web Service V7 uri
         self.datasourcesv7 = {
@@ -174,6 +174,8 @@ class PathwayCommonsV2:
             return "txt"
         if format == "SBGN":
             return "sbgn"
+        if format == "JSONLD":
+            return "json"
         else:
             return "txt"
 
