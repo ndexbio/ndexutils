@@ -6,6 +6,9 @@ import json
 import ndex.client as nc
 import requests
 import os
+import networkx as nx
+from ndex.networkn import NdexGraph
+
 
 # body
 
@@ -59,8 +62,40 @@ try:
 
     cx_stream = tsv_converter.convert_cx_to_stream(cx)
 
-    response_json = my_ndex.save_cx_stream_as_new_network(cx_stream)
 
+    #====================================
+    # Create Networkn obj and populate
+    # it with the tsv data.
+    #====================================
+
+
+    '''Gsmall = nx.Graph()
+
+    Gsmall.add_weighted_edges_from(main_data_tuples)
+
+    export_edges = Gsmall.edges()
+    export_nodes = Gsmall.nodes()
+
+    #ndex_gsmall = NdexGraph(networkx_G=Gsmall)
+    ndex_gsmall = NdexGraph()
+    ndex_nodes_dict = {}
+
+    for export_node in export_nodes:
+        ndex_nodes_dict[export_node] = ndex_gsmall.add_new_node(export_node)
+
+    for export_edge in export_edges:
+        ndex_gsmall.add_edge_between(ndex_nodes_dict[export_edge[0]],ndex_nodes_dict[export_edge[1]])
+        #print export_edge[0] + ' ' + export_edge[1]
+        #print str(ndex_nodes_dict[export_edge[0]]) + ' ' + str(ndex_nodes_dict[export_edge[1]])
+
+    ndex_gsmall.write_to('../../cx/' + elasticId + '_manual.cx')
+
+
+
+
+
+    response_json = my_ndex.save_cx_stream_as_new_network(cx_stream)
+'''
 
 
     # # OLD Prototype CODE

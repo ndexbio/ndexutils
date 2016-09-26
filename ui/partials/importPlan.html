@@ -1,0 +1,148 @@
+<div>
+    <input type="file" file-reader="fileContent" csv-sample="csvSampleArray" file-header="info.fileHeader" ng-click="clearBoxes()"/>
+    <p>&nbsp;</p>
+
+    <!--==================-->
+    <!-- PREVIEW TABLE    -->
+    <!--==================-->
+    <div ng-if="csvSampleArray" style="overflow-x: auto;">
+        <table class="table table-striped">
+            <tr ng-if="$index == 0" ng-repeat="csvLine in csvSampleArray">
+                <td><a ng-click="clearSelectedHeader()" style="cursor: pointer;">Clear</a></td>
+
+                <td ng-repeat="tabbedItem in csvLine" ng-init="buttonSelected=false">
+                    <button style="cursor: move;" class="btn"  ng-class="info.fileHeader[$index].selected ? 'btn-success': 'btn-default'"
+                            ng-drag="true" ng-drag-data="info.fileHeader[$index]" data-allow-transform="false" >{{tabbedItem}} </button>
+                </td>
+            </tr>
+            <tr ng-if="$index != 0" ng-repeat="csvLine in csvSampleArray track by $index">
+                <td></td>
+                <td ng-repeat="tabbedItem in csvLine track by $index">{{tabbedItem}}</td>
+            </tr>
+            <tr><td colspan="100">...</td></tr>
+        </table>
+    </div>
+    <hr style="margin-top: 2px;" ng-if="csvSampleArray"/>
+
+    <!--==================-->
+    <!-- ACCORDIAN        -->
+    <!--==================-->
+    <div id="accordion" role="tablist" aria-multiselectable="true" ng-if="csvSampleArray">
+        <!--==================-->
+        <!-- SOURCE PLAN      -->
+        <!--==================-->
+        <div class="panel panel-default" style="margin-bottom: 3px;">
+            <div class="panel-heading" role="tab" id="headingOne">
+                <h4 class="panel-title">
+                    <a data-toggle="collapse" data-parent="#accordion" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne" style="cursor: pointer;">
+                        Source Plan <small>Expand this section to drag and drop fields</small>
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+                <import-plan-buckets plan-data="info.sp.source_plan" on-drop-complete="onDropComplete1(data, evt, planType, planElementType)" plan-type="'SOURCE'"></import-plan-buckets>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group" style="width: 200px; margin-left: 20px;">
+                            <label class="control-label">Context Prefix</label>
+                            <select id="spContext" class="form-control" ng-model="info.sp.context.prefix">
+                                <option ng-repeat="context in contexts" ng-selected="context.selected" ng-model="context.tag">{{context.tag}}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group" style="width: 200px; margin-left: 20px;">
+                            <label class="control-label">Context URI</label>
+                            <select id="spContextURI" class="form-control" ng-model="info.sp.context.uri">
+                                <option ng-repeat="context in contextURIs" ng-selected="context.selected" ng-model="context.tag">{{context.tag}}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+        <!--==================-->
+        <!-- TARGET PLAN      -->
+        <!--==================-->
+        <div class="panel panel-default" style="margin-bottom: 3px;">
+            <div class="panel-heading" role="tab" id="headingTwo">
+                <h4 class="panel-title">
+                    <a class="collapsed" data-toggle="collapse" data-parent="#accordion" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo" style="cursor: pointer;">
+                        Target Plan <small>Expand this section to drag and drop fields</small>
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseTwo" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingTwo">
+                <import-plan-buckets plan-data="info.tp.target_plan" on-drop-complete="onDropComplete1(data, evt, planType, planElementType)" plan-type="'TARGET'"></import-plan-buckets>
+
+                <div class="form-group" style="width: 200px; margin-left: 20px;">
+                    <label class="control-label">Context URI</label>
+                    <select id="tpContext" class="form-control" ng-model="info.tp.context">
+                        <option ng-repeat="context in contexts" ng-selected="context.selected" ng-model="context.tag">{{context.tag}}</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <!--==================-->
+        <!-- EDGE PLAN        -->
+        <!--==================-->
+        <div class="panel panel-default" style="margin-bottom: 3px;">
+            <div class="panel-heading" role="tab" id="headingThree">
+                <h4 class="panel-title">
+                    <a class="collapsed" data-toggle="collapse" data-parent="#accordion" data-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree" style="cursor: pointer;">
+                        Edge Plan <small>Expand this section to drag and drop fields</small>
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseThree" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingThree">
+                <import-plan-buckets plan-data="info.ep.edge_plan" on-drop-complete="onDropComplete1(data, evt, planType, planElementType)" plan-type="'EDGE'"></import-plan-buckets>
+
+                <div class="form-group" style="width: 200px; margin-left: 20px;">
+                    <label class="control-label">Context URI</label>
+                    <select id="epContext" class="form-control" ng-model="info.ep.context">
+                        <option ng-repeat="context in contexts" ng-selected="context.selected" ng-model="context.tag">{{context.tag}}</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <!--==================-->
+        <!-- CITATION PLAN    -->
+        <!--==================-->
+        <div class="panel panel-default" style="margin-bottom: 3px;">
+            <div class="panel-heading" role="tab" id="headingFour">
+                <h4 class="panel-title">
+                    <a class="collapsed" data-toggle="collapse" data-parent="#accordion" data-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour" style="cursor: pointer;">
+                        Citation Plan <small>Expand this section to drag and drop fields</small>
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseFour" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingFour">
+                <import-plan-buckets plan-data="info.cp.citation_plan" on-drop-complete="onDropComplete1(data, evt, planType, planElementType)" plan-type="'CITATION'"></import-plan-buckets>
+            </div>
+        </div>
+    </div>
+
+    <!--==================-->
+    <!-- EXPORT PREVIEW   -->
+    <!--==================-->
+    <div ng-if="csvSampleArray">
+        <p>&nbsp;</p>
+        <button ng-show="showMore.export" class="btn btn-success" ng-click="exportPlan()">Export Plan</button>
+
+        <p>&nbsp;</p>
+
+        <pre class="alert alert-info" role="alert">{{info.sp | json}}</pre>
+        <pre class="alert alert-info" role="alert">{{info.tp | json}}</pre>
+        <pre class="alert alert-info" role="alert">{{info.ep | json}}</pre>
+        <pre class="alert alert-info" role="alert">{{info.cp | json}}</pre>
+
+    </div>
+
+    <p>&nbsp;</p>
+
+</div>

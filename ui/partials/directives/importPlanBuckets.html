@@ -1,0 +1,35 @@
+<div style="margin-left: 20px; margin-right: 20px; margin-bottom: 20px;">
+    <div class="row">
+        <div class="col-md-3">
+            <h5>ID Column: </h5>
+            <div ng-drop="true" ng-drop-success="onDropCompleteInner($data,$event, 'id_column')" style="border: 1px solid black; min-height: 100px; border-radius: 5px; padding: 10px;">
+                <div ng-if="planData.id_column" class="btn-group" role="group" aria-label="...">
+                    <button class="btn btn-blue-light" ng-drag="true" style="margin-left: 1px;" ng-drag-data="planData.id_column" ng-center-anchor="{{centerAnchor}}">
+                        {{planData.id_column}}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <h5>Node Name Column: </h5>
+            <div ng-drop="true" ng-drop-success="onDropCompleteInner($data,$event, 'node_name_column')" style="border: 1px solid black; min-height: 100px; border-radius: 5px; padding: 10px;">
+                <div ng-if="planData.node_name_column" class="btn-group" role="group" aria-label="...">
+                    <button class="btn btn-green-light" ng-drag="true" style="margin-left: 1px;" ng-drag-data="planData.node_name_column" ng-center-anchor="{{centerAnchor}}">
+                        {{planData.node_name_column}}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h5>Property Columns: </h5>
+            <div ng-drop="true" ng-drop-success="onDropCompleteInner($data,$event,'property_columns')" style="border: 1px solid black; min-height: 100px; border-radius: 5px; padding: 10px;">
+                <div  role="group" aria-label="...">
+                    <button ng-repeat="obj in planData.property_columns" class="btn btn-orange-light" ng-drag="true" style="margin-right: 8px; margin-bottom: 8px;"
+                            ng-drag-data="obj" ng-center-anchor="{{centerAnchor}}">
+                        {{obj}}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

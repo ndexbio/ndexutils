@@ -5,6 +5,9 @@ import csv
 import io
 import json
 import ntpath
+import networkx as nx
+from ndex.networkn import NdexGraph
+from bson.json_util import dumps
 
 # convert a delimited file of CX based on a JSON 'plan' specifying mapping of
 # column values to edges, source nodes, and target nodes
@@ -73,7 +76,7 @@ class TSV2CXConverter:
         self.default_context = plan.get('default_context')
         self.source_plan = plan.get('source_plan')
         self.source_use_names_as_identifiers = False
-        self.target_use_names_as_identifiers = False
+        self.target_use_names_as_identifiers = True
 
         self.node_count = 0
         self.edge_count = 0
@@ -106,6 +109,8 @@ class TSV2CXConverter:
                 raise Exception("Invalid Plan: no target id or target name column")
             if not self.target_id_column:
                 self.target_use_names_as_identifiers = True
+            if not self.target_node_name_column:
+                self.target_use_names_as_identifiers = False
             self.target_columns = self.target_plan.get('property_columns')
 
         self.edge_plan = plan.get('edge_plan')
@@ -127,7 +132,9 @@ class TSV2CXConverter:
         }
         self.id_counter = 1000
         self.cx_out = []
+        self.G_nx = nx.Graph()
 
+       #get_cx_id_for_identifier('citations', identifier, True)
     def get_cx_id_for_identifier(self, aspect, identifier, create=True):
         aspect_map = self.identifier_to_cx_id_map.get(aspect)
         cx_id = aspect_map.get(identifier)
@@ -176,6 +183,209 @@ class TSV2CXConverter:
             if not column_name in header:
                 raise Exception("Error in import plan: column name " + column_name + " in import plan is not in header " + str(header))
 
+    #==================================
+    # CONVERT TSV TO CX USING Network_n
+    #==================================
+    def convert_tsv_to_cx_using_networkn(self, filename, max_rows = None):
+        with open(filename, 'rU') as tsvfile:
+            header = [h.strip() for h in tsvfile.next().split('\t')]
+            self.check_header_vs_plan(header);
+            reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab', fieldnames=header)
+            row_count = 0
+            for row in reader:
+                if self.process_row(row):
+                    row_count = row_count + 1
+                if max_rows and row_count > max_rows:
+                    break
+
+        export_edges = self.G_nx.edges(data=True)
+        export_nodes = self.G_nx.nodes(True)
+
+        ndex_gsmall = NdexGraph()
+        ndex_nodes_dict = {}
+
+        for export_node in export_nodes:
+            ndex_nodes_dict[export_node[0]] = ndex_gsmall.add_new_node(export_node[0],export_node[1])
+
+        for export_edge in export_edges:
+            ndex_gsmall.add_edge_between(ndex_nodes_dict[export_edge[0]],ndex_nodes_dict[export_edge[1]], attr_dict=export_edge[2])
+
+        ndex_gsmall.write_to('../cx/test2_manual.cx')
+
+        self.emit_post_metadata()
+
+        return self.cx_out
+
+    #==================================
+    # HANDLE ROW USING Networkn
+    # Added by Aaron G
+    #==================================
+    def process_row(self, row):
+        edge_info = {}
+
+        # For each row, we create an edge + edge properties
+        # For that edge, we may create elements if they are new
+        # - source node + properties
+        # - target node + properties
+        # - predicate term
+
+        source_info = self.get_source_info(row)
+        target_info = self.get_target_info(row)
+
+        if(not source_info or not target_info):
+            return False
+        else:
+            edge_info = self.get_edge_info(row, source_info['source_node_name'], target_info['target_node_name'])
+
+        self.G_nx.add_node(source_info['source_node_name'], source_info['source_node_attr'])
+        self.G_nx.add_node(target_info['target_node_name'], target_info['target_node_attr'])
+        self.G_nx.add_edge(source_info['source_node_name'], target_info['target_node_name'], edge_info['edge_attr'])
+
+        if(not edge_info):
+            return False
+        else:
+            return True
+
+    #==================================
+    # GET SOURCE NODE INFO
+    # Added by Aaron G
+    #==================================
+    def get_source_info(self, row):
+        return_source_dict = {}
+        source_node_name = ''
+
+        #=======================================
+        # Set up node name based on import plan
+        #=======================================
+        if self.source_use_names_as_identifiers:
+            source_node_name = row.get(self.source_node_name_column)
+            if not self.check_string(source_node_name):
+                return False
+        else:
+            source_id = row.get(self.source_id_column)
+            if not self.check_string(source_id):
+                return False
+
+            if self.source_node_name_column:
+                source_node_name = row.get(self.source_node_name_column)
+                if not self.check_string(source_node_name):
+                    return False
+            else:
+                return False
+
+        node_attr = {}
+        if self.source_columns:
+            for column in self.source_columns:
+                value = row.get(column)
+                if value:
+                    node_attr[column] = value
+
+        return_source_dict['source_node_name'] = source_node_name
+        return_source_dict['source_node_attr'] = node_attr
+
+        #print dumps(return_source_dict)
+        return return_source_dict
+
+
+    #==================================
+    # GET TARGET NODE INFO
+    # Added by Aaron G
+    #==================================
+    def get_target_info(self, row):
+        return_source_dict = {}
+        target_node_name = ''
+
+        #=======================================
+        # Set up node name based on import plan
+        #=======================================
+        if self.target_use_names_as_identifiers:
+            target_node_name = row.get(self.target_node_name_column)
+            if not self.check_string(target_node_name):
+                return False
+        else:
+            target_id = row.get(self.target_id_column)
+            if not self.check_string(target_id, 'target_id in ' + self.target_id_column):
+                return False
+
+            prefix = None
+            if self.target_context:
+                prefix = self.target_context.get('prefix')
+
+            target_term = self.get_term(target_id, prefix)
+
+            if self.target_node_name_column:
+                target_node_name = row.get(self.target_node_name_column)
+                if not self.check_string(target_node_name):
+                    return False
+            elif self.target_id_column:
+                target_node_name = row.get(self.target_id_column)
+                if not self.check_string(target_node_name):
+                    return False
+            else:
+                target_node_name = None
+
+        node_attr = {}
+        if self.source_columns:
+            for column in self.source_columns:
+                value = row.get(column)
+                if value:
+                    node_attr[column] = value
+
+        return_source_dict['target_node_name'] = target_node_name
+        return_source_dict['target_node_attr'] = node_attr
+
+        #print dumps(return_source_dict)
+        return return_source_dict
+
+    #==================================
+    # GET EDGE INFO
+    # Added by Aaron G
+    #==================================
+    def get_edge_info(self, row, source_node_name, target_node_name):
+        return_edge_dict = {}
+        edge_cx_id = self.get_next_cx_id()
+
+        if self.predicate_id_column:
+            predicate_string = row.get(self.predicate_id_column)
+        else:
+            predicate_string = self.default_predicate
+
+        if self.predicate_context and self.predicate_context.get('prefix'):
+            predicate_prefix = self.predicate_context.get('prefix')
+
+        else:
+            predicate_prefix = None
+
+        predicate = self.get_term(predicate_string, predicate_prefix)
+
+        citation_plan = self.edge_plan.get('citation_plan')
+
+        #if citation_plan:
+        #   self.handle_citation('edges', edge_cx_id, row, citation_plan)
+
+        edge_attr = {}
+        if self.edge_columns:
+            for column in self.edge_columns:
+                value = row.get(column)
+                if value:
+                    edge_attr[column] = value
+
+        return_edge_dict['edge_source_name'] = source_node_name
+        return_edge_dict['edge_target_name'] = target_node_name
+        return_edge_dict['edge_attr'] = edge_attr
+        self.edge_count += 1
+
+        #print dumps(return_edge_dict)
+        return return_edge_dict
+
+
+
+
+
+
+
+
+
     def convert_tsv_to_cx(self, filename, max_rows = None):
         self.identifier_to_cx_id_map = {
             "nodes": {},
@@ -210,6 +420,7 @@ class TSV2CXConverter:
                     break
 
         self.emit_post_metadata()
+        print dumps(self.cx_out)
         return self.cx_out
 
     def emit_number_verification(self):
@@ -246,6 +457,10 @@ class TSV2CXConverter:
         # - source node + properties
         # - target node + properties
         # - predicate term
+
+        source_info = self.get_source_info(row)
+        target_info = self.get_target_info(row)
+
         source_node_cx_id = self.handle_row_source(row)
         if not source_node_cx_id:
             print "Skipping Bad Row (source problem) :" + str(row)
