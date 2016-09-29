@@ -1,12 +1,36 @@
 import csv
 import ndex.networkn as networkn
+from os import listdir, makedirs
+from os.path import isfile, isdir, join, abspath, dirname, exists, basename, splitext
+import ndex.beta.layouts as layouts
+import ndex.beta.toolbox as toolbox
 
-def load_ebs_file(filename):
+def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layout=None):
+    network_id_map={}
+    for filename in listdir(dirpath):
+        path = join(dirpath, filename)
+        network_name = basename(path)
+        ebs_network = load_ebs_file_to_network(path)
+        if layout:
+            if layout.get("name") is "causal_flow":
+                layouts.apply_directed_flow_layout(ebs_network, directed_edge_types=layout.get("directed_edge_types"))
+        if template_network:
+            toolbox.apply_network_as_template(template_network)
+
+        network_id =ndex.save_cx_stream_as_new_network(self.to_cx_stream())
+        network_id_map[network_name]=network_id
+    if groupname:
+        ndex.grant_networks_to_group(groupname, network_id_map.values())
+    return network_id_map
+
+
+def load_ebs_file_to_network(path):
     edge_table = []
     node_table = []
     ebs = {"edge_table":edge_table, "node_table": node_table}
+    network_name = path
 
-    with open(filename, 'rU') as f:
+    with open(path, 'rU') as f:
         lines = f.readlines()
         mode = "edge"
         edge_lines = []

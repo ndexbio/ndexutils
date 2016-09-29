@@ -10,7 +10,7 @@ import ndex.beta.toolbox as toolbox
 # - node type
 # - nicer cytoscape style template
 # - cravat group
-# - filter orphans
+# - (tested) filter orphans
 # - load-ebs directory host group username password
 # - generate description
 
