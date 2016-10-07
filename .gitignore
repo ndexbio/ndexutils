@@ -2,8 +2,6 @@
 
 .idea
 session/*
-import/*
-import_plans/*
 downloads/*
 *.pyc
 
