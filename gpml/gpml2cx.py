@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-path = "/Users/dexter/Downloads/WP3895_89784.gpml"
+path = "../test_dir/WP3895_89784.gpml"
 tree = ET.parse(path)
 root = tree.getroot()
 for child in root:

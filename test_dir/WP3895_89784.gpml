@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Pathway xmlns="http://pathvisio.org/GPML/2013a" Name="fun with RB" Author="Dexter Pratt" Organism="Homo sapiens">
+  <Graphics BoardWidth="754.0" BoardHeight="281.0" />
+  <DataNode TextLabel="MDM2" GraphId="eab4b" Type="Protein">
+    <Graphics CenterX="288.25" CenterY="70.75" Width="77.5" Height="18.5" ZOrder="32772" FontSize="10" Valign="Middle" />
+    <Xref Database="HGNC" ID="MDM2" />
+  </DataNode>
+  <DataNode TextLabel="P53&#xA;" GraphId="b95a2" Type="Protein">
+    <Graphics CenterX="299.0" CenterY="147.0" Width="80.0" Height="20.0" ZOrder="32773" FontSize="10" Valign="Middle" />
+    <Xref Database="HGNC" ID="TP53" />
+  </DataNode>
+  <Interaction GraphId="fd0d4">
+    <Graphics ZOrder="32769" LineThickness="1.0">
+      <Point X="299.0" Y="157.0" GraphRef="b95a2" RelX="0.0" RelY="1.0" />
+      <Point X="303.75" Y="222.5" GraphRef="ff3ae" RelX="0.0" RelY="-1.0" ArrowHead="mim-stimulation" />
+    </Graphics>
+    <Xref Database="" ID="" />
+  </Interaction>
+  <Interaction GraphId="b1562">
+    <Graphics ZOrder="32770" LineThickness="1.0">
+      <Point X="288.25" Y="80.0" GraphRef="eab4b" RelX="0.0" RelY="1.0" />
+      <Point X="299.0" Y="137.0" GraphRef="b95a2" RelX="0.0" RelY="-1.0" ArrowHead="mim-inhibition" />
+    </Graphics>
+    <Xref Database="" ID="" />
+  </Interaction>
+  <Shape TextLabel="Apoptosis" GraphId="ff3ae">
+    <Graphics CenterX="303.75" CenterY="236.75" Width="100.5" Height="28.5" ZOrder="32771" FontSize="10" Valign="Middle" ShapeType="Rectangle" Rotation="0.0" />
+  </Shape>
+  <InfoBox CenterX="0.0" CenterY="0.0" />
+  <Biopax />
+</Pathway>

@@ -1,30 +1,51 @@
 import csv
-import ndex.networkn as networkn
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, abspath, dirname, exists, basename, splitext
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
+from ndex.networkn import NdexGraph
 
-def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layout=None):
+def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layout=None, remove_orphans=False, max=None):
     network_id_map={}
+    network_count = 0
+    print "max files: " + str(max)
     for filename in listdir(dirpath):
+        network_count = network_count + 1
+        if max is not None and network_count >= max:
+            break
+
+        print "loading ebs file #" + str(network_count) + ": " + filename
         path = join(dirpath, filename)
         network_name = basename(path)
-        ebs_network = load_ebs_file_to_network(path)
-        if layout:
-            if layout.get("name") is "causal_flow":
-                layouts.apply_directed_flow_layout(ebs_network, directed_edge_types=layout.get("directed_edge_types"))
-        if template_network:
-            toolbox.apply_network_as_template(template_network)
+        ebs = load_ebs_file_to_dict(path)
+        ebs_network = ebs_to_network(ebs, name=network_name)
 
-        network_id =ndex.save_cx_stream_as_new_network(self.to_cx_stream())
+        print "layout: " + str(layout)
+        if layout is not None:
+
+            if layout == "directed_flow":
+                print "applying directed_flow layout"
+                layouts.apply_directed_flow_layout(ebs_network)
+
+        print "template network: " + str(template_network)
+        if isinstance(template_network, NdexGraph):
+            print "applying template style"
+            toolbox.apply_network_as_template(ebs_network, template_network)
+
+        if remove_orphans:
+            print "removing orphans"
+            ebs_network.remove_orphans()
+
+        print "saving network"
+        network_id =ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
         network_id_map[network_name]=network_id
+
     if groupname:
+        print "granting networks to group " + groupname
         ndex.grant_networks_to_group(groupname, network_id_map.values())
     return network_id_map
 
-
-def load_ebs_file_to_network(path):
+def load_ebs_file_to_dict(path):
     edge_table = []
     node_table = []
     ebs = {"edge_table":edge_table, "node_table": node_table}
@@ -77,13 +98,12 @@ def load_ebs_file_to_network(path):
 # chemical-affects	                A small molecule has an effect on the protein state.
 # reacts-with	                    Small molecules are input to a biochemical reaction.
 # used-to-produce	                A reaction consumes a small molecule to produce another small molecule.
-def _is_causal(rel):
+def _is_directed(rel):
     if rel in ["controls-state-change-of",
                 "controls-transport-of",
                 "controls-phosphorylation-of",
                 "controls-expression-of",
                 "catalysis-precedes",
-                "in-complex-with",
                 "controls-production-of",
                 "controls-transport-of-chemical",
                 "chemical-affects",
@@ -111,23 +131,27 @@ def _get_node_type(ebs_type):
         return "Rna"
     return "Other"
 
-def ebs_to_network(ebs, remove_orphan_nodes=True):
-    G = networkn.NdexGraph()
-    G.set_name("test")
+def ebs_to_network(ebs, name="not named"):
+    G = NdexGraph()
+    G.set_name(name)
     node_id_map = {}
     # Create Nodes
     # PARTICIPANT	PARTICIPANT_TYPE	PARTICIPANT_NAME	UNIFICATION_XREF	RELATIONSHIP_XREF
     for node in ebs.get("node_table"):
         attributes = {}
         participant = node.get("PARTICIPANT")
+        participant_name = node.get("PARTICIPANT_NAME")
+        if participant_name is not None:
+            attributes["name"] = participant_name
+        attributes["type"] = _get_node_type(node.get("PARTICIPANT_TYPE"))
         aliases = node.get("UNIFICATION_XREF")
         if aliases is not None and aliases is not "":
             attributes["aliases"] = aliases.split(",")
-
-        attributes["type"] = _get_node_type(node.get("PARTICIPANT_TYPE"))
+            #attributes["represents"] = aliases[0] - can't take first alias for ebs. Need to resolve uniprot primary id for the gene
 
         node_id = G.add_new_node(participant, attributes)
         node_id_map[participant] = node_id
+
 
     # Create Edges
     # PARTICIPANT_A	INTERACTION_TYPE	PARTICIPANT_B	INTERACTION_DATA_SOURCE	INTERACTION_PUBMED_ID	PATHWAY_NAMES	MEDIATOR_IDS
@@ -136,7 +160,7 @@ def ebs_to_network(ebs, remove_orphan_nodes=True):
         if _is_filtered(interaction):
             continue
         attributes = {}
-        attributes["causal"] = _is_causal(interaction)
+        attributes["directed"] = _is_directed(interaction)
 
         pmid = edge.get("INTERACTION_PUBMED_ID")
         if pmid is not None and pmid is not "":
@@ -144,8 +168,5 @@ def ebs_to_network(ebs, remove_orphan_nodes=True):
         source_node_id = node_id_map.get(edge.get("PARTICIPANT_A"))
         target_node_id = node_id_map.get(edge.get("PARTICIPANT_B"))
         G.add_edge_between(source_node_id, target_node_id, interaction=interaction, attr_dict=attributes)
-
-    if remove_orphan_nodes:
-        G.remove_orphans()
     return G
 
