@@ -1,14 +1,10 @@
 __author__ = 'dexter'
 
-import tsv.cx2ndex as c2n
 import tsv.delim2cx as d2c
 import json
 import ndex.client as nc
 import requests
 import os
-import networkx as nx
-from ndex.networkn import NdexGraph
-
 
 # body
 
@@ -53,20 +49,24 @@ try:
 
     print "loading tsv from: " + tsv_filename
 
-    cx = tsv_converter.convert_tsv_to_cx(tsv_filename)
+    cx = tsv_converter.convert_tsv_to_cx_using_networkn(tsv_filename)
 
-    # print json.dumps(cx)
+    #cx = tsv_converter.convert_tsv_to_cx(tsv_filename)
+
+    print json.dumps(cx)
 
     #for element in cx:
     #    print json.dumps(element)
 
-    cx_stream = tsv_converter.convert_cx_to_stream(cx)
+    #cx_stream = tsv_converter.convert_cx_to_stream(cx)
 
 
     #====================================
     # Create Networkn obj and populate
     # it with the tsv data.
     #====================================
+
+    response_json = my_ndex.save_cx_stream_as_new_network(cx_stream)
 
 
     '''Gsmall = nx.Graph()
@@ -90,11 +90,6 @@ try:
 
     ndex_gsmall.write_to('../../cx/' + elasticId + '_manual.cx')
 
-
-
-
-
-    response_json = my_ndex.save_cx_stream_as_new_network(cx_stream)
 '''
 
 

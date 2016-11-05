@@ -7,7 +7,7 @@ import json
 import ntpath
 import networkx as nx
 from ndex.networkn import NdexGraph
-from bson.json_util import dumps
+from json import dumps
 
 # convert a delimited file of CX based on a JSON 'plan' specifying mapping of
 # column values to edges, source nodes, and target nodes
@@ -189,7 +189,7 @@ class TSV2CXConverter:
     def convert_tsv_to_cx_using_networkn(self, filename, max_rows = None):
         with open(filename, 'rU') as tsvfile:
             header = [h.strip() for h in tsvfile.next().split('\t')]
-            self.check_header_vs_plan(header);
+            self.check_header_vs_plan(header)
             reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab', fieldnames=header)
             row_count = 0
             for row in reader:
@@ -210,7 +210,7 @@ class TSV2CXConverter:
         for export_edge in export_edges:
             ndex_gsmall.add_edge_between(ndex_nodes_dict[export_edge[0]],ndex_nodes_dict[export_edge[1]], attr_dict=export_edge[2])
 
-        ndex_gsmall.write_to('../cx/test2_manual.cx')
+        #ndex_gsmall.write_to('../cx/test2_manual.cx')
 
         self.emit_post_metadata()
 
@@ -379,13 +379,6 @@ class TSV2CXConverter:
         return return_edge_dict
 
 
-
-
-
-
-
-
-
     def convert_tsv_to_cx(self, filename, max_rows = None):
         self.identifier_to_cx_id_map = {
             "nodes": {},
@@ -410,7 +403,7 @@ class TSV2CXConverter:
 
         with open(filename, 'rU') as tsvfile:
             header = [h.strip() for h in tsvfile.next().split('\t')]
-            self.check_header_vs_plan(header);
+            self.check_header_vs_plan(header)
             reader = csv.DictReader(filter(lambda row: row[0] != '#', tsvfile), dialect='excel-tab', fieldnames=header)
             row_count = 0
             for row in reader:
