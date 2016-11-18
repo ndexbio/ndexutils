@@ -43,11 +43,11 @@ try:
 
     print "loading tsv from: " + tsv_filename
 
-    cx_stream = tsv_converter.convert_tsv_to_cx_stream(tsv_filename, name=arg.name)
+    cx = tsv_converter.convert_tsv_to_cx(tsv_filename, name=arg.name)
 
-    #print json.dumps(cx)
+    #print json.dumps(cx, indent=4)
 
-    response_json = my_ndex.save_cx_stream_as_new_network(cx_stream)
+    response_json = my_ndex.save_new_network(cx)
 
 
 except requests.exceptions.RequestException, e:
