@@ -4,14 +4,20 @@ from os.path import isfile, isdir, join, abspath, dirname, exists, basename, spl
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 from ndex.networkn import NdexGraph
+import networkx as nx
 
-def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layout=None, remove_orphans=False, max=None):
-    network_id_map={}
+def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None, filter=None, max=None):
+    my_layout = _check_layout_(layout)
+    my_filter = _check_filter_(filter)
+    my_template_network = _check_template_network_(template_network)
+    network_id_map = {}
     network_count = 0
-    print "max files: " + str(max)
+    if max is not None:
+        print "max files: " + str(max)
+
     for filename in listdir(dirpath):
         network_count = network_count + 1
-        if max is not None and network_count >= max:
+        if max is not None and network_count > max:
             break
 
         print "loading ebs file #" + str(network_count) + ": " + filename
@@ -20,36 +26,161 @@ def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layou
         ebs = load_ebs_file_to_dict(path)
         ebs_network = ebs_to_network(ebs, name=network_name)
 
-        print "layout: " + str(layout)
-        if layout is not None:
+        if my_filter:
+            if filter == "cravat_1":
+                cravat_edge_filter(ebs_network)
+            if filter == "ndex_1":
+                ndex_edge_filter(ebs_network)
 
+        if my_layout:
             if layout == "directed_flow":
-                print "applying directed_flow layout"
                 layouts.apply_directed_flow_layout(ebs_network)
+                print "applied directed_flow layout"
 
-        print "template network: " + str(template_network)
-        if isinstance(template_network, NdexGraph):
-            print "applying template style"
+        if my_template_network:
             toolbox.apply_network_as_template(ebs_network, template_network)
-
-        if remove_orphans:
-            print "removing orphans"
-            ebs_network.remove_orphans()
+            print "applied graphic style from " + str(template_network.get_name())
 
         print "saving network"
-        network_id =ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
-        network_id_map[network_name]=network_id
+        network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
+        network_id = network_url.split("/")[-1]
+        network_id_map[network_name] = network_id
 
-    if groupname:
-        print "granting networks to group " + groupname
-        ndex.grant_networks_to_group(groupname, network_id_map.values())
+    if group_id:
+        print "granting networks to group id " + group_id
+        ndex.grant_networks_to_group(group_id, network_id_map.values())
+
     return network_id_map
+
+
+def remove_my_orphans(network):
+    before_node_count = nx.number_of_nodes(network)
+    network.remove_orphan_nodes()
+    after_node_count = nx.number_of_nodes(network)
+    delta = before_node_count - after_node_count
+    if delta > 0:
+        print "removed " + str(delta) + " orphans"
+
+
+def _check_filter_(filter):
+    if filter is None:
+        return False
+    elif filter in ["cravat_1", "ndex_1"]:
+        return filter
+    else:
+        raise "unknown filter: " + str(filter)
+
+
+def _check_layout_(layout):
+    if layout is None:
+        return False
+    elif layout in ["directed_flow"]:
+        return layout
+    else:
+        raise "unknown layout" + str(layout)
+
+
+def _check_template_network_(template):
+    if template is None:
+        return False
+    elif not isinstance(template, NdexGraph):
+        raise "template_network is not an NdexGraph: " + str(template)
+    else:
+        print "style template network: " + str(template.get_name())
+        return template
+
+
+CRAVAT_FILTER_LIST = ["neighbor-of", "interacts-with", "controls-state-change-of"]
+
+
+def cravat_edge_filter(network):
+    for edge_id in network.edges():
+        interaction = str(network.get_edge_attribute_value_by_id(edge_id, 'interaction'))
+        if interaction not in CRAVAT_FILTER_LIST:
+            network.remove_edge_by_id(edge_id)
+
+    remove_my_orphans(network)
+
+
+def ndex_edge_filter(network):
+    map = create_tuple_to_edge_map(network)
+
+
+    for tuple_key, edges in map.items():
+        # get the neighbor-of edges
+        neighbor_of_edge_ids = []
+        for edge in edges:
+            if edge["interaction"] == "neighbor-of":
+                neighbor_of_edge_ids.append = edge["edge_id"]
+
+        n_neighbors = len(neighbor_of_edge_ids)
+
+        # remove unwanted neighbor-of edges, if any
+        if n_neighbors < len(edges) and n_neighbors > 0:
+            if n_neighbors == 1:
+                # one neighbor-of is the only edge, keep it
+                continue
+            else:
+                # remove all but one
+                for edge_id in range(1, n_neighbors - 1):
+                    network.remove_edge_by_id(edge_id)
+                    print "removing edge " + str(edge_id) + " " + "neighbor-of"
+                continue
+
+        # controls-state-change-of
+        # if there is both a controls-state-change-of edge and
+        # controls-phosphorylation-of edge from A to B, then
+        # remove the controls-phosphorylation-of edge
+        node_ids = tuple_key.split("_")
+        node_a = node_ids[0]
+        node_b = node_ids[1]
+        csc_a_b = None
+        csc_b_a = None
+        cp_a_b = None
+        cp_b_a = None
+        for edge in edges:
+            if edge["interaction"] == "controls-state-change-of":
+                if edge["source_id"] == node_a:
+                    csc_a_b = edge["edge_id"]
+                else:
+                    csc_b_a = edge["edge_id"]
+
+            if edge["interaction"] == "controls-phosphorylation-of":
+                if edge["source_id"] == node_a:
+                    cp_a_b = edge["edge_id"]
+                else:
+                    cp_b_a = edge["edge_id"]
+        if csc_a_b and cp_a_b:
+            network.remove_edge_by_id(csc_a_b)
+            print "removing edge " + str(csc_a_b) + " " + "controls-state-change-of"
+        if csc_b_a and cp_b_a:
+            network.remove_edge_by_id(csc_b_a)
+            print "removing edge " + str(csc_b_a) + " " + "controls-state-change-of"
+
+    remove_my_orphans(network)
+    return True
+
+
+def create_tuple_to_edge_map(network):
+    map = {}
+    for edge_id in network.edgemap:
+        s, t = network.edgemap[edge_id]
+        interaction = network.get_edge_attribute_value_by_id(edge_id, "interaction")
+        if s > t:
+            tuple_key = str(s) + "_" + str(t)
+        else:
+            tuple_key = str(t) + "_" + str(s)
+        if not tuple_key in map:
+            map[tuple_key] = [{"edge_id": edge_id, "interaction" : interaction, "source_id": s, "target_id": t}]
+        else:
+            map[tuple_key].append({"edge_id": edge_id, "interaction" : interaction, "source_id": s, "target_id": t})
+    return map
+
 
 def load_ebs_file_to_dict(path):
     edge_table = []
     node_table = []
-    ebs = {"edge_table":edge_table, "node_table": node_table}
-    network_name = path
+    ebs = {"edge_table": edge_table, "node_table": node_table}
 
     with open(path, 'rU') as f:
         lines = f.readlines()
@@ -98,75 +229,84 @@ def load_ebs_file_to_dict(path):
 # chemical-affects	                A small molecule has an effect on the protein state.
 # reacts-with	                    Small molecules are input to a biochemical reaction.
 # used-to-produce	                A reaction consumes a small molecule to produce another small molecule.
-def _is_directed(rel):
-    if rel in ["controls-state-change-of",
-                "controls-transport-of",
-                "controls-phosphorylation-of",
-                "controls-expression-of",
-                "catalysis-precedes",
-                "controls-production-of",
-                "controls-transport-of-chemical",
-                "chemical-affects",
-                "used-to-produce",
-               ]:
+def _is_directed(interaction):
+    if interaction in ["controls-state-change-of",
+                       "controls-transport-of",
+                       "controls-phosphorylation-of",
+                       "controls-expression-of",
+                       "catalysis-precedes",
+                       "controls-production-of",
+                       "controls-transport-of-chemical",
+                       "chemical-affects",
+                       "used-to-produce",
+                       ]:
         return True
     return False
 
-
-def _is_filtered(rel, filter_list=["neighbor-of", "interacts-with", "controls-state-change-of"]):
-    if rel in filter_list:
-        return True
-    return False
 
 def _get_node_type(ebs_type):
     if ebs_type is None:
         return "Other"
     if ebs_type in ["SmallMolecule", "SmallMoleculeReference"]:
         return "SmallMolecule"
-    if ebs_type in ["Complex","ComplexAssembly"]:
+    if ebs_type in ["Complex", "ComplexAssembly"]:
         return "Complex"
-    if ebs_type in ["Protein","ProteinReference"]:
+    if ebs_type in ["Protein", "ProteinReference"]:
         return "Protein"
-    if ebs_type in ["Rna","RnaReference"]:
+    if ebs_type in ["Rna", "RnaReference"]:
         return "Rna"
     return "Other"
+
 
 def ebs_to_network(ebs, name="not named"):
     G = NdexGraph()
     G.set_name(name)
     node_id_map = {}
+
     # Create Nodes
     # PARTICIPANT	PARTICIPANT_TYPE	PARTICIPANT_NAME	UNIFICATION_XREF	RELATIONSHIP_XREF
     for node in ebs.get("node_table"):
         attributes = {}
-        participant = node.get("PARTICIPANT")
-        participant_name = node.get("PARTICIPANT_NAME")
-        if participant_name is not None:
-            attributes["name"] = participant_name
-        attributes["type"] = _get_node_type(node.get("PARTICIPANT_TYPE"))
-        aliases = node.get("UNIFICATION_XREF")
-        if aliases is not None and aliases is not "":
-            attributes["aliases"] = aliases.split(",")
-            #attributes["represents"] = aliases[0] - can't take first alias for ebs. Need to resolve uniprot primary id for the gene
+        if "PARTICIPANT" in node:
 
-        node_id = G.add_new_node(participant, attributes)
-        node_id_map[participant] = node_id
+            if "PARTICIPANT_NAME" in node:
+                name = node["PARTICIPANT_NAME"]
+                if name is not None and len(name) > 0:
+                    attributes["name"] = name
 
+            attributes["type"] = _get_node_type(node.get("PARTICIPANT_TYPE"))
+            if "UNIFICATION_XREF" in node:
+                alias_string = node["UNIFICATION_XREF"]
+                if alias_string is not None and alias_string is not "":
+                    attributes["aliases"] = alias_string.split(";")
+                    # attributes["represents"] = aliases[0] - can't take first alias for ebs. Need to resolve uniprot primary id for the gene
+
+            participant = node["PARTICIPANT"]
+            node_id = G.add_new_node(participant, attributes)
+            node_id_map[participant] = node_id
 
     # Create Edges
     # PARTICIPANT_A	INTERACTION_TYPE	PARTICIPANT_B	INTERACTION_DATA_SOURCE	INTERACTION_PUBMED_ID	PATHWAY_NAMES	MEDIATOR_IDS
     for edge in ebs.get("edge_table"):
-        interaction = edge.get("INTERACTION_TYPE")
-        if _is_filtered(interaction):
-            continue
+        if "INTERACTION_TYPE" not in edge:
+            raise "No interaction type for edge " + str(edge)
+        if "PARTICIPANT_A" not in edge:
+            raise "No participant A in edge " + str(edge)
+        if "PARTICIPANT_B" not in edge:
+            raise "No participant B in edge " + str(edge)
+
         attributes = {}
+        interaction = edge["INTERACTION_TYPE"]
+
         attributes["directed"] = _is_directed(interaction)
 
-        pmid = edge.get("INTERACTION_PUBMED_ID")
-        if pmid is not None and pmid is not "":
-            attributes["pubmed"] = pmid
-        source_node_id = node_id_map.get(edge.get("PARTICIPANT_A"))
-        target_node_id = node_id_map.get(edge.get("PARTICIPANT_B"))
-        G.add_edge_between(source_node_id, target_node_id, interaction=interaction, attr_dict=attributes)
-    return G
+        if "INTERACTION_PUBMED_ID" in edge:
+            pmid_string = edge["INTERACTION_PUBMED_ID"]
+            if pmid_string is not None and pmid_string is not "":
+                attributes["pubmed"] = pmid_string.split(";")
 
+        source_node_id = node_id_map.get(edge["PARTICIPANT_A"])
+        target_node_id = node_id_map.get(edge["PARTICIPANT_B"])
+        G.add_edge_between(source_node_id, target_node_id, interaction=interaction, attr_dict=attributes)
+
+    return G
