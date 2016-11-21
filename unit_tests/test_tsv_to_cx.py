@@ -38,4 +38,5 @@ class ScratchTests(unittest.TestCase):
 
         cx = tsv_converter.convert_tsv_to_cx_using_networkn(tsv_filename)
 
+
         self.assertTrue(True)

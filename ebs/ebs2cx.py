@@ -1,14 +1,29 @@
 import csv
+import sys
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, abspath, dirname, exists, basename, splitext
+#==================================
+# TESTING CODE - NEED TO USE
+# LOCAL PACKAGE OF NETWORKN
+# INSTEAD OF PIP INSTALLED VERSION
+#==================================
+from . import temp_append_path
+sys.path.insert(1, temp_append_path)
+
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 from ndex.networkn import NdexGraph
+from urlparse import urlsplit
+import pymongo
+from bson.json_util import dumps
 
 def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layout=None, remove_orphans=False, max=None):
     network_id_map={}
+    network_map = {}
     network_count = 0
     print "max files: " + str(max)
+    overlap_dict = {}
+    overlap_list = []
     for filename in listdir(dirpath):
         network_count = network_count + 1
         if max is not None and network_count >= max:
@@ -37,13 +52,76 @@ def upload_ebs_files(dirpath, ndex, groupname=None, template_network=None, layou
             ebs_network.remove_orphans()
 
         print "saving network"
+        #if(ebs_network.status is not None):
+        #    ebs_network.status = {'status': [{"success": True, "error": ""}]}
+
+        # Server 2 won't process aspects that are not in the metadata.
+        # This is a hack to get past the template merging.
+        # TODO: add metadata processing to Networkn
+        #md_dict = {'nodes': 0, 'edges': 0, 'visualProperties': 0}
+
         network_id =ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
+
+        # process nodes for enrichment
+        overlap_dict[str(ebs_network)] = process_nodes_for_enrichment(ebs_network)
+
         network_id_map[network_name]=network_id
+        version_url = network_id.rpartition('/')
+        my_id = version_url[len(version_url) - 1]
+        network_map[version_url] = ebs_network.nodes()
+
+    # Process overlap
+    overlap_list = process_overlap_score(overlap_dict, network_id_map)
+
+    print 'OVERLAP: '
+    print dict(data=overlap_list)
 
     if groupname:
         print "granting networks to group " + groupname
         ndex.grant_networks_to_group(groupname, network_id_map.values())
     return network_id_map
+
+def process_nodes_for_enrichment(G):
+    # run the nodes through the MyGene.info processor
+
+    return set([n[1]['name'] for n in G.nodes_iter(data=True) if 'name' in n[1]])
+
+def process_overlap_score(overlap_dict, network_id_map):
+    # Process overlap
+    client = pymongo.MongoClient()
+    node_buckets_collection = client.cache.network_node_buckets
+    network_overlap_collection = client.cache.network_overlap
+    o_l = []
+    for path1 in overlap_dict.keys():
+        #===============================================
+        # Store the network name and node list in Mongo
+        #===============================================
+        found_node_buckets_collection = node_buckets_collection.find_one({'net_name1': path1})
+        net1_temp = network_id_map.get(path1).split('/')
+        net1 = net1_temp[len(net1_temp) - 1]
+        if(found_node_buckets_collection is None):
+            node_buckets_collection.save({'network1': net1, 'net_name1': path1, 'node_bucket': list(overlap_dict[path1])})
+
+        for path2 in overlap_dict.keys():
+            if path1 == path2:
+                next;
+            else:
+                overlap = overlap_dict[path1].intersection(overlap_dict[path2])
+                size_overlap=len(overlap)
+                if size_overlap == 0:
+                    next;
+                else:
+                    subsumes_measure=float(size_overlap)/float(len(overlap_dict[path2]))
+                    net2_temp = network_id_map.get(path2).split('/')
+                    net2 = net2_temp[len(net2_temp) - 1]
+
+                    #Check Mongo for existing record.  If one does not exist then add it
+                    found_ebs_collection = network_overlap_collection.find_one({'net_name1': path1, 'net_name2': path2})
+                    if(found_ebs_collection is None):
+                        o_l.append({'network1': net1,'network2': net2, 'net_name1': path1, 'net_name2': path2,'overlap_size': str(size_overlap),'subsumes_measure': str(subsumes_measure), 'overlap_list':list(overlap)})
+                        network_overlap_collection.save({'network1': net1,'network2': net2, 'net_name1': path1, 'net_name2': path2,'overlap_size': str(size_overlap),'subsumes_measure': str(subsumes_measure), 'overlap_list':list(overlap)})
+
+    return o_l
 
 def load_ebs_file_to_dict(path):
     edge_table = []

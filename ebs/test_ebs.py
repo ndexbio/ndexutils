@@ -1,6 +1,10 @@
 # /Users/dexter/Projects/ndex-python-utilities/downloads/pid_EXTENDED_BINARY_SIF_2016-09-24T14:04:47.203937/a4b7 Integrin signaling.sif
 
 import ebs2cx
+import sys
+from . import temp_append_path
+sys.path.insert(1, temp_append_path)
+
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 

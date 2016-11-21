@@ -1,8 +1,14 @@
 
 import ebs.ebs2cx as ebs2cx
+import sys
+from ebs import temp_append_path
+sys.path.insert(1, temp_append_path)
+
 import ndex.client as nc
 import ndex.networkn as networkn
 import json
+import os
+from bson.json_util import dumps
 
 # body
 
@@ -99,6 +105,7 @@ if args.template:
     template_cx = response.json()
     #print template_network
     template_network = networkn.NdexGraph(template_cx)
+
     print "Cytoscape template: " + str(template_network)
 
 ebs2cx.upload_ebs_files(
