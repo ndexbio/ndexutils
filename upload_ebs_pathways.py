@@ -1,14 +1,8 @@
 
 import ebs.ebs2cx as ebs2cx
-import sys
-from ebs import temp_append_path
-sys.path.insert(1, temp_append_path)
-
 import ndex.client as nc
 import ndex.networkn as networkn
 import json
-import os
-from bson.json_util import dumps
 
 # body
 
@@ -49,23 +43,27 @@ parser.add_argument('-d',
                     action='store',
                     default='$wd$',
                     dest='directory',
-                    help='directory that is the source for EBS files'
-                    )
+                    help='directory that is the source for EBS files')
 
 parser.add_argument('-t',
                     action='store',
-                    dest='template',
+                    dest='template_id',
                     help='network id for the network to use as a graphic template')
 
 parser.add_argument('-g',
                     action='store',
-                    dest='group',
-                    help='the groupname to which the uploaded EBS networks should be assigned')
+                    dest='group_id',
+                    help='the group id to which the uploaded EBS networks should be assigned')
 
 parser.add_argument('-l',
                     action='store',
                     dest='layout',
                     help='the layout algorithm to apply to each EBS file')
+
+parser.add_argument('-f',
+                    action='store',
+                    dest='filter',
+                    help='the filtering algorithm to apply to each EBS file')
 
 parser.add_argument('-m',
                     action='store',
@@ -98,23 +96,21 @@ args = parser.parse_args()
 print vars(args)
 
 ndex = nc.Ndex(args.server, args.username, args.password)
+
 template_network = None
-
-if args.template:
-    response = ndex.get_network_as_cx_stream(args.template)
+if args.template_id:
+    print "template_id: " + str(args.template_id)
+    response = ndex.get_network_as_cx_stream(args.template_id)
     template_cx = response.json()
-    #print template_network
     template_network = networkn.NdexGraph(template_cx)
-
-    print "Cytoscape template: " + str(template_network)
 
 ebs2cx.upload_ebs_files(
     args.directory,
     ndex,
-    #groupname=args.group,
+    group_id=args.group_id,
     template_network=template_network,
     layout=args.layout,
-    remove_orphans=True,
+    filter=args.filter,
     max=args.max
 )
 
