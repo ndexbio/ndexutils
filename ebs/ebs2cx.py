@@ -94,9 +94,9 @@ CRAVAT_FILTER_LIST = ["neighbor-of", "interacts-with", "controls-state-change-of
 
 
 def cravat_edge_filter(network):
-    for edge_id in network.edges():
+    for edge_id in network.edgemap.keys():
         interaction = str(network.get_edge_attribute_value_by_id(edge_id, 'interaction'))
-        if interaction not in CRAVAT_FILTER_LIST:
+        if interaction in CRAVAT_FILTER_LIST:
             network.remove_edge_by_id(edge_id)
 
     remove_my_orphans(network)
