@@ -6,6 +6,58 @@ import ndex.beta.toolbox as toolbox
 from ndex.networkn import NdexGraph
 import networkx as nx
 
+NDEX_SIF_INTERACTIONS = ["controls-state-change-of",
+                         # First protein controls a reaction that changes the state of the second protein.
+
+                         "controls-transport-of",
+                         # First protein controls a reaction that changes the cellular location of the second protein.
+
+                         "controls-phosphorylation-of"  # First protein controls a reaction that changes the phosphorylation status of the second protein.
+
+                         "controls-expression-of",
+                         # First protein controls a conversion or a template reaction that changes expression of the second protein.
+
+                         "catalysis-precedes",
+                         # First protein controls a reaction whose output molecule is input to another reaction controled by the second protein.
+
+                         "in-complex-with",  # Proteins are members of the same complex.
+
+                         "interacts-with",  # Proteins are participants of the same MolecularInteraction.
+
+                         "neighbor-of",  # Proteins are participants or controlers of the same interaction.
+
+                         "consumption-controled-by",
+                         # The small molecule is consumed by a reaction that is controled by a protein
+
+                         "controls-production-of",
+                         # The protein controls a reaction of which the small molecule is an output.
+
+                         "controls-transport-of-chemical"  # The protein controls a reaction that changes cellular location of the small molecule.
+
+                         "chemical-affects",  # A small molecule has an effect on the protein state.
+
+                         "reacts-with",  # Small molecules are input to a biochemical reaction.
+
+                         "used-to-produce"  # A reaction consumes a small molecule to produce another small molecule.
+                         ]
+
+DIRECTED_INTERACTIONS = ["controls-state-change-of",
+                       "controls-transport-of",
+                       "controls-phosphorylation-of",
+                       "controls-expression-of",
+                       "catalysis-precedes",
+                       "controls-production-of",
+                       "controls-transport-of-chemical",
+                       "chemical-affects",
+                       "used-to-produce"
+                       ]
+
+CONTROL_INTERACTIONS = ["controls-state-change-of",
+                       "controls-transport-of",
+                       "controls-phosphorylation-of",
+                       "controls-expression-of"
+                       ]
+
 def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None, filter=None, max=None):
     my_layout = _check_layout_(layout)
     my_filter = _check_filter_(filter)
@@ -101,65 +153,160 @@ def cravat_edge_filter(network):
 
     remove_my_orphans(network)
 
+# Next:
+# get pmids for edges in tuple to edge map
+# make removal conditional on NOT removing any unique pmids.
+# - a neighbor of edge is preserved if it has a pmid that is not associated with any other edge
+# - csc edge is preserved if it has a pmid that is not associated any more specific edge
+# hmmm... we can abstract this to finding "more specific edges" for each edge that we
+# consider pruning.
+NDEX_FILTER_SUBSUMPTION = {
+    "neighbor-of": [ "controls-state-change-of",
+                         # First protein controls a reaction that changes the state of the second protein.
+                         "controls-transport-of",
+                         # First protein controls a reaction that changes the cellular location of the second protein.
+                         "controls-phosphorylation-of"  # First protein controls a reaction that changes the phosphorylation status of the second protein.
+                         "controls-expression-of",
+                         # First protein controls a conversion or a template reaction that changes expression of the second protein.
+                         "catalysis-precedes",
+                         # First protein controls a reaction whose output molecule is input to another reaction controled by the second protein.
+                         "in-complex-with",  # Proteins are members of the same complex.
+                         "interacts-with",  # Proteins are participants of the same MolecularInteraction.
+                         "neighbor-of",  # Proteins are participants or controlers of the same interaction.
+                         "consumption-controled-by",
+                         # The small molecule is consumed by a reaction that is controled by a protein
+                         "controls-production-of",
+                         # The protein controls a reaction of which the small molecule is an output.
+                         "controls-transport-of-chemical"  # The protein controls a reaction that changes cellular location of the small molecule.
+                         "chemical-affects",  # A small molecule has an effect on the protein state.
+                         "reacts-with",  # Small molecules are input to a biochemical reaction
+                         "used-to-produce"  # A reaction consumes a small molecule to produce another small molecule.
+                         ],
+    "controls-state-change-of": [
+                       "controls-transport-of",
+                       "controls-phosphorylation-of",
+                       "controls-expression-of"
+                       ]
+}
 
 def ndex_edge_filter(network):
     map = create_tuple_to_edge_map(network)
-
-
-    for tuple_key, edges in map.items():
-        # get the neighbor-of edges
-        neighbor_of_edge_ids = []
-        for edge in edges:
-            if edge["interaction"] == "neighbor-of":
-                neighbor_of_edge_ids.append = edge["edge_id"]
-
-        n_neighbors = len(neighbor_of_edge_ids)
-
-        # remove unwanted neighbor-of edges, if any
-        if n_neighbors < len(edges) and n_neighbors > 0:
-            if n_neighbors == 1:
-                # one neighbor-of is the only edge, keep it
-                continue
-            else:
-                # remove all but one
-                for edge_id in range(1, n_neighbors - 1):
-                    network.remove_edge_by_id(edge_id)
-                    print "removing edge " + str(edge_id) + " " + "neighbor-of"
-                continue
-
-        # controls-state-change-of
-        # if there is both a controls-state-change-of edge and
-        # controls-phosphorylation-of edge from A to B, then
-        # remove the controls-phosphorylation-of edge
-        node_ids = tuple_key.split("_")
-        node_a = node_ids[0]
-        node_b = node_ids[1]
-        csc_a_b = None
-        csc_b_a = None
-        cp_a_b = None
-        cp_b_a = None
-        for edge in edges:
-            if edge["interaction"] == "controls-state-change-of":
-                if edge["source_id"] == node_a:
-                    csc_a_b = edge["edge_id"]
-                else:
-                    csc_b_a = edge["edge_id"]
-
-            if edge["interaction"] == "controls-phosphorylation-of":
-                if edge["source_id"] == node_a:
-                    cp_a_b = edge["edge_id"]
-                else:
-                    cp_b_a = edge["edge_id"]
-        if csc_a_b and cp_a_b:
-            network.remove_edge_by_id(csc_a_b)
-            print "removing edge " + str(csc_a_b) + " " + "controls-state-change-of"
-        if csc_b_a and cp_b_a:
-            network.remove_edge_by_id(csc_b_a)
-            print "removing edge " + str(csc_b_a) + " " + "controls-state-change-of"
-
+    remove_subsumed_edges_of_type_in_network("neighbor-of", map, network)
+    remove_subsumed_edges_of_type_in_network("controls-state-change-of", map, network)
     remove_my_orphans(network)
     return True
 
+    # for tuple_key, edges in map.items():
+    #     # get the neighbor-of edges
+    #     neighbor_of_edge_ids = []
+    #     for edge in edges:
+    #         if edge["interaction"] == "neighbor-of":
+    #             neighbor_of_edge_ids.append = edge["edge_id"]
+    #
+    #     n_neighbors = len(neighbor_of_edge_ids)
+    #
+    #     # remove unwanted neighbor-of edges, if any
+    #     if n_neighbors < len(edges) and n_neighbors > 0:
+    #         if n_neighbors == 1:
+    #             # one neighbor-of is the only edge, keep it
+    #             continue
+    #         else:
+    #             # remove all but one
+    #             for edge_id in range(1, n_neighbors - 1):
+    #                 network.remove_edge_by_id(edge_id)
+    #                 print "removing edge " + str(edge_id) + " " + "neighbor-of"
+    #             continue
+    #
+    #     # controls-state-change-of
+    #     # if there is both a controls-state-change-of edge and
+    #     # controls-phosphorylation-of edge from A to B, then
+    #     # remove the controls-phosphorylation-of edge
+    #     node_ids = tuple_key.split("_")
+    #     node_a = node_ids[0]
+    #     node_b = node_ids[1]
+    #     csc_a_b = None
+    #     csc_b_a = None
+    #     cp_a_b = None
+    #     cp_b_a = None
+    #     for edge in edges:
+    #         if edge["interaction"] == "controls-state-change-of":
+    #             if edge["source_id"] == node_a:
+    #                 csc_a_b = edge["edge_id"]
+    #             else:
+    #                 csc_b_a = edge["edge_id"]
+    #
+    #         if edge["interaction"] == "controls-phosphorylation-of":
+    #             if edge["source_id"] == node_a:
+    #                 cp_a_b = edge["edge_id"]
+    #             else:
+    #                 cp_b_a = edge["edge_id"]
+    #     if csc_a_b and cp_a_b:
+    #         network.remove_edge_by_id(csc_a_b)
+    #         print "removing edge " + str(csc_a_b) + " " + "controls-state-change-of"
+    #     if csc_b_a and cp_b_a:
+    #         network.remove_edge_by_id(csc_b_a)
+    #         print "removing edge " + str(csc_b_a) + " " + "controls-state-change-of"
+
+def remove_subsumed_edges_of_type_in_network(edge_type, tuple_to_edge_map, network):
+    for tuple_key, edges in tuple_to_edge_map.items():
+        node_ids = tuple_key.split("_")
+        node_a_id = node_ids[0]
+        forward_edges = []
+        backward_edges = []
+        for edge in edges:
+            if edge["source_id"] == node_a_id:
+                forward_edges.append(edge)
+            else:
+                backward_edges.append(edge)
+
+        remove_subsumed_edges_of_type(edge_type, forward_edges, network)
+        remove_subsumed_edges_of_type(edge_type, backward_edges, network)
+
+def remove_subsumed_edges_of_type(edge_type, edges, network):
+    if len(edges) == 0:
+        return False
+
+    subsuming_interactions = NDEX_FILTER_SUBSUMPTION.get(edge_type)
+    if not subsuming_interactions:
+        # this edge type is never subsumed
+        return False
+
+    subsuming_edges = []
+    subsuming_pmids = []
+    edges_to_be_subsumed = []
+    for edge in edges:
+        if edge["interaction"] == edge_type:
+            edges_to_be_subsumed.append(edge)
+        if edge["interaction"] in subsuming_interactions:
+            subsuming_edges.append(edge)
+            if "pmid" in edge:
+                for pmid in edge["pmid"]:
+                    subsuming_pmids.append(pmid)
+
+    if len(subsuming_edges) == 0 or len(edges_to_be_subsumed) == 0:
+        # nobody to be subsumed or nobody to do the subsuming :-)
+        return False
+
+    some_edge_removed = False
+    for edge in edges_to_be_subsumed:
+        if "pmid" in edge:
+            # check to be sure that all pmids cited
+            # by the "to be subsumed" edges are cited
+            # in some subsuming edge to ensure that
+            # removal of the edge does not lose information
+            for pmid in edge["pmid"]:
+                if pmid in subsuming_pmids:
+                    network.remove_edge_by_id(edge["edge_id"])
+                    print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+                    some_edge_removed = True
+        else:
+            # there is no pmid in the subsumed edge,
+            # it can therefore be removed without loss of information
+            network.remove_edge_by_id(edge["edge_id"])
+            print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+            some_edge_removed = True
+
+    return some_edge_removed
 
 def create_tuple_to_edge_map(network):
     map = {}
@@ -213,37 +360,6 @@ def load_ebs_file_to_dict(path):
 
     return ebs
 
-
-# Name	                            Description
-# controls-state-change-of	        First protein controls a reaction that changes the state of the second protein.
-# controls-transport-of	            First protein controls a reaction that changes the cellular location of the second protein.
-# controls-phosphorylation-of	    First protein controls a reaction that changes the phosphorylation status of the second protein.
-# controls-expression-of	        First protein controls a conversion or a template reaction that changes expression of the second protein.
-# catalysis-precedes	            First protein controls a reaction whose output molecule is input to another reaction controled by the second protein.
-# in-complex-with	                Proteins are members of the same complex.
-# interacts-with	                Proteins are participants of the same MolecularInteraction.
-# neighbor-of	                    Proteins are participants or controlers of the same interaction.
-# consumption-controled-by	        The small molecule is consumed by a reaction that is controled by a protein
-# controls-production-of	        The protein controls a reaction of which the small molecule is an output.
-# controls-transport-of-chemical	The protein controls a reaction that changes cellular location of the small molecule.
-# chemical-affects	                A small molecule has an effect on the protein state.
-# reacts-with	                    Small molecules are input to a biochemical reaction.
-# used-to-produce	                A reaction consumes a small molecule to produce another small molecule.
-def _is_directed(interaction):
-    if interaction in ["controls-state-change-of",
-                       "controls-transport-of",
-                       "controls-phosphorylation-of",
-                       "controls-expression-of",
-                       "catalysis-precedes",
-                       "controls-production-of",
-                       "controls-transport-of-chemical",
-                       "chemical-affects",
-                       "used-to-produce",
-                       ]:
-        return True
-    return False
-
-
 def _get_node_type(ebs_type):
     if ebs_type is None:
         return "Other"
@@ -262,6 +378,7 @@ def ebs_to_network(ebs, name="not named"):
     G = NdexGraph()
     G.set_name(name)
     node_id_map = {}
+    identifier_citation_id_map = {}
 
     # Create Nodes
     # PARTICIPANT	PARTICIPANT_TYPE	PARTICIPANT_NAME	UNIFICATION_XREF	RELATIONSHIP_XREF
@@ -298,15 +415,33 @@ def ebs_to_network(ebs, name="not named"):
         attributes = {}
         interaction = edge["INTERACTION_TYPE"]
 
-        attributes["directed"] = _is_directed(interaction)
+        if interaction in DIRECTED_INTERACTIONS:
+            attributes["directed"] = True
 
+        # handle pmids as edge attribute
         if "INTERACTION_PUBMED_ID" in edge:
             pmid_string = edge["INTERACTION_PUBMED_ID"]
             if pmid_string is not None and pmid_string is not "":
-                attributes["pubmed"] = pmid_string.split(";")
+                pmids = pmid_string.split(";")
+                attributes["pmid"] = pmids
 
         source_node_id = node_id_map.get(edge["PARTICIPANT_A"])
         target_node_id = node_id_map.get(edge["PARTICIPANT_B"])
-        G.add_edge_between(source_node_id, target_node_id, interaction=interaction, attr_dict=attributes)
+        edge_id = G.add_edge_between(source_node_id, target_node_id, interaction=interaction, attr_dict=attributes)
+
+        # handle pmids in CX citation and edgeCitation aspect representations in networkn network object
+        if "pmid" in attributes:
+            prefixed_pmids = []
+            for pmid in attributes["pmid"]:
+                prefixed_pmids.append("pmid:" + str(pmid))
+
+            for prefixed_pmid in prefixed_pmids:
+                if prefixed_pmid not in identifier_citation_id_map:
+                    citation_id = G.add_citation(identifier=prefixed_pmid)
+                    identifier_citation_id_map[prefixed_pmid] = citation_id
+                    G.add_edge_citation_ref(edge_id, citation_id)
+                else:
+                    citation_id = identifier_citation_id_map[prefixed_pmid]
+                    G.add_edge_citation_ref(edge_id, citation_id)
 
     return G
