@@ -58,7 +58,8 @@ CONTROL_INTERACTIONS = ["controls-state-change-of",
                        "controls-expression-of"
                        ]
 
-def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None, filter=None, max=None):
+def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None,
+                     update=False, filter=None, max=None):
     my_layout = _check_layout_(layout)
     my_filter = _check_filter_(filter)
     my_template_network = _check_template_network_(template_network)
@@ -72,9 +73,19 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         if max is not None and network_count > max:
             break
 
+        print ""
         print "loading ebs file #" + str(network_count) + ": " + filename
         path = join(dirpath, filename)
-        network_name = basename(path)
+        network_name = network_name_from_path(path)
+
+        search_result = search_for_matching_networks(ndex, network_name)
+        matching_networks = search_result["networks"]
+        matching_network_count = search_result["numFound"]
+
+        if update and matching_network_count > 1:
+            print "skipping this file because " + str(matching_network_count) + "existing networks match '" + network_name + "'"
+            continue
+
         ebs = load_ebs_file_to_dict(path)
         ebs_network = ebs_to_network(ebs, name=network_name)
 
@@ -93,9 +104,23 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             toolbox.apply_network_as_template(ebs_network, template_network)
             print "applied graphic style from " + str(template_network.get_name())
 
-        print "saving network"
-        network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
-        network_id = network_url.split("/")[-1]
+        if update:
+            if matching_network_count == 0:
+                print "saving new network " + network_name
+                network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
+                network_id = network_url.split("/")[-1]
+            elif matching_network_count == 1:
+                network_to_update = matching_networks[0]
+                print "updating network " + network_to_update.get("name") + " with " + network_name
+                network_id = network_to_update.get("externalId")
+                ndex.update_cx_network(ebs_network.to_cx_stream(), network_id)
+            else:
+                raise ValueError("unexpected case: should not try to update when more than one matching network")
+        else:
+            print "saving new network " + network_name
+            network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
+            network_id = network_url.split("/")[-1]
+
         network_id_map[network_name] = network_id
 
     if group_id:
@@ -103,6 +128,17 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         ndex.grant_networks_to_group(group_id, network_id_map.values())
 
     return network_id_map
+
+
+def search_for_matching_networks(ndex, network_name):
+    search_string = 'name:"' + network_name + '"'
+    return ndex.search_networks(search_string=search_string, account_name=ndex.username)
+
+
+def network_name_from_path(path):
+    base=basename(path)
+    split = splitext(base)
+    return split[0]
 
 
 def remove_my_orphans(network):

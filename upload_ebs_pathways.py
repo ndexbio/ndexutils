@@ -71,6 +71,11 @@ parser.add_argument('-m',
                     type=int,
                     help='the maximum number of files to upload - useful for testing')
 
+parser.add_argument('-x',
+                    action='store',
+                    dest='update',
+                    type=bool,
+                    help='update existing networks based on name matching')
 # parser.print_help()
 
 # example:
@@ -111,10 +116,8 @@ ebs2cx.upload_ebs_files(
     template_network=template_network,
     layout=args.layout,
     filter=args.filter,
-    max=args.max
+    max=args.max,
+    update=args.update
 )
 
-
-
-#network.write_to("/Users/dexter/" + network.get_name() + ".cx")
 
