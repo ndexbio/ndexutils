@@ -113,7 +113,9 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
                 network_to_update = matching_networks[0]
                 print "updating network " + network_to_update.get("name") + " with " + network_name
                 network_id = network_to_update.get("externalId")
-                ndex.update_cx_network(ebs_network.to_cx_stream(), network_id)
+                old_provenance = ndex.get_provenance(network_id)
+                provenance = ebs_network.add_provenance_event("Update by NDEx EBS network converter", old_provenance)
+                ndex.update_cx_network(ebs_network.to_cx_stream(), network_id, provenance)
             else:
                 raise ValueError("unexpected case: should not try to update when more than one matching network")
         else:

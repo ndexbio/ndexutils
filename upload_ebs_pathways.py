@@ -76,6 +76,13 @@ parser.add_argument('-x',
                     dest='update',
                     type=bool,
                     help='update existing networks based on name matching')
+
+parser.add_argument('-z',
+                    action='store',
+                    dest='nci',
+                    type=bool,
+                    help='take special actions for NCI networks')
+
 # parser.print_help()
 
 # example:
