@@ -42,24 +42,25 @@ NDEX_SIF_INTERACTIONS = ["controls-state-change-of",
                          ]
 
 DIRECTED_INTERACTIONS = ["controls-state-change-of",
-                       "controls-transport-of",
-                       "controls-phosphorylation-of",
-                       "controls-expression-of",
-                       "catalysis-precedes",
-                       "controls-production-of",
-                       "controls-transport-of-chemical",
-                       "chemical-affects",
-                       "used-to-produce"
-                       ]
+                         "controls-transport-of",
+                         "controls-phosphorylation-of",
+                         "controls-expression-of",
+                         "catalysis-precedes",
+                         "controls-production-of",
+                         "controls-transport-of-chemical",
+                         "chemical-affects",
+                         "used-to-produce"
+                         ]
 
 CONTROL_INTERACTIONS = ["controls-state-change-of",
-                       "controls-transport-of",
-                       "controls-phosphorylation-of",
-                       "controls-expression-of"
-                       ]
+                        "controls-transport-of",
+                        "controls-phosphorylation-of",
+                        "controls-expression-of"
+                        ]
+
 
 def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None,
-                     update=False, filter=None, max=None):
+                     update=False, filter=None, max=None, nci_table=False):
     my_layout = _check_layout_(layout)
     my_filter = _check_filter_(filter)
     my_template_network = _check_template_network_(template_network)
@@ -67,6 +68,17 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
     network_count = 0
     if max is not None:
         print "max files: " + str(max)
+
+    in_dir = []
+    in_nci_table = []
+    not_in_nci_table = []
+    if nci_table:
+        for row in nci_table:
+            if "Pathway Name" in row:
+                in_nci_table.append(row["Pathway Name"])
+                #
+                # if "Corrected Pathway Name" in row:
+                #     in_nci_table.append(row["Corrected Pathway Name"])
 
     for filename in listdir(dirpath):
         network_count = network_count + 1
@@ -77,13 +89,15 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         print "loading ebs file #" + str(network_count) + ": " + filename
         path = join(dirpath, filename)
         network_name = network_name_from_path(path)
+        in_dir.append(network_name)
 
         search_result = search_for_matching_networks(ndex, network_name)
         matching_networks = search_result["networks"]
         matching_network_count = search_result["numFound"]
 
         if update and matching_network_count > 1:
-            print "skipping this file because " + str(matching_network_count) + "existing networks match '" + network_name + "'"
+            print "skipping this file because " + str(
+                matching_network_count) + "existing networks match '" + network_name + "'"
             continue
 
         ebs = load_ebs_file_to_dict(path)
@@ -105,6 +119,10 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             print "applied graphic style from " + str(template_network.get_name())
 
         props = [{"name": "dc:title", "value": network_name}]
+
+        if nci_table:
+            add_nci_table_properties(ebs_network, network_name, nci_table, not_in_nci_table)
+
         if update:
             if matching_network_count == 0:
                 print "saving new network " + network_name
@@ -135,9 +153,9 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             network_id = network_url.split("/")[-1]
 
             provenance = toolbox.make_provenance("Upload by NDEx EBS network converter",
-                                                     network_id,
-                                                     ndex,
-                                                     entity_props=props)
+                                                 network_id,
+                                                 ndex,
+                                                 entity_props=props)
             ndex.set_provenance(network_id, provenance)
 
         network_id_map[network_name] = network_id
@@ -145,6 +163,18 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
     if group_id:
         print "granting networks to group id " + group_id
         ndex.grant_networks_to_group(group_id, network_id_map.values())
+
+    if len(not_in_nci_table) > 0:
+        print "Networks in directory not found in NCI table:"
+        for name in not_in_nci_table:
+            print "   " + name
+
+    if len(in_nci_table) > 0:
+        in_table_not_in_dir = list(set(in_nci_table) - set(in_dir))
+        if len(in_table_not_in_dir) > 0:
+            print "Networks in NCI table not found in directory:"
+            for name in not_in_nci_table:
+                print "   " + name
 
     return network_id_map
 
@@ -155,7 +185,7 @@ def search_for_matching_networks(ndex, network_name):
 
 
 def network_name_from_path(path):
-    base=basename(path)
+    base = basename(path)
     split = splitext(base)
     return split[0]
 
@@ -169,13 +199,13 @@ def remove_my_orphans(network):
         print "removed " + str(delta) + " orphans"
 
 
-def _check_filter_(filter):
-    if filter is None:
+def _check_filter_(the_filter):
+    if the_filter is None:
         return False
-    elif filter in ["cravat_1", "ndex_1"]:
-        return filter
+    elif the_filter in ["cravat_1", "ndex_1"]:
+        return the_filter
     else:
-        raise "unknown filter: " + str(filter)
+        raise "unknown the_filter: " + str(the_filter)
 
 
 def _check_layout_(layout):
@@ -208,6 +238,7 @@ def cravat_edge_filter(network):
 
     remove_my_orphans(network)
 
+
 # Next:
 # get pmids for edges in tuple to edge map
 # make removal conditional on NOT removing any unique pmids.
@@ -216,33 +247,34 @@ def cravat_edge_filter(network):
 # hmmm... we can abstract this to finding "more specific edges" for each edge that we
 # consider pruning.
 NDEX_FILTER_SUBSUMPTION = {
-    "neighbor-of": [ "controls-state-change-of",
-                         # First protein controls a reaction that changes the state of the second protein.
-                         "controls-transport-of",
-                         # First protein controls a reaction that changes the cellular location of the second protein.
-                         "controls-phosphorylation-of"  # First protein controls a reaction that changes the phosphorylation status of the second protein.
-                         "controls-expression-of",
-                         # First protein controls a conversion or a template reaction that changes expression of the second protein.
-                         "catalysis-precedes",
-                         # First protein controls a reaction whose output molecule is input to another reaction controled by the second protein.
-                         "in-complex-with",  # Proteins are members of the same complex.
-                         "interacts-with",  # Proteins are participants of the same MolecularInteraction.
-                         "neighbor-of",  # Proteins are participants or controlers of the same interaction.
-                         "consumption-controled-by",
-                         # The small molecule is consumed by a reaction that is controled by a protein
-                         "controls-production-of",
-                         # The protein controls a reaction of which the small molecule is an output.
-                         "controls-transport-of-chemical"  # The protein controls a reaction that changes cellular location of the small molecule.
-                         "chemical-affects",  # A small molecule has an effect on the protein state.
-                         "reacts-with",  # Small molecules are input to a biochemical reaction
-                         "used-to-produce"  # A reaction consumes a small molecule to produce another small molecule.
-                         ],
+    "neighbor-of": ["controls-state-change-of",
+                    # First protein controls a reaction that changes the state of the second protein.
+                    "controls-transport-of",
+                    # First protein controls a reaction that changes the cellular location of the second protein.
+                    "controls-phosphorylation-of"  # First protein controls a reaction that changes the phosphorylation status of the second protein.
+                    "controls-expression-of",
+                    # First protein controls a conversion or a template reaction that changes expression of the second protein.
+                    "catalysis-precedes",
+                    # First protein controls a reaction whose output molecule is input to another reaction controled by the second protein.
+                    "in-complex-with",  # Proteins are members of the same complex.
+                    "interacts-with",  # Proteins are participants of the same MolecularInteraction.
+                    "neighbor-of",  # Proteins are participants or controlers of the same interaction.
+                    "consumption-controled-by",
+                    # The small molecule is consumed by a reaction that is controled by a protein
+                    "controls-production-of",
+                    # The protein controls a reaction of which the small molecule is an output.
+                    "controls-transport-of-chemical"  # The protein controls a reaction that changes cellular location of the small molecule.
+                    "chemical-affects",  # A small molecule has an effect on the protein state.
+                    "reacts-with",  # Small molecules are input to a biochemical reaction
+                    "used-to-produce"  # A reaction consumes a small molecule to produce another small molecule.
+                    ],
     "controls-state-change-of": [
-                       "controls-transport-of",
-                       "controls-phosphorylation-of",
-                       "controls-expression-of"
-                       ]
+        "controls-transport-of",
+        "controls-phosphorylation-of",
+        "controls-expression-of"
+    ]
 }
+
 
 def ndex_edge_filter(network):
     map = create_tuple_to_edge_map(network)
@@ -302,6 +334,7 @@ def ndex_edge_filter(network):
     #         network.remove_edge_by_id(csc_b_a)
     #         print "removing edge " + str(csc_b_a) + " " + "controls-state-change-of"
 
+
 def remove_subsumed_edges_of_type_in_network(edge_type, tuple_to_edge_map, network):
     for tuple_key, edges in tuple_to_edge_map.items():
         node_ids = tuple_key.split("_")
@@ -316,6 +349,7 @@ def remove_subsumed_edges_of_type_in_network(edge_type, tuple_to_edge_map, netwo
 
         remove_subsumed_edges_of_type(edge_type, forward_edges, network)
         remove_subsumed_edges_of_type(edge_type, backward_edges, network)
+
 
 def remove_subsumed_edges_of_type(edge_type, edges, network):
     if len(edges) == 0:
@@ -363,6 +397,7 @@ def remove_subsumed_edges_of_type(edge_type, edges, network):
 
     return some_edge_removed
 
+
 def create_tuple_to_edge_map(network):
     map = {}
     for edge_id in network.edgemap:
@@ -373,10 +408,61 @@ def create_tuple_to_edge_map(network):
         else:
             tuple_key = str(t) + "_" + str(s)
         if not tuple_key in map:
-            map[tuple_key] = [{"edge_id": edge_id, "interaction" : interaction, "source_id": s, "target_id": t}]
+            map[tuple_key] = [{"edge_id": edge_id, "interaction": interaction, "source_id": s, "target_id": t}]
         else:
-            map[tuple_key].append({"edge_id": edge_id, "interaction" : interaction, "source_id": s, "target_id": t})
+            map[tuple_key].append({"edge_id": edge_id, "interaction": interaction, "source_id": s, "target_id": t})
     return map
+
+
+def load_nci_table_to_dicts(path):
+    table = []
+    with open(path, 'rU') as f:
+        reader = csv.DictReader(f, dialect='excel-tab')
+        for row in reader:
+            table.append(row)
+    return table
+
+
+def add_nci_table_properties(G, network_name, nci_table, not_in_nci_table):
+    # find the entry for network_name in nci_table
+    network_dict = None
+    for row in nci_table:
+        if "Pathway Name" in row:
+            if network_name == row["Pathway Name"]:
+                # simple match!
+                network_dict = row
+                break
+        if "Corrected Pathway Name" in row:
+            if network_name == row["Corrected Pathway Name"]:
+                network_dict = row
+                break
+    if not network_dict:
+        not_in_nci_table.append(network_name)
+        return
+    if "PID" in network_dict:
+        pid = network_dict["PID"]
+        G.set_network_attribute("label", [pid])
+        G.set_network_attribute("pid", pid)
+
+    if "Reviewed By" in network_dict:
+        reviewed_by = network_dict["Reviewed By"]
+        names = reviewed_by.split("'")
+        reviewers = []
+        for name in names:
+            reviewers.append(name.strip())
+        G.set_network_attribute("reviewer", reviewers)
+
+    if "Curated By" in network_dict:
+        curated_by = network_dict["Curated By"]
+        names = curated_by.split("'")
+        authors = []
+        for name in names:
+            authors.append(name.strip())
+        G.set_network_attribute("author", authors)
+
+    if "Revision Date" in network_dict:
+        revision_date = network_dict["Revision Date"]
+        G.set_network_attribute("revised", revision_date)
 
 
 def load_ebs_file_to_dict(path):
@@ -414,6 +500,7 @@ def load_ebs_file_to_dict(path):
             node_table.append(dict)
 
     return ebs
+
 
 def _get_node_type(ebs_type):
     if ebs_type is None:

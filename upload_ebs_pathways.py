@@ -2,7 +2,7 @@
 import ebs.ebs2cx as ebs2cx
 import ndex.client as nc
 import ndex.networkn as networkn
-import json
+from os import getcwd
 
 # body
 
@@ -116,6 +116,11 @@ if args.template_id:
     template_cx = response.json()
     template_network = networkn.NdexGraph(template_cx)
 
+nci_table = False
+if args.nci:
+    cwd = getcwd()
+    nci_table = ebs2cx.load_nci_table_to_dicts(cwd + "/pid_revised_list-v8-unicode.txt")
+
 ebs2cx.upload_ebs_files(
     args.directory,
     ndex,
@@ -124,7 +129,8 @@ ebs2cx.upload_ebs_files(
     layout=args.layout,
     filter=args.filter,
     max=args.max,
-    update=args.update
+    update=args.update,
+    nci_table=nci_table
 )
 
 
