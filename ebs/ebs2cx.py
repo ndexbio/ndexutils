@@ -60,7 +60,7 @@ CONTROL_INTERACTIONS = ["controls-state-change-of",
 
 
 def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None,
-                     update=False, filter=None, max=None, nci_table=False):
+                     update=False, filter=None, max=None, nci_table=None):
     my_layout = _check_layout_(layout)
     my_filter = _check_filter_(filter)
     my_template_network = _check_template_network_(template_network)
@@ -103,6 +103,12 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         ebs = load_ebs_file_to_dict(path)
         ebs_network = ebs_to_network(ebs, name=network_name)
 
+        # Do this one first to establish subnetwork and view ids from template
+        # this is not ideal, but ok for special case of this loader
+        if my_template_network:
+            toolbox.apply_network_as_template(ebs_network, template_network)
+            print "applied graphic style from " + str(template_network.get_name())
+
         if my_filter:
             if filter == "cravat_1":
                 cravat_edge_filter(ebs_network)
@@ -111,17 +117,20 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
         if my_layout:
             if layout == "directed_flow":
-                layouts.apply_directed_flow_layout(ebs_network)
+                layouts.apply_directed_flow_layout(ebs_network, node_width=35, use_degree_edge_weights=True)
                 print "applied directed_flow layout"
 
-        if my_template_network:
-            toolbox.apply_network_as_template(ebs_network, template_network)
-            print "applied graphic style from " + str(template_network.get_name())
-
-        props = [{"name": "dc:title", "value": network_name}]
+        provenance_props = [{"name": "dc:title", "value": network_name}]
 
         if nci_table:
             add_nci_table_properties(ebs_network, network_name, nci_table, not_in_nci_table)
+
+        ebs_network.set_network_attribute("dc:description", NCI_DESCRIPTION_TEMPLATE % network_name)
+
+        ebs_network.set_network_attribute("dc:title", network_name)
+
+        if nci_table:
+            ebs_network.set_network_attribute("dc:version", "NCI Curated Human Pathways from PID (final); 27-Jul-2015")
 
         if update:
             if matching_network_count == 0:
@@ -131,7 +140,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
                 provenance = toolbox.make_provenance("Upload by NDEx EBS network converter",
                                                      network_id,
                                                      ndex,
-                                                     entity_props=props)
+                                                     entity_props=provenance_props)
                 ndex.set_provenance(network_id, provenance)
             elif matching_network_count == 1:
                 network_to_update = matching_networks[0]
@@ -142,7 +151,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
                                                      network_id,
                                                      ndex,
                                                      provenance=old_provenance,
-                                                     entity_props=props)
+                                                     entity_props=provenance_props)
                 ndex.update_cx_network(ebs_network.to_cx_stream(), network_id)
                 ndex.set_provenance(network_id, provenance)
             else:
@@ -155,7 +164,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             provenance = toolbox.make_provenance("Upload by NDEx EBS network converter",
                                                  network_id,
                                                  ndex,
-                                                 entity_props=props)
+                                                 entity_props=provenance_props)
             ndex.set_provenance(network_id, provenance)
 
         network_id_map[network_name] = network_id
@@ -441,24 +450,24 @@ def add_nci_table_properties(G, network_name, nci_table, not_in_nci_table):
         return
     if "PID" in network_dict:
         pid = network_dict["PID"]
-        G.set_network_attribute("label", [pid])
+        #G.set_network_attribute("label", [pid])
         G.set_network_attribute("pid", pid)
 
-    if "Reviewed By" in network_dict:
-        reviewed_by = network_dict["Reviewed By"]
-        names = reviewed_by.split("'")
-        reviewers = []
-        for name in names:
-            reviewers.append(name.strip())
-        G.set_network_attribute("reviewer", reviewers)
-
-    if "Curated By" in network_dict:
-        curated_by = network_dict["Curated By"]
-        names = curated_by.split("'")
-        authors = []
-        for name in names:
-            authors.append(name.strip())
-        G.set_network_attribute("author", authors)
+    # if "Reviewed By" in network_dict:
+    #     reviewed_by = network_dict["Reviewed By"]
+    #     names = reviewed_by.split(",")
+    #     reviewers = []
+    #     for name in names:
+    #         reviewers.append(name.strip())
+    #     G.set_network_attribute("reviewer", reviewers)
+    #
+    # if "Curated By" in network_dict:
+    #     curated_by = network_dict["Curated By"]
+    #     names = curated_by.split(",")
+    #     authors = []
+    #     for name in names:
+    #         authors.append(name.strip())
+    #     G.set_network_attribute("author", authors)
 
     if "Revision Date" in network_dict:
         revision_date = network_dict["Revision Date"]
@@ -538,14 +547,16 @@ def ebs_to_network(ebs, name="not named"):
                 alias_string = node["UNIFICATION_XREF"]
                 if alias_string is not None and alias_string is not "":
                     attributes["aliases"] = alias_string.split(";")
-                    # attributes["represents"] = aliases[0] - can't take first alias for ebs. Need to resolve uniprot primary id for the gene
+                    # attributes["represents"] = aliases[0] - can't take first alias for ebs.
+                    # Need to resolve uniprot primary id for the gene
 
             participant = node["PARTICIPANT"]
             node_id = G.add_new_node(participant, attributes)
             node_id_map[participant] = node_id
 
     # Create Edges
-    # PARTICIPANT_A	INTERACTION_TYPE	PARTICIPANT_B	INTERACTION_DATA_SOURCE	INTERACTION_PUBMED_ID	PATHWAY_NAMES	MEDIATOR_IDS
+    # PARTICIPANT_A	INTERACTION_TYPE	PARTICIPANT_B	INTERACTION_DATA_SOURCE
+    # INTERACTION_PUBMED_ID	PATHWAY_NAMES	MEDIATOR_IDS
     for edge in ebs.get("edge_table"):
         if "INTERACTION_TYPE" not in edge:
             raise "No interaction type for edge " + str(edge)
@@ -587,3 +598,8 @@ def ebs_to_network(ebs, name="not named"):
                     G.add_edge_citation_ref(edge_id, citation_id)
 
     return G
+
+NCI_DESCRIPTION_TEMPLATE = ("<i>%s</i> was derived from the latest BioPAX3 version of the Pathway Interaction Database (PID)"
+                                " curated by NCI/Nature. The BioPAX was first converted to Extended Binary SIF (EBS) by"
+                                " the PAXTools utility from Pathway Commons. It was then processed to remove redundant"
+                                " edges, add a 'directed flow' layout, and styled with Cytoscape Visual Properties.")
