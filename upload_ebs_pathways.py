@@ -3,6 +3,7 @@ import ebs.ebs2cx as ebs2cx
 import ndex.client as nc
 import ndex.networkn as networkn
 from os import getcwd
+import json
 
 # body
 
@@ -121,7 +122,7 @@ if args.nci:
     cwd = getcwd()
     nci_table = ebs2cx.load_nci_table_to_dicts(cwd + "/pid_revised_list-v8-unicode.txt")
 
-ebs2cx.upload_ebs_files(
+id_map = ebs2cx.upload_ebs_files(
     args.directory,
     ndex,
     group_id=args.group_id,
@@ -133,4 +134,6 @@ ebs2cx.upload_ebs_files(
     nci_table=nci_table
 )
 
+with open(getcwd() + "/nci_ids.json", 'w') as file:
+    file.write(json.dumps(id_map, indent=4))
 

@@ -101,7 +101,17 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             continue
 
         ebs = load_ebs_file_to_dict(path)
+
+        if len(ebs) == 0:
+            print "skipping this file because no rows were found when processing it as EBS"
+            continue
+
         ebs_network = ebs_to_network(ebs, name=network_name)
+
+        if len(ebs_network.nodes()) == 0:
+            print "skipping this network because no nodes were found when processing it as EBS"
+            continue
+
 
         # Do this one first to establish subnetwork and view ids from template
         # this is not ideal, but ok for special case of this loader
@@ -125,12 +135,12 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         if nci_table:
             add_nci_table_properties(ebs_network, network_name, nci_table, not_in_nci_table)
 
-        ebs_network.set_network_attribute("dc:description", NCI_DESCRIPTION_TEMPLATE % network_name)
+        ebs_network.set_network_attribute("description", NCI_DESCRIPTION_TEMPLATE % network_name)
 
         ebs_network.set_network_attribute("dc:title", network_name)
 
         if nci_table:
-            ebs_network.set_network_attribute("dc:version", "NCI Curated Human Pathways from PID (final); 27-Jul-2015")
+            ebs_network.set_network_attribute("version", "NCI Curated Human Pathways from PID (final); 27-Jul-2015")
 
         if update:
             if matching_network_count == 0:
@@ -289,7 +299,7 @@ def ndex_edge_filter(network):
     map = create_tuple_to_edge_map(network)
     remove_subsumed_edges_of_type_in_network("neighbor-of", map, network)
     remove_subsumed_edges_of_type_in_network("controls-state-change-of", map, network)
-    remove_my_orphans(network)
+    # remove_my_orphans(network)
     return True
 
     # for tuple_key, edges in map.items():
@@ -395,13 +405,13 @@ def remove_subsumed_edges_of_type(edge_type, edges, network):
             for pmid in edge["pmid"]:
                 if pmid in subsuming_pmids:
                     network.remove_edge_by_id(edge["edge_id"])
-                    print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+                    # print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
                     some_edge_removed = True
         else:
             # there is no pmid in the subsumed edge,
             # it can therefore be removed without loss of information
             network.remove_edge_by_id(edge["edge_id"])
-            print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+            # print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
             some_edge_removed = True
 
     return some_edge_removed
@@ -450,24 +460,24 @@ def add_nci_table_properties(G, network_name, nci_table, not_in_nci_table):
         return
     if "PID" in network_dict:
         pid = network_dict["PID"]
-        #G.set_network_attribute("label", [pid])
+        G.set_network_attribute("label", [pid])
         G.set_network_attribute("pid", pid)
 
-    # if "Reviewed By" in network_dict:
-    #     reviewed_by = network_dict["Reviewed By"]
-    #     names = reviewed_by.split(",")
-    #     reviewers = []
-    #     for name in names:
-    #         reviewers.append(name.strip())
-    #     G.set_network_attribute("reviewer", reviewers)
-    #
-    # if "Curated By" in network_dict:
-    #     curated_by = network_dict["Curated By"]
-    #     names = curated_by.split(",")
-    #     authors = []
-    #     for name in names:
-    #         authors.append(name.strip())
-    #     G.set_network_attribute("author", authors)
+    if "Reviewed By" in network_dict:
+        reviewed_by = network_dict["Reviewed By"]
+        names = reviewed_by.split(",")
+        reviewers = []
+        for name in names:
+            reviewers.append(name.strip())
+        G.set_network_attribute("reviewer", reviewers)
+
+    if "Curated By" in network_dict:
+        curated_by = network_dict["Curated By"]
+        names = curated_by.split(",")
+        authors = []
+        for name in names:
+            authors.append(name.strip())
+        G.set_network_attribute("author", authors)
 
     if "Revision Date" in network_dict:
         revision_date = network_dict["Revision Date"]
