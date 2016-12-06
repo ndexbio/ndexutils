@@ -137,8 +137,6 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
         ebs_network.set_network_attribute("description", NCI_DESCRIPTION_TEMPLATE % network_name)
 
-        ebs_network.set_network_attribute("dc:title", network_name)
-
         if nci_table:
             ebs_network.set_network_attribute("version", "NCI Curated Human Pathways from PID (final); 27-Jul-2015")
 
@@ -458,26 +456,28 @@ def add_nci_table_properties(G, network_name, nci_table, not_in_nci_table):
     if not network_dict:
         not_in_nci_table.append(network_name)
         return
+
     if "PID" in network_dict:
         pid = network_dict["PID"]
-        G.set_network_attribute("label", [pid])
-        G.set_network_attribute("pid", pid)
+        G.set_network_attribute("labels", pid)
 
     if "Reviewed By" in network_dict:
         reviewed_by = network_dict["Reviewed By"]
-        names = reviewed_by.split(",")
-        reviewers = []
-        for name in names:
-            reviewers.append(name.strip())
-        G.set_network_attribute("reviewer", reviewers)
+        # names = reviewed_by.split(",")
+        # reviewers = []
+        # for name in names:
+        #     reviewers.append(name.strip())
+        # G.set_network_attribute("reviewer", reviewers)
+        G.set_network_attribute("reviewers", reviewed_by)
 
     if "Curated By" in network_dict:
         curated_by = network_dict["Curated By"]
-        names = curated_by.split(",")
-        authors = []
-        for name in names:
-            authors.append(name.strip())
-        G.set_network_attribute("author", authors)
+        # names = curated_by.split(",")
+        # authors = []
+        # for name in names:
+        #     authors.append(name.strip())
+        # G.set_network_attribute("author", authors)
+        G.set_network_attribute("author", curated_by)
 
     if "Revision Date" in network_dict:
         revision_date = network_dict["Revision Date"]
