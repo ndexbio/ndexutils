@@ -138,7 +138,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         ebs_network.set_network_attribute("description", NCI_DESCRIPTION_TEMPLATE % network_name)
 
         if nci_table:
-            ebs_network.set_network_attribute("version", "NCI Curated Human Pathways from PID (final); 27-Jul-2015")
+            ebs_network.set_network_attribute("version", "27-Jul-2015")
 
         if update:
             if matching_network_count == 0:
@@ -195,6 +195,138 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
     return network_id_map
 
+def check_upload_account(username, ndex, dirpath, nci_table):
+    networks_in_account = ndex.search_networks(search_string="*",  account_name=username, size=10000)
+
+    account_sif_networks = []
+    account_sif_names = []
+    for network in networks_in_account:
+        if "properties" in network:
+            for property in network["properties"]:
+                if property["predicateString"] == "sourceFormat":
+                    if property["value"] == "SIF":
+                        account_sif_networks.append(network)
+                        account_sif_names.append(network.get("name"))
+                        break
+
+    print "%s SIF networks in account %s" % (len(account_sif_names), username)
+
+    upload_names = []
+    for path in listdir(dirpath):
+        upload_names.append(network_name_from_path(path))
+    print "%s networks to upload / update" % (len(upload_names))
+
+    # Raise an exception if any of the upload_names are in the account_sif_names multiple times
+
+    nci_names = []
+    nci_corrected_names = []
+
+    original_to_corrected_map = {}
+    for row in nci_table:
+        original_name = None
+        if "Pathway Name" in row:
+            original_name = row["Pathway Name"]
+            nci_names.append(original_name)
+        if "Corrected Pathway Name" in row:
+            c_name = row["Corrected Pathway Name"]
+            if c_name != "":
+                nci_corrected_names.append(c_name)
+                original_to_corrected_map[original_name] = c_name
+
+    print ""
+    print "--------------------"
+    print "there are %s NCI networks specified in the NCI table:" % (len(nci_names))
+
+    all_nci_names = list(set(nci_corrected_names).union(set(nci_names)))
+
+    # case 1: NCI network names NOT in account_sif names:
+    nci_not_account_sifs = list(set(nci_names).difference(set(account_sif_names)))
+    print ""
+    print "--------------------"
+    print "%s NCI networks out of %s are not in the account:" % (len(nci_not_account_sifs), len(nci_names))
+    for name in nci_not_account_sifs:
+        print name
+
+    # case 1a: Corrected NCI names NOT in account_sif names:
+    nci_corrected_not_account_sifs = list(set(nci_corrected_names).difference(set(account_sif_names)))
+    print ""
+    print "--------------------"
+    print "%s NCI (corrected name) networks out of %s are not in the account:" % (len(nci_corrected_not_account_sifs), len(nci_corrected_names))
+    for name in nci_corrected_not_account_sifs:
+        print name
+
+    # case 2: NCI network names NOT in upload names:
+    nci_original_not_upload = list(set(nci_names).difference(set(upload_names)))
+    print ""
+    print "--------------------"
+    print "%s NCI original names out of %s are not in the %s upload names:" % (len(nci_original_not_upload), len(nci_names), len(upload_names))
+    for name in nci_original_not_upload:
+        print name
+
+    # case 2a: Corrected NCI names NOT in upload names:
+    nci_corrected_not_upload = list(set(nci_corrected_names).difference(set(upload_names)))
+    print ""
+    print "--------------------"
+    print "%s NCI (corrected name) networks out of %s are not in the %s upload names:" % (len(nci_corrected_not_upload), len(nci_corrected_names), len(upload_names))
+    for name in nci_corrected_not_upload:
+        print name
+
+    # case 4: NCI Networks for which neither the original or corrected name is in the upload list
+    # case 2: NCI network names NOT in upload names:
+    nci_not_upload = []
+    for original_name in nci_names:
+        if original_name in upload_names:
+            continue
+        corrected_name = original_to_corrected_map.get(original_name)
+        if not corrected_name:
+            nci_not_upload.append([original_name])
+            continue
+        if corrected_name in upload_names:
+            continue
+        else:
+            nci_not_upload.append([original_name, corrected_name])
+
+    print ""
+    print "--------------------"
+    print "%s NCI networks from table not in the %s upload names:" % (len(nci_not_upload), len(upload_names))
+    for item in nci_not_upload:
+        if len(item) == 1:
+            print item[0]
+        else:
+            print "%s -> %s" % (item[0], item[1])
+
+
+    # case 5: duplicates of upload names in account_sif names:
+
+    # case 6: upload names not matching any NCI names: CREATE
+    upload_not_nci = list(set(upload_names).difference(set(all_nci_names)))
+    print ""
+    print "--------------------"
+    print "%s upload networks out of %s do not match any of the names from the nci table (corrected or original) and therefore will be created :" % (len(upload_not_nci), len(upload_names))
+    for name in upload_not_nci:
+        print name
+
+    # case 7: upload names matching some NCI name: UPDATE
+    upload_and_nci = list(set(upload_names).intersection(set(all_nci_names)))
+    print ""
+    print "--------------------"
+    print "%s upload networks out of %s that match an nci name (corrected or original) and therefore will be updated):" % (len(upload_and_nci), len(upload_names))
+
+    # case 8: account SIF names not matching any upload name
+    account_sif_not_upload = list(set(account_sif_names).difference(set(upload_names)))
+    print ""
+    print "--------------------"
+    print "%s account SIF networks out of %s do not match any of the upload networks :" % (len(account_sif_not_upload), len(account_sif_names))
+    for name in account_sif_not_upload:
+        print name
+
+    # case 8: upload names not in account SIF names=
+    upload_not_account_sif = list(set(upload_names).difference(set(account_sif_names)))
+    print ""
+    print "--------------------"
+    print "%s upload networks out of %s do not match any of the account SIF networks :" % (len(upload_not_account_sif), len(upload_names))
+    for name in upload_not_account_sif:
+        print name
 
 def search_for_matching_networks(ndex, network_name):
     search_string = 'name:"' + network_name + '"'
@@ -479,9 +611,9 @@ def add_nci_table_properties(G, network_name, nci_table, not_in_nci_table):
         # G.set_network_attribute("author", authors)
         G.set_network_attribute("author", curated_by)
 
-    if "Revision Date" in network_dict:
-        revision_date = network_dict["Revision Date"]
-        G.set_network_attribute("revised", revision_date)
+    # if "Revision Date" in network_dict:
+    #     revision_date = network_dict["Revision Date"]
+    #     G.set_network_attribute("revised", revision_date)
 
 
 def load_ebs_file_to_dict(path):
