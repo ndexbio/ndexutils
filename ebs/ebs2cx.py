@@ -80,6 +80,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
                 # if "Corrected Pathway Name" in row:
                 #     in_nci_table.append(row["Corrected Pathway Name"])
 
+    account_network_map = search_for_non_biopax_networks(ndex)
     for filename in listdir(dirpath):
         network_count = network_count + 1
         if max is not None and network_count > max:
@@ -91,14 +92,13 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         network_name = network_name_from_path(path)
         in_dir.append(network_name)
 
-        search_result = search_for_matching_networks(ndex, network_name)
-        matching_networks = search_result["networks"]
-        matching_network_count = search_result["numFound"]
-
-        if update and matching_network_count > 1:
-            print "skipping this file because " + str(
-                matching_network_count) + "existing networks match '" + network_name + "'"
-            continue
+        matching_networks = account_network_map.get(network_name)
+        matching_network_count = 0
+        if matching_networks:
+            matching_network_count = len(matching_networks)
+            if matching_network_count > 1:
+                print "skipping this file because %s existing networks match '%s'" % (len(matching_networks), network_name)
+                continue
 
         ebs = load_ebs_file_to_dict(path)
 
@@ -111,7 +111,6 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         if len(ebs_network.nodes()) == 0:
             print "skipping this network because no nodes were found when processing it as EBS"
             continue
-
 
         # Do this one first to establish subnetwork and view ids from template
         # this is not ideal, but ok for special case of this loader
@@ -127,7 +126,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
         if my_layout:
             if layout == "directed_flow":
-                layouts.apply_directed_flow_layout(ebs_network, node_width=35, use_degree_edge_weights=True)
+                layouts.apply_directed_flow_layout(ebs_network, node_width=25, use_degree_edge_weights=True)
                 print "applied directed_flow layout"
 
         provenance_props = [{"name": "dc:title", "value": network_name}]
@@ -181,35 +180,75 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         print "granting networks to group id " + group_id
         ndex.grant_networks_to_group(group_id, network_id_map.values())
 
-    if len(not_in_nci_table) > 0:
-        print "Networks in directory not found in NCI table:"
-        for name in not_in_nci_table:
-            print "   " + name
+    # if len(not_in_nci_table) > 0:
+    #     print "Networks in directory not found in NCI table:"
+    #     for name in not_in_nci_table:
+    #         print "   " + name
+    #
+    # if len(in_nci_table) > 0:
+    #     in_table_not_in_dir = list(set(in_nci_table) - set(in_dir))
+    #     if len(in_table_not_in_dir) > 0:
+    #         print "Networks in NCI table not found in directory:"
+    #         for name in not_in_nci_table:
+    #             print "   " + name
 
-    if len(in_nci_table) > 0:
-        in_table_not_in_dir = list(set(in_nci_table) - set(in_dir))
-        if len(in_table_not_in_dir) > 0:
-            print "Networks in NCI table not found in directory:"
-            for name in not_in_nci_table:
-                print "   " + name
+    for network_name in account_network_map:
+        networks = account_network_map[network_name]
+        if len(networks) > 1:
+            print "Skipped %s because of multiple non-BioPAX matches in the account" % (network_name)
 
     return network_id_map
 
+def search_for_non_biopax_networks(ndex):
+    search_result = ndex.search_networks(search_string="", account_name=ndex.username, size=10000)
+    if "networks" in search_result:
+        networks_in_account = search_result["networks"]
+    else:
+        networks_in_account = search_result
+
+    account_non_biopax_network_map = {}
+    for network in networks_in_account:
+        name = network["name"]
+        skip = False
+        if "properties" in network:
+            for property in network["properties"]:
+                property_name = property["predicateString"]
+                if property_name == "sourceFormat" or property_name == "ndex:sourceFormat":
+                    if property["value"] == "BIOPAX":
+                        skip = True
+                        break
+        if not skip:
+            if name in account_non_biopax_network_map:
+                networks = account_non_biopax_network_map[name]
+            else:
+                networks = []
+                account_non_biopax_network_map[name] = networks
+            networks.append(network)
+
+    print "%s non-BioPAX networks in account %s" % (len(account_non_biopax_network_map), ndex.username)
+    return account_non_biopax_network_map
+
 def check_upload_account(username, ndex, dirpath, nci_table):
-    networks_in_account = ndex.search_networks(search_string="*",  account_name=username, size=10000)
+    search_result = ndex.search_networks(search_string="*",  account_name=username, size=10000)
+
+    if "networks" in search_result:
+        networks_in_account = search_result["networks"]
+    else:
+        networks_in_account = search_result
 
     account_sif_networks = []
     account_sif_names = []
     for network in networks_in_account:
         if "properties" in network:
             for property in network["properties"]:
-                if property["predicateString"] == "sourceFormat":
-                    if property["value"] == "SIF":
+                property_name = property["predicateString"]
+                if property_name == "sourceFormat" or property_name == "ndex:sourceFormat":
+                    if property["value"] != "BIOPAX":
                         account_sif_networks.append(network)
                         account_sif_names.append(network.get("name"))
                         break
 
-    print "%s SIF networks in account %s" % (len(account_sif_names), username)
+    print "%s non-BioPAX networks in account %s" % (len(account_sif_names), username)
 
     upload_names = []
     for path in listdir(dirpath):
@@ -312,25 +351,23 @@ def check_upload_account(username, ndex, dirpath, nci_table):
     print "--------------------"
     print "%s upload networks out of %s that match an nci name (corrected or original) and therefore will be updated):" % (len(upload_and_nci), len(upload_names))
 
-    # case 8: account SIF names not matching any upload name
+    # case 8: account non-BioPAX names not matching any upload name
     account_sif_not_upload = list(set(account_sif_names).difference(set(upload_names)))
     print ""
     print "--------------------"
-    print "%s account SIF networks out of %s do not match any of the upload networks :" % (len(account_sif_not_upload), len(account_sif_names))
+    print "%s account (non-BioPAX) networks out of %s do not match any of the upload networks :" % (len(account_sif_not_upload), len(account_sif_names))
     for name in account_sif_not_upload:
         print name
 
-    # case 8: upload names not in account SIF names=
+    # case 8: upload names not in account (non-BioPAX)  names=
     upload_not_account_sif = list(set(upload_names).difference(set(account_sif_names)))
     print ""
     print "--------------------"
-    print "%s upload networks out of %s do not match any of the account SIF networks :" % (len(upload_not_account_sif), len(upload_names))
+    print "%s upload networks out of %s do not match any of the account (non-BioPAX)  networks :" % (len(upload_not_account_sif), len(upload_names))
     for name in upload_not_account_sif:
         print name
 
-def search_for_matching_networks(ndex, network_name):
-    search_string = 'name:"' + network_name + '"'
-    return ndex.search_networks(search_string=search_string, account_name=ndex.username)
+
 
 
 def network_name_from_path(path):
@@ -678,11 +715,15 @@ def ebs_to_network(ebs, name="not named"):
     for node in ebs.get("node_table"):
         attributes = {}
         if "PARTICIPANT" in node:
+            participant = node["PARTICIPANT"]
+            participant_name = None
+            node_name = participant
 
             if "PARTICIPANT_NAME" in node:
                 name = node["PARTICIPANT_NAME"]
                 if name is not None and len(name) > 0:
                     attributes["name"] = name
+                    participant_name = name
 
             attributes["type"] = _get_node_type(node.get("PARTICIPANT_TYPE"))
             if "UNIFICATION_XREF" in node:
@@ -692,8 +733,10 @@ def ebs_to_network(ebs, name="not named"):
                     # attributes["represents"] = aliases[0] - can't take first alias for ebs.
                     # Need to resolve uniprot primary id for the gene
 
-            participant = node["PARTICIPANT"]
-            node_id = G.add_new_node(participant, attributes)
+            if node_name.startswith("CHEBI") and participant_name:
+                node_name = participant_name
+
+            node_id = G.add_new_node(node_name, attributes)
             node_id_map[participant] = node_id
 
     # Create Edges
@@ -743,5 +786,7 @@ def ebs_to_network(ebs, name="not named"):
 
 NCI_DESCRIPTION_TEMPLATE = ("<i>%s</i> was derived from the latest BioPAX3 version of the Pathway Interaction Database (PID)"
                                 " curated by NCI/Nature. The BioPAX was first converted to Extended Binary SIF (EBS) by"
-                                " the PAXTools utility from Pathway Commons. It was then processed to remove redundant"
-                                " edges, add a 'directed flow' layout, and styled with Cytoscape Visual Properties.")
+                                " the PAXTools v5 utility. It was then processed to remove redundant"
+                                " edges, to add a 'directed flow' layout, and to add a graphic style using Cytoscape Visual Properties."
+                                " This network can be found in searches using its orignal PID accession id, present in"
+                                " the 'labels' property.")

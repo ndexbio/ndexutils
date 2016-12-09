@@ -125,7 +125,7 @@ if args.nci:
 id_map = ebs2cx.upload_ebs_files(
     args.directory,
     ndex,
-    group_id=args.group_id,
+    #group_id=args.group_id,
     template_network=template_network,
     layout=args.layout,
     filter=args.filter,
