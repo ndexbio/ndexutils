@@ -126,7 +126,10 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
         if my_layout:
             if layout == "directed_flow":
-                layouts.apply_directed_flow_layout(ebs_network, node_width=25, use_degree_edge_weights=True)
+                layouts.apply_directed_flow_layout(ebs_network,
+                                                   node_width=25,
+                                                   use_degree_edge_weights=True,
+                                                   iterations=200)
                 print "applied directed_flow layout"
 
         provenance_props = [{"name": "dc:title", "value": network_name}]
@@ -139,28 +142,20 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         if nci_table:
             ebs_network.set_network_attribute("version", "27-Jul-2015")
 
+        ebs_network.update_provenance("Created by NDEx EBS network converter", entity_props=provenance_props)
+
         if update:
             if matching_network_count == 0:
                 print "saving new network " + network_name
                 network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
                 network_id = network_url.split("/")[-1]
-                provenance = toolbox.make_provenance("Upload by NDEx EBS network converter",
-                                                     network_id,
-                                                     ndex,
-                                                     entity_props=provenance_props)
-                ndex.set_provenance(network_id, provenance)
+
             elif matching_network_count == 1:
                 network_to_update = matching_networks[0]
                 print "updating network " + network_to_update.get("name") + " with " + network_name
                 network_id = network_to_update.get("externalId")
-                old_provenance = ndex.get_provenance(network_id)
-                provenance = toolbox.make_provenance("Update by NDEx EBS network converter",
-                                                     network_id,
-                                                     ndex,
-                                                     provenance=old_provenance,
-                                                     entity_props=provenance_props)
                 ndex.update_cx_network(ebs_network.to_cx_stream(), network_id)
-                ndex.set_provenance(network_id, provenance)
+
             else:
                 raise ValueError("unexpected case: should not try to update when more than one matching network")
         else:
@@ -168,11 +163,6 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
             network_id = network_url.split("/")[-1]
 
-            provenance = toolbox.make_provenance("Upload by NDEx EBS network converter",
-                                                 network_id,
-                                                 ndex,
-                                                 entity_props=provenance_props)
-            ndex.set_provenance(network_id, provenance)
 
         network_id_map[network_name] = network_id
 
