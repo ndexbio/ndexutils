@@ -80,8 +80,27 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
                 # if "Corrected Pathway Name" in row:
                 #     in_nci_table.append(row["Corrected Pathway Name"])
 
+    skipped = []
     account_network_map = search_for_non_biopax_networks(ndex)
-    for filename in listdir(dirpath):
+    files = []
+    file_network_names = []
+    for file in listdir(dirpath):
+        if file.endswith(".sif"):
+            files.append(file)
+            network_name = network_name_from_path(file)
+            file_network_names.append(network_name)
+
+    print "%s SIF files to load" % (len(files))
+    print "%s Non-Biopax Networks in the account" % (len(account_network_map))
+
+    account_networks = account_network_map.keys()
+    account_not_file = list(set(account_networks).difference(set(file_network_names)))
+
+    print "%s Networks in the account not in upload files" % (len(account_not_file))
+    for network_name in account_not_file:
+        print " - %s" % (network_name)
+
+    for filename in files:
         network_count = network_count + 1
         if max is not None and network_count > max:
             break
@@ -98,18 +117,21 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             matching_network_count = len(matching_networks)
             if matching_network_count > 1:
                 print "skipping this file because %s existing networks match '%s'" % (len(matching_networks), network_name)
+                skipped.append(network_name  + " :duplicate names")
                 continue
 
         ebs = load_ebs_file_to_dict(path)
 
         if len(ebs) == 0:
             print "skipping this file because no rows were found when processing it as EBS"
+            skipped.append(network_name + " :no rows in file")
             continue
 
         ebs_network = ebs_to_network(ebs, name=network_name)
 
         if len(ebs_network.nodes()) == 0:
             print "skipping this network because no nodes were found when processing it as EBS"
+            skipped.append(network_name + " :no nodes in file")
             continue
 
         # Do this one first to establish subnetwork and view ids from template
@@ -138,6 +160,8 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             add_nci_table_properties(ebs_network, network_name, nci_table, not_in_nci_table)
 
         ebs_network.set_network_attribute("description", NCI_DESCRIPTION_TEMPLATE % network_name)
+
+        ebs_network.set_network_attribute("organism", "human")
 
         if nci_table:
             ebs_network.set_network_attribute("version", "27-Jul-2015")
@@ -187,6 +211,10 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         if len(networks) > 1:
             print "Skipped %s because of multiple non-BioPAX matches in the account" % (network_name)
 
+    print "-----------------"
+    for network_name in skipped:
+        print "Skipped %s" % (network_name)
+
     return network_id_map
 
 def search_for_non_biopax_networks(ndex):
@@ -196,7 +224,10 @@ def search_for_non_biopax_networks(ndex):
     else:
         networks_in_account = search_result
 
+    print "%s networks in account %s" % (len(networks_in_account), ndex.username)
+
     account_non_biopax_network_map = {}
+    biopax_network_count = 0
     for network in networks_in_account:
         name = network["name"]
         skip = False
@@ -206,6 +237,7 @@ def search_for_non_biopax_networks(ndex):
                 if property_name == "sourceFormat" or property_name == "ndex:sourceFormat":
                     if property["value"] == "BIOPAX":
                         skip = True
+                        biopax_network_count += 1
                         break
         if not skip:
             if name in account_non_biopax_network_map:
@@ -215,7 +247,15 @@ def search_for_non_biopax_networks(ndex):
                 account_non_biopax_network_map[name] = networks
             networks.append(network)
 
+    print "%s BioPAX networks in account %s" % (biopax_network_count, ndex.username)
+    for name in account_non_biopax_network_map:
+        networks = account_non_biopax_network_map[name]
+        if len(networks) > 1:
+            print "%s duplicate non-biopax networks for %s" % (len(networks), name)
     print "%s non-BioPAX networks in account %s" % (len(account_non_biopax_network_map), ndex.username)
+
+
+
     return account_non_biopax_network_map
 
 def check_upload_account(username, ndex, dirpath, nci_table):
@@ -434,7 +474,6 @@ NDEX_FILTER_SUBSUMPTION = {
                     # First protein controls a reaction whose output molecule is input to another reaction controled by the second protein.
                     "in-complex-with",  # Proteins are members of the same complex.
                     "interacts-with",  # Proteins are participants of the same MolecularInteraction.
-                    "neighbor-of",  # Proteins are participants or controlers of the same interaction.
                     "consumption-controled-by",
                     # The small molecule is consumed by a reaction that is controled by a protein
                     "controls-production-of",
@@ -562,13 +601,13 @@ def remove_subsumed_edges_of_type(edge_type, edges, network):
             for pmid in edge["pmid"]:
                 if pmid in subsuming_pmids:
                     network.remove_edge_by_id(edge["edge_id"])
-                    # print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+                    print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
                     some_edge_removed = True
         else:
             # there is no pmid in the subsumed edge,
             # it can therefore be removed without loss of information
             network.remove_edge_by_id(edge["edge_id"])
-            # print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+            print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
             some_edge_removed = True
 
     return some_edge_removed
@@ -694,6 +733,8 @@ def _get_node_type(ebs_type):
     return "Other"
 
 
+
+
 def ebs_to_network(ebs, name="not named"):
     G = NdexGraph()
     G.set_name(name)
@@ -778,5 +819,5 @@ NCI_DESCRIPTION_TEMPLATE = ("<i>%s</i> was derived from the latest BioPAX3 versi
                                 " curated by NCI/Nature. The BioPAX was first converted to Extended Binary SIF (EBS) by"
                                 " the PAXTools v5 utility. It was then processed to remove redundant"
                                 " edges, to add a 'directed flow' layout, and to add a graphic style using Cytoscape Visual Properties."
-                                " This network can be found in searches using its orignal PID accession id, present in"
+                                " This network can be found in searches using its original PID accession id, present in"
                                 " the 'labels' property.")
