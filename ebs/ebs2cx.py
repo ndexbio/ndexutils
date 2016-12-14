@@ -113,7 +113,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
         matching_networks = account_network_map.get(network_name)
         matching_network_count = 0
-        if matching_networks:
+        if matching_networks and update:
             matching_network_count = len(matching_networks)
             if matching_network_count > 1:
                 print "skipping this file because %s existing networks match '%s'" % (len(matching_networks), network_name)
@@ -253,8 +253,6 @@ def search_for_non_biopax_networks(ndex):
         if len(networks) > 1:
             print "%s duplicate non-biopax networks for %s" % (len(networks), name)
     print "%s non-BioPAX networks in account %s" % (len(account_non_biopax_network_map), ndex.username)
-
-
 
     return account_non_biopax_network_map
 
@@ -756,13 +754,19 @@ def ebs_to_network(ebs, name="not named"):
                     attributes["name"] = name
                     participant_name = name
 
-            attributes["type"] = _get_node_type(node.get("PARTICIPANT_TYPE"))
+            node_type = _get_node_type(node.get("PARTICIPANT_TYPE"))
+
             if "UNIFICATION_XREF" in node:
                 alias_string = node["UNIFICATION_XREF"]
                 if alias_string is not None and alias_string is not "":
-                    attributes["aliases"] = alias_string.split(";")
+                    aliases = alias_string.split(";")
+                    attributes["aliases"] = aliases
                     # attributes["represents"] = aliases[0] - can't take first alias for ebs.
                     # Need to resolve uniprot primary id for the gene
+                    if node_type == "Other":
+                        node_type = layouts.aliases_to_node_type(aliases)
+
+            attributes["type"] = node_type
 
             if node_name.startswith("CHEBI") and participant_name:
                 node_name = participant_name
@@ -783,6 +787,7 @@ def ebs_to_network(ebs, name="not named"):
 
         attributes = {}
         interaction = edge["INTERACTION_TYPE"]
+        attributes["interaction"] = interaction
 
         if interaction in DIRECTED_INTERACTIONS:
             attributes["directed"] = True

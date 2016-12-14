@@ -2,11 +2,9 @@
 import ebs.ebs2cx as ebs2cx
 import ndex.client as nc
 import ndex.networkn as networkn
-from os import getcwd
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 import argparse
-from os import listdir
 
 NETWORK_ID_LISTS = {"dev2":
                         ["f83a4b58-6186-11e5-8ac5-06603eb7f303",
@@ -18,6 +16,10 @@ NETWORK_ID_LISTS = {"dev2":
                          "15a017bb-6196-11e5-8ac5-06603eb7f303",
                          "8eaff319-bfff-11e6-8820-0660b7976219"
                         ],
+                    "big-dev2":
+                        {"09f3c90a-121a-11e6-a039-06603eb7f303"},
+                    "big-preview":
+                        {"09f3c90a-121a-11e6-a039-06603eb7f303"},
                     "dev2-newguy":
                         ["aef0380a-c0b9-11e6-b256-0660b7976219",
                          "aee64cf9-c0b9-11e6-b256-0660b7976219",
