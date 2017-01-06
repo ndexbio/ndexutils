@@ -116,6 +116,11 @@ if args.template_id:
     response = ndex.get_network_as_cx_stream(args.template_id)
     template_cx = response.json()
     template_network = networkn.NdexGraph(template_cx)
+else:
+    path = "test_dir/NCI_Style.cx"
+    with open(path, 'rU') as cxfile:
+        cx = json.load(cxfile)
+        template_network = networkn.NdexGraph(cx)
 
 nci_table = False
 if args.nci:

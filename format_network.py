@@ -5,6 +5,7 @@ import ndex.networkn as networkn
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 import argparse
+import json
 
 NETWORK_ID_LISTS = {"dev2":
                         ["f83a4b58-6186-11e5-8ac5-06603eb7f303",
@@ -13,9 +14,11 @@ NETWORK_ID_LISTS = {"dev2":
                          "1fd12dbd-6192-11e5-8ac5-06603eb7f303",
                          "fab184fb-6194-11e5-8ac5-06603eb7f303",
                          "0c2862fa-6196-11e5-8ac5-06603eb7f303",
-                         "15a017bb-6196-11e5-8ac5-06603eb7f303",
-                         "8eaff319-bfff-11e6-8820-0660b7976219"
+                         "15a017bb-6196-11e5-8ac5-06603eb7f303"
+                         #"8eaff319-bfff-11e6-8820-0660b7976219"
                         ],
+                    "public_fix":
+                        ["92180cef-6191-11e5-8ac5-06603eb7f303"],
                     "big-dev2":
                         {"09f3c90a-121a-11e6-a039-06603eb7f303"},
                     "big-preview":
@@ -155,7 +158,6 @@ parser.add_argument('-p',
 parser.add_argument('-t',
                     action='store',
                     dest='template_id',
-                    required=True,
                     help='network id for the network to use as a graphic template')
 
 
@@ -165,7 +167,16 @@ print vars(args)
 
 ndex = nc.Ndex(args.server, args.username, args.password)
 
-template_network = get_template(ndex, args.template_id)
+if args.template_id:
+    print "template_id: " + str(args.template_id)
+    response = ndex.get_network_as_cx_stream(args.template_id)
+    template_cx = response.json()
+    template_network = networkn.NdexGraph(template_cx)
+else:
+    path = "test_dir/NCI_Style.cx"
+    with open(path, 'rU') as cxfile:
+        cx = json.load(cxfile)
+        template_network = networkn.NdexGraph(cx)
 
 if args.network_id_list_name:
     network_ids = NETWORK_ID_LISTS[args.network_id_list_name]

@@ -346,14 +346,14 @@ class Cx2NdexConverter:
             ndex_node["represents"] = ndex_represents_id
             ndex_node["representsTermType"] = term_type
 
-        cx_aliases = element.get('aliases')
+        cx_aliases = element.get('alias')
         if cx_aliases:
             ndex_aliases = []
-            for cx_alias in element.get('aliases'):
+            for cx_alias in element.get('alias'):
                 alias, term_type = self.get_ndex_id_by_cx_id_or_term_string(cx_alias)
                 ndex_aliases.append(alias)
             if len(ndex_aliases) < 0:
-                ndex_node['aliases'] = ndex_aliases
+                ndex_node['alias'] = ndex_aliases
 
         cx_related_terms = element.get('relatedTerms')
         if cx_related_terms:

@@ -760,8 +760,8 @@ def ebs_to_network(ebs, name="not named"):
                 alias_string = node["UNIFICATION_XREF"]
                 if alias_string is not None and alias_string is not "":
                     aliases = alias_string.split(";")
-                    attributes["aliases"] = aliases
-                    # attributes["represents"] = aliases[0] - can't take first alias for ebs.
+                    attributes["alias"] = aliases
+                    # attributes["represents"] = alias[0] - can't take first alias for ebs.
                     # Need to resolve uniprot primary id for the gene
                     if node_type == "Other":
                         node_type = layouts.aliases_to_node_type(aliases)
