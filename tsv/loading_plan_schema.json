@@ -1,0 +1,105 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "NDEx TSV Loading Plan",
+    "description": "Loading plan used by TSV loader",
+
+    "definitions": {
+
+      "NodeMapping": {
+        "type": "object",
+        "properties": {
+          "id_prefix": {
+            "description": "Prefix that need to be added to the id column",
+            "type": "string"
+          },
+          "id_column": {
+           "description": "Column that will be used as the represent field of a node. The first non-empty value in the list will be used to populate the node represent field.",
+            "type": "string"
+          },
+          "node_name_column": {
+            "description": "The name of a node. If id_column is missing in this object, the node_name will be used as a unique id of a node. This version of TSV loader requires node name to be unique in a network",
+            "type": "string"
+          },
+          "property_columns": {
+            "description": "Defines the mapping of all node properties. An Each of the non-empty value in these columns ",
+            "type": "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+
+        },
+        "additionalProperties": false,
+        "anyOf": [
+            {
+              "type":"object",
+              "required": ["id_column"]
+            },
+            {
+              "type":"object",
+              "required": ["node_name_column"]
+            }
+          ]
+      }
+
+    },
+
+    "type": "object",
+    "properties": {
+        "context": {
+          "description": "Declare the namespaces that are used in this TSV file.",
+          "type": "object",
+           "patternProperties": {
+                "^[^/@\\$\\^]+$": {
+                  "type": "string",
+                  "format": "uniref"
+                }
+            },
+            "additionalProperties": false
+        },
+        "source_plan": {
+            "description": "Mapping of the source nodes",
+            "$ref": "#/definitions/NodeMapping"
+        },
+        "target_plan": {
+             "description": "Mapping of the target nodes",
+            "$ref": "#/definitions/NodeMapping"
+        },
+        "edge_plan": {
+          "type": "object",
+          "properties": {
+            "default_predicate": {
+              "description": "default value for edge name (interaction name).",
+              "type": "string"
+            },
+            "predicate_id_column": {
+              "description": "column that specify the edge name. If the value in this cell is missing, we will use the value defined in 'defalut_predicate', if it exists.",
+              "type": "string"
+            },
+            "predicate_prefix": {
+              "type": "string"
+            },
+            "citation_id_column": {
+              "description": "Data in this column will be added as a edge property called 'citiation_ids'. Value in the cells of this column can be a single id or a comma seperated id list.",
+              "type": "string"
+            },
+            "citation_id_prefix": {
+              "description": "The prefix need to be added to the citation. If it is a list defining this prefix value will cause an error",
+              "type": "string"
+            },
+            "property_columns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+
+        }
+
+    },
+    "additionalProperties": false,
+    "required": ["source_plan","target_plan","edge_plan"]
+
+}
