@@ -1,4 +1,3 @@
-__author__ = 'dexter'
 
 import csv
 import json
@@ -7,6 +6,8 @@ from os import path
 from jsonschema import validate
 from ndex.ndexGraphBuilder import ndexGraphBuilder
 import time
+import re
+import types
 
 # convert a delimited file to CX based on a JSON 'plan' which specifies the mapping of
 # column values to edges, source nodes, and target nodes
@@ -211,8 +212,23 @@ class TSV2CXConverter:
         if  self.plan.edge_plan.get("citation_id_column"):
             citation_id = row.get(self.plan.edge_plan['citation_id_column'])
 
+        if citation_id is not None:
+            citation_id = citation_id.replace(';', ',')
+            citation_id = citation_id.replace('|', ',')
+            citation_id = re.split('\s*,\s*',citation_id)
+
+        if len(citation_id) ==1:
+            citation_id = citation_id[0]
+
+
         if citation_id and self.plan.edge_plan.get("citation_id_prefix"):
-            citation_id = self.plan.edge_plan["citation_id_prefix"] + ":" + citation_id
+            if isinstance (citation_id, types.StringTypes):
+               citation_id = self.plan.edge_plan["citation_id_prefix"] + ":" + citation_id
+            else:
+                newList = []
+                for cid in citation_id:
+                    newList.append(self.plan.edge_plan["citation_id_prefix"] + ":" + cid)
+                citation_id = newList
 
         if citation_id :
             edge_attr['citation_ids'] = citation_id
