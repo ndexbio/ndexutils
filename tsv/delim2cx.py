@@ -217,8 +217,8 @@ class TSV2CXConverter:
             citation_id = citation_id.replace('|', ',')
             citation_id = re.split('\s*,\s*',citation_id)
 
-        if len(citation_id) ==1:
-            citation_id = citation_id[0]
+            if len(citation_id) ==1:
+                citation_id = citation_id[0]
 
 
         if citation_id and self.plan.edge_plan.get("citation_id_prefix"):
