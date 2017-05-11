@@ -182,7 +182,7 @@ class TSV2CXConverter:
                     node_attr[column] = value
 
         if use_name_as_id:
-            self.ng_builder.addNode(ext_id, nodeName, None, node_attr)
+            return self.ng_builder.addNode(ext_id, nodeName, None, node_attr)
         else:
             return self.ng_builder.addNode(ext_id,nodeName,ext_id,node_attr)
 

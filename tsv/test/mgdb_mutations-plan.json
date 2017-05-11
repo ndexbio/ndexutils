@@ -12,7 +12,7 @@
     "target_plan": 
     {
 
-        "id_column": "CDS Mutation",
+        "id_column": "Genomic Locus",
         "node_name_column": "CDS Mutation",
         "property_columns": ["Genomic Locus"]
     },

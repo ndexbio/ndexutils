@@ -17,6 +17,7 @@ def main():
             lines.add(line)
             sys.stdout.write(line)
 
+    sys.stdout.flush()
 
 if __name__ == '__main__':
     main()
