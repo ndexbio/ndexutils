@@ -1,1 +1,0 @@
-# Convert a CX document to a GSEA gene list document
