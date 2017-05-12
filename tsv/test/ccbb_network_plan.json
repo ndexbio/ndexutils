@@ -1,0 +1,17 @@
+{
+    "source_plan":
+    {
+        "node_name_column": "var1",
+        "property_columns": []
+    },
+    "target_plan": 
+    {
+        "node_name_column": "var2",
+        "property_columns": []
+    },
+    "edge_plan": 
+    {
+        "default_predicate": "corr",
+        "property_columns": ["corr::double","p::double"]
+    }
+}
