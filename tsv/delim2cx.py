@@ -2,6 +2,7 @@
 import csv
 import json
 from ndex.networkn import NdexGraph
+from ndex.networkn import data_to_type
 from os import path
 from jsonschema import validate
 from ndex.ndexGraphBuilder import ndexGraphBuilder
@@ -70,12 +71,24 @@ class TSV2CXConverter:
         self.check_column(self.plan.edge_plan.get('predicate_id_column'), header)
         self.check_column(self.plan.edge_plan.get('citation_id_column'), header)
         for column_name in self.plan.edge_plan.get('property_columns'):
-                self.check_column(column_name, header)
+                self.check_property_column(column_name, header)
 
     def check_column(self, column_name, header):
         if column_name:
             if not column_name in header:
                 raise Exception("Error in import plan: column name " + column_name + " in import plan is not in header " + str(header))
+
+    def check_property_column(self, column_name_raw, header):
+        if column_name_raw:
+            col_list = column_name_raw.split("::")
+            if len(col_list) > 2:
+                    raise Exception("Column name '" + column_name_raw + "' has too many :: in it")
+            else:
+                column_name = col_list[0]
+                if not column_name in header:
+                    raise Exception(
+                        "Error in import plan: column name " + column_name + " in import plan is not in header " + str(
+                            header))
 
     #==================================
     # CONVERT TSV TO CX USING Network_n
@@ -203,10 +216,23 @@ class TSV2CXConverter:
 
         edge_attr = {}
         if  self.plan.edge_plan.get("property_columns"):
-            for column in self.plan.edge_plan["property_columns"]:
-                value = row.get(column)
-                if value:
-                    edge_attr[column] = value
+            for column_raw in self.plan.edge_plan["property_columns"]:
+                col_list = column_raw.split("::")
+                if len(col_list) == 1 :
+                    column = col_list[0]
+                    value = row.get(column)
+                    if value:
+                        edge_attr[column] = value
+                elif len(col_list) >2 :
+                        raise Exception("Column name '" + column_raw + "' has too many :: in it")
+                else:
+                        data_type=col_list[len(col_list)-1]
+                        column = col_list[0]
+                        value = row.get(column)
+                        if value:
+                            edge_attr[column] = data_to_type (value,data_type)
+
+
 
         citation_id = None
         if  self.plan.edge_plan.get("citation_id_column"):
