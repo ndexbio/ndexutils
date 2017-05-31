@@ -224,8 +224,6 @@ class TSV2CXConverter:
                     if column_raw.get('column_name'):
                         value = row.get(column_raw['column_name'])
 
-                    print column_raw.get("default_value")
-
                     if (value is None) and column_raw.get('default_value'):
                         value = column_raw['default_value']
 
