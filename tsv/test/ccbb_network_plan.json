@@ -1,17 +1,27 @@
 {
+    "context": {
+            "genecards": "http://www.genecards.org/cgi-bin/carddisp.pl?gene=",
+            "kegg" : "http://identifiers.org/keggpathway/"
+        },
     "source_plan":
     {
+        "id_prefix":"genecards",
+        "id_column": "var1",
         "node_name_column": "var1",
-        "property_columns": []
+        "property_columns":
+           [ {"attribute_name":"molecule_type", "default_value": "microRNA"}
+           ]
     },
     "target_plan": 
     {
+        "id_prefix":"genecards",
+        "id_column": "var2",
         "node_name_column": "var2",
-        "property_columns": []
+        "property_columns": [{"attribute_name":"molecule_type", "default_value": "RNA"} ]
     },
     "edge_plan": 
     {
-        "default_predicate": "corr",
-        "property_columns": ["corr::double","p::double"]
+        "default_predicate": "correlation",
+        "property_columns": ["correlation::float","p-value"]
     }
 }

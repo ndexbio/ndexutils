@@ -9,6 +9,7 @@ from ndex.ndexGraphBuilder import ndexGraphBuilder
 import time
 import re
 import types
+import six
 
 # convert a delimited file to CX based on a JSON 'plan' which specifies the mapping of
 # column values to edges, source nodes, and target nodes
@@ -55,23 +56,26 @@ class TSV2CXConverter:
         # each column name referenced in the plan must be in the header, otherwise raise an exception
         self.check_column(self.plan.source_plan.get('id_column'), header)
         self.check_column(self.plan.source_plan.get('node_name_column'), header)
-        props = self.plan.source_plan.get('property_columns')
-        if props:
-            for column_name in props:
-                self.check_column(column_name, header)
+        self.check_plan_property_columns(self.plan.source_plan,header)
 
         self.check_column(self.plan.target_plan.get('id_column'), header)
         self.check_column(self.plan.target_plan.get('node_name_column'), header)
-        props = self.plan.target_plan.get('property_columns')
-        if props:
-            for column_name in props:
-                self.check_column(column_name, header)
+        self.check_plan_property_columns(self.plan.target_plan, header)
 
         self.check_column(self.plan.edge_plan.get('id_column'), header)
         self.check_column(self.plan.edge_plan.get('predicate_id_column'), header)
         self.check_column(self.plan.edge_plan.get('citation_id_column'), header)
-        for column_name in self.plan.edge_plan.get('property_columns'):
-                self.check_property_column(column_name, header)
+        self.check_plan_property_columns(self.plan.edge_plan, header)
+
+
+    def check_plan_property_columns (self, comp_plan, header) :
+        props = comp_plan.get('property_columns')
+        if props:
+            for column_name in props:
+                if isinstance(column_name,six.string_types):
+                    self.check_property_column(column_name, header)
+                elif hasattr(column_name, 'column_name'):
+                    self.check_column(column_name['column_name'],header)
 
     def check_column(self, column_name, header):
         if column_name:
@@ -187,17 +191,54 @@ class TSV2CXConverter:
         if  node_plan.get('id_prefix'):
             ext_id = node_plan['id_prefix'] + ":" + ext_id
 
-        node_attr = {}
-        if  node_plan.get('property_columns'):
-            for column in node_plan['property_columns']:
-                value = row.get(column)
-                if value:
-                    node_attr[column] = value
+        node_attr = self.create_attr_obj(node_plan, row)
 
         if use_name_as_id:
             return self.ng_builder.addNode(ext_id, nodeName, None, node_attr)
         else:
             return self.ng_builder.addNode(ext_id,nodeName,ext_id,node_attr)
+
+
+    def create_attr_obj (self, comp_plan, row):
+        attr = {}
+        if comp_plan.get('property_columns'):
+            for column_raw in comp_plan['property_columns']:
+                if isinstance(column_raw, six.string_types):
+                    col_list = column_raw.split("::")
+                    if len(col_list) == 1:
+                        column = col_list[0]
+                        value = row.get(column)
+                        if value:
+                            attr[column] = value
+                    elif len(col_list) > 2:
+                        raise Exception("Column name '" + column_raw + "' has too many :: in it")
+                    else:
+                        data_type = col_list[len(col_list) - 1]
+                        column = col_list[0]
+                        value = row.get(column)
+                        if value:
+                            attr[column] = data_to_type(value, data_type)
+                else:
+                    value = None
+
+                    if column_raw.get('column_name'):
+                        value = row.get(column_raw['column_name'])
+
+                    print column_raw.get("default_value")
+
+                    if (value is None) and column_raw.get('default_value'):
+                        value = column_raw['default_value']
+
+                    if value:
+                        if column_raw.get('data_type'):
+                            value = data_to_type(value, column_raw['data_type'])
+
+                        if column_raw.get('attribute_name'):
+                            attr[column_raw['attribute_name']] = value
+                        else:
+                            attr[column_raw['column_name']] = value
+
+        return attr
 
     def create_edge(self, src_node_id, tgt_node_id, row):
 
@@ -214,25 +255,7 @@ class TSV2CXConverter:
         if self.plan.edge_plan.get("predicate_prefix"):
             predicate_str = self.plan.edge_plan['predicate_prefix']+ ":"+ predicate_str
 
-        edge_attr = {}
-        if  self.plan.edge_plan.get("property_columns"):
-            for column_raw in self.plan.edge_plan["property_columns"]:
-                col_list = column_raw.split("::")
-                if len(col_list) == 1 :
-                    column = col_list[0]
-                    value = row.get(column)
-                    if value:
-                        edge_attr[column] = value
-                elif len(col_list) >2 :
-                        raise Exception("Column name '" + column_raw + "' has too many :: in it")
-                else:
-                        data_type=col_list[len(col_list)-1]
-                        column = col_list[0]
-                        value = row.get(column)
-                        if value:
-                            edge_attr[column] = data_to_type (value,data_type)
-
-
+        edge_attr = self.create_attr_obj(self.plan.edge_plan, row)
 
         citation_id = None
         if  self.plan.edge_plan.get("citation_id_column"):
@@ -248,7 +271,7 @@ class TSV2CXConverter:
 
 
         if citation_id and self.plan.edge_plan.get("citation_id_prefix"):
-            if isinstance (citation_id, types.StringTypes):
+            if isinstance (citation_id, six.string_types):
                citation_id = self.plan.edge_plan["citation_id_prefix"] + ":" + citation_id
             else:
                 newList = []

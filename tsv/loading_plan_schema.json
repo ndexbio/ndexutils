@@ -23,8 +23,45 @@
           "property_columns": {
             "description": "Defines the mapping of all node properties. An Each of the non-empty value in these columns ",
             "type": "array",
-            "items" : {
-              "type" : "string"
+            "items" : { "oneOf": [
+              {"type" : "string"},
+              {"type" : "object",
+                "properties": {
+                  "column_name": {
+                      "description": "name of the column in the spreadsheet",
+                      "type":"string"
+                    },
+                  "attribute_name": {
+                      "description": "attribute_name this column maps to",
+                      "type": "string"
+                  },
+                  "value_prefix": {
+                      "description": "prefix that need to be added to the values of this attributes(without colon).",
+                      "type": "string"
+                  },
+                  "data_type": {
+                      "description": "data type of the attribute values, default is string",
+                      "type": "string",
+                      "enum": ["string","double","float", "boolean", "char","integer","long","short"]
+                  },
+                  "default_value": {
+                    "description": "default value of this property when column_name is missing or the value in that column is missing",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "type":"object",
+                    "required": ["column_name"]
+                  },
+                  {
+                    "type":"object",
+                    "required": ["attribute_name"]
+                  }
+                ]
+              }
+             ]
             }
           }
 
