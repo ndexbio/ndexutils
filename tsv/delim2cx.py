@@ -56,6 +56,7 @@ class TSV2CXConverter:
         # each column name referenced in the plan must be in the header, otherwise raise an exception
         self.check_column(self.plan.source_plan.get('id_column'), header)
         self.check_column(self.plan.source_plan.get('node_name_column'), header)
+        self.check_column(self.plan.source_plan.get('alias_column'),header)
         self.check_plan_property_columns(self.plan.source_plan,header)
 
         self.check_column(self.plan.target_plan.get('id_column'), header)
@@ -193,6 +194,8 @@ class TSV2CXConverter:
 
         node_attr = self.create_attr_obj(node_plan, row)
 
+        if 'alias_column' in node_plan:
+
         if use_name_as_id:
             return self.ng_builder.addNode(ext_id, nodeName, None, node_attr)
         else:
@@ -212,6 +215,7 @@ class TSV2CXConverter:
                             attr[column] = value
                     elif len(col_list) > 2:
                         raise Exception("Column name '" + column_raw + "' has too many :: in it")
+
                     else:
                         data_type = col_list[len(col_list) - 1]
                         column = col_list[0]
@@ -231,6 +235,10 @@ class TSV2CXConverter:
                         if column_raw.get('data_type'):
                             value = data_to_type(value, column_raw['data_type'])
 
+                        if comp_plan.get('value_prefix'):
+                            value = comp_plan.get('value_prefix') + ":"+ value
+
+                            
                         if column_raw.get('attribute_name'):
                             attr[column_raw['attribute_name']] = value
                         else:
