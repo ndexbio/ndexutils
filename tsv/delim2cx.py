@@ -10,6 +10,8 @@ import time
 import re
 import types
 import six
+import gspread
+
 
 # convert a delimited file to CX based on a JSON 'plan' which specifies the mapping of
 # column values to edges, source nodes, and target nodes
@@ -125,6 +127,55 @@ class TSV2CXConverter:
                 except Exception as err2:
                     print "Error occurred in line " + str(row_count) + ". Message: " + err2.message
                     raise err2
+
+        ndexGraph = self.ng_builder.getNdexGraph()
+
+        ndexGraph.set_name(name)
+        ndexGraph.set_network_attribute('description', description)
+        ndexGraph.set_provenance(
+            {
+                "entity": {
+                    "creationEvent": {
+                        "inputs": None,
+                        "startedAtTime": t1,
+                        "endedAtTime": long(time.time()*1000),
+                        "eventType": "TSV network generation",
+                        "properties": [{
+                            "name": "TSV loader version",
+                            "value": version
+                        }]
+                    }
+                }
+            }
+        )
+        return ndexGraph
+
+    #==================================
+    # CONVERT GOOGLE SHEET TO CX USING Network_n
+    #==================================
+    def convert_google_worksheet_to_cx(self, worksheet, max_rows = None,  name=None, description=None):
+
+        t1 = long(time.time()*1000)
+        #Add context if they are defined
+        if self.plan.context:
+            self.ng_builder.addNamespaces(self.plan.context)
+
+        # Get records - list of dicts with column names as keys
+        records = worksheet.get_all_records()
+        # count the rows as shown in sheet, i.e. first data row is #2
+        row_count = 2
+        for row in records:
+            try:
+                self.process_row(row)
+                row_count = row_count + 1
+                if max_rows and row_count > max_rows+2:
+                    break
+            except RuntimeError as err1:
+                print "Error occurred in line " + str(row_count) + ". Message: " + err1.message
+                raise err1
+            except Exception as err2:
+                print "Error occurred in line " + str(row_count) + ". Message: " + err2.message
+                raise err2
 
         ndexGraph = self.ng_builder.getNdexGraph()
 
