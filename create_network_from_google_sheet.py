@@ -78,8 +78,9 @@ def main():
             # apply graphic style
 
 
-        #print("applying layout")
-        #layouts.apply_directed_flow_layout(ng, directed_edge_types=['Links To'])
+        print("applying layout")
+        # directed_edge_types=['Links To']
+        layouts.apply_directed_flow_layout(ng, use_degree_edge_weights=False)
 
         print ("saving to NDEx ...")
         my_ndex.save_cx_stream_as_new_network(ng.to_cx_stream())
