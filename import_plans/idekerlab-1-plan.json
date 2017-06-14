@@ -1,22 +1,12 @@
 {
     "source_plan": 
     {
-        "context": 
-        {
-            "uri": "http://identifiers.org/hgnc.symbol/",
-            "prefix": "HGNC"
-        },
         "id_column": "BAIT_OFFICIAL_SYMBOL",
         "node_name_column": "BAIT_OFFICIAL_SYMBOL",
         "property_columns": ["BAIT_GENE_ID"]
     },
     "target_plan": 
     {
-        "context": 
-        {
-            "uri": "http://identifiers.org/hgnc.symbol/",
-            "prefix": "HGNC"
-        },
         "id_column": "PREY_OFFICIAL_SYMBOL",
         "node_name_column": "PREY_OFFICIAL_SYMBOL",
         "property_columns": ["PREY_GENE_ID"]
@@ -24,9 +14,6 @@
     "edge_plan": 
     {
         "default_predicate": "binds to",
-        "predicate_id_column": null,
-        "predicate_context": null,
-        "id_column": null,
         "property_columns": ["EXPERIMENTAL_SYSTEM"]
     }
 }

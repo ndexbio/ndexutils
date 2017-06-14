@@ -2,10 +2,14 @@ __author__ = 'dexter'
 
 import tsv.delim2cx as d2c
 import ndex.client as nc
+import ndex.beta.toolbox as toolbox
+import ndex.beta.layouts as layouts
+import ndex.networkn as networkn
 import requests
 import os
 import io
 import jsonschema
+
 
 
 import argparse, sys
@@ -21,6 +25,22 @@ def main():
     parser.add_argument('plan')
     parser.add_argument('name')
     parser.add_argument('desc')
+    parser.add_argument('-t',
+                    action='store',
+                    dest='template_id',
+                    help='network id for the network to use as a graphic template')
+    parser.add_argument('-l',
+                    action='store',
+                    dest='layout',
+                    help='name of the layout to apply')
+    parser.add_argument('-u',
+                    action='store',
+                    dest='update_uuid',
+                    help='uuid of the network to update')
+
+#    parser.add_argument('update_username' )
+#    parser.add_argument('update_password')
+#    parser.add_argument('update_server')
 
     arg = parser.parse_args()
 
@@ -50,12 +70,41 @@ def main():
         print "parsing tsv file using loading plan ..."
         tsv_converter = d2c.TSV2CXConverter(import_plan)
 
-        ng = tsv_converter.convert_tsv_to_cx(arg.tsv, name=arg.name, description = arg.desc)
+
 
         #print json.dumps(cx, indent=4)
+        template_network = None
+        if arg.template_id:
+            response = my_ndex.get_network_as_cx_stream(arg.template_id)
+            template_cx = response.json()
+            template_network = networkn.NdexGraph(template_cx)
 
-        #response_json =
-        my_ndex.save_cx_stream_as_new_network(ng.to_cx_stream())
+        # If update_uuid is set, then we get the existing network's attributes and provenance
+        if arg.update_uuid:
+            response = my_ndex.get_network_aspect_as_cx_stream(arg.update_uuid, "networkAttributes")
+            network_attributes = response.json()
+            provenance = my_ndex.get_provenance(arg.update_uuid)
+            ng = tsv_converter.convert_tsv_to_cx(arg.tsv, network_attributes=network_attributes, provenance=provenance)
+            if template_network:
+                toolbox.apply_network_as_template(ng, template_network)
+            else:
+                response = my_ndex.get_network_aspect_as_cx_stream(arg.update_uuid, "cyVisualProperties")
+                visual_properties = response.json()
+                if len(visual_properties) > 0:
+                    ng.unclassified_cx.append({"cyVisualProperties": visual_properties})
+            if arg.layout:
+                if arg.layout == "df_simple":
+                    layouts.apply_directed_flow_layout(ng)
+
+            my_ndex.update_cx_network(ng.to_cx_stream(), arg.update_uuid)
+        else:
+            ng = tsv_converter.convert_tsv_to_cx(arg.tsv, name=arg.name, description = arg.desc)
+            if template_network:
+                toolbox.apply_network_as_template(ng, template_network)
+            if arg.layout:
+                if arg.layout == "df_simple":
+                    layouts.apply_directed_flow_layout(ng)
+            my_ndex.save_cx_stream_as_new_network(ng.to_cx_stream())
 
         print "Done."
 

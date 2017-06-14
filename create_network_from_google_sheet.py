@@ -23,7 +23,13 @@ def main():
     parser.add_argument('plan')
     parser.add_argument('name')
     parser.add_argument('desc')
-    parser.add_argument('template')
+    parser.add_argument('template_uuid')
+    parser.add_argument('layout')
+    parser.add_argument('update_uuid')
+    parser.add_argument('update_username' )
+    parser.add_argument('update_password')
+    parser.add_argument('update_server')
+
 
     arg = parser.parse_args()
 

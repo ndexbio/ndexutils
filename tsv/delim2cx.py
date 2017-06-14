@@ -99,7 +99,7 @@ class TSV2CXConverter:
     #==================================
     # CONVERT TSV TO CX USING Network_n
     #==================================
-    def convert_tsv_to_cx(self, filename, max_rows = None,  name=None, description=None):
+    def convert_tsv_to_cx(self, filename, max_rows = None,  name=None, description=None, network_attributes=None, provenance=None):
 
         t1 = long(time.time()*1000)
         #Add context if they are defined
@@ -128,25 +128,41 @@ class TSV2CXConverter:
                     raise err2
 
         ndexGraph = self.ng_builder.getNdexGraph()
+        if network_attributes:
+            for attribute in network_attributes:
+                if attribute.get("n") == "name":
+                    ndexGraph.set_name(attribute.get("v"))
+                else:
+                    ndexGraph.set_network_attribute(attribute.get("n"), attribute.get("v"))
 
-        ndexGraph.set_name(name)
-        ndexGraph.set_network_attribute('description', description)
-        ndexGraph.set_provenance(
-            {
-                "entity": {
-                    "creationEvent": {
-                        "inputs": None,
-                        "startedAtTime": t1,
-                        "endedAtTime": long(time.time()*1000),
-                        "eventType": "TSV network generation",
-                        "properties": [{
-                            "name": "TSV loader version",
-                            "value": version
-                        }]
-                    }
-                }
+        tsv_data_event = {
+                "inputs": None,
+                "startedAtTime": t1,
+                "endedAtTime": long(time.time()*1000),
+                "eventType": "TSV network generation",
+                "properties": [{
+                                "name": "TSV loader version",
+                                "value": version
+                            }]
             }
-        )
+        if False:
+            ndexGraph.set_provenance({
+                                        "entity":provenance
+                                    })
+            #ndexGraph.update_provenance("creationEvent", tsv_data_event)
+        else:
+            ndexGraph.set_provenance({
+                                        "entity": {
+                                                    "creationEvent": tsv_data_event
+                                                    }
+                                     })
+
+        # name and description take precedence over any prior values
+        if name:
+            ndexGraph.set_name(name)
+        if description:
+            ndexGraph.set_network_attribute('description', description)
+
         return ndexGraph
 
     #==================================
