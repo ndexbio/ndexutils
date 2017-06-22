@@ -262,12 +262,10 @@ class TSV2CXConverter:
         node_attr = self.create_attr_obj(node_plan, row)
 
         if 'alias_column' in node_plan:
-
-        if use_name_as_id:
-            return self.ng_builder.addNode(ext_id, nodeName, None, node_attr)
-        else:
-            return self.ng_builder.addNode(ext_id,nodeName,ext_id,node_attr)
-
+            if use_name_as_id:
+                return self.ng_builder.addNode(ext_id, nodeName, None, node_attr)
+            else:
+                return self.ng_builder.addNode(ext_id,nodeName,ext_id,node_attr)
 
     def create_attr_obj (self, comp_plan, row):
         attr = {}
