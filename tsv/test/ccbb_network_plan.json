@@ -1,7 +1,8 @@
 {
     "context": {
             "genecards": "http://www.genecards.org/cgi-bin/carddisp.pl?gene=",
-            "kegg" : "http://identifiers.org/keggpathway/"
+            "kegg" : "http://identifiers.org/keggpathway/",
+            "GO" : "http://www.ebi.ac.uk/QuickGO/GTerm?id=GO:"
         },
     "source_plan":
     {
@@ -9,7 +10,7 @@
         "id_column": "var1",
         "node_name_column": "var1",
         "property_columns":
-           [ {"attribute_name":"molecule_type", "default_value": "microRNA"}
+           [ {"attribute_name":"molecule_type", "default_value": "miRNA"}
            ]
     },
     "target_plan": 
@@ -22,6 +23,6 @@
     "edge_plan": 
     {
         "default_predicate": "correlation",
-        "property_columns": ["correlation::float","p-value"]
+        "property_columns": ["correlation::float","p-value::float"]
     }
 }
