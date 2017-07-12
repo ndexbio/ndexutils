@@ -88,10 +88,18 @@ def main():
             if template_network:
                 toolbox.apply_network_as_template(ng, template_network)
             else:
-                response = my_ndex.get_network_aspect_as_cx_stream(arg.update_uuid, "cyVisualProperties")
-                visual_properties = response.json()
-                if len(visual_properties) > 0:
-                    ng.unclassified_cx.append({"cyVisualProperties": visual_properties})
+                try:
+                    response = my_ndex.get_network_aspect_as_cx_stream(arg.update_uuid, "cyVisualProperties")
+                    visual_properties = response.json()
+                    if len(visual_properties) > 0:
+                        ng.unclassified_cx.append({"cyVisualProperties": visual_properties})
+
+                except requests.HTTPError as err:
+                   if err.response.status_code == 404:
+                       print "No cyVisualProperties aspect found in old network, not adding it."
+                   else:
+                       raise
+
             if arg.layout:
                 if arg.layout == "df_simple":
                     layouts.apply_directed_flow_layout(ng)

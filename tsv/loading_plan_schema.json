@@ -42,7 +42,8 @@
                   "data_type": {
                       "description": "data type of the attribute values, default is string",
                       "type": "string",
-                      "enum": ["string","double","float", "boolean", "char","integer","long","short"]
+                      "enum": ["string","double","float", "boolean", "char","integer","long","short","list_of_string",
+                          "list_of_double", "list_of_float","list_of_boolean", "list_of_integer", "list_of_long"]
                   },
                   "default_value": {
                     "description": "default value of this property when column_name is missing or the value in that column is missing",
