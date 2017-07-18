@@ -45,31 +45,6 @@ class TSVLoadingPlan:
         self.edge_plan = import_plan.get('edge_plan')
 
 
-    def __init__ (self,plan_file):
-
-        #open the schema first
-        here = path.abspath(path.dirname(__file__))
-        with open(path.join(here, 'loading_plan_schema.json')) as json_file:
-            plan_schema = json.load(json_file)
-
-        import_plan = json.load(plan_file)
-
-        validate(import_plan,plan_schema)
-
-        #Need documentation for this field. Looks like this will be applied to both source and
-        #target nodes if no 'context' is applied to them.
-        self.context = import_plan.get('context')
-
-        #Defines the mappings of source nodes of edges
-        #If id_column is defined, use it as represent, otherwise use name_column as identifier.
-        #If both are defined, what would be the expected behaviour?
-        self.source_plan = import_plan.get('source_plan')
-
-        #Defines the mappings of target nodes of edges
-        self.target_plan = import_plan.get('target_plan')
-
-        self.edge_plan = import_plan.get('edge_plan')
-
 class TSV2CXConverter:
     def __init__(self, plan):
 
