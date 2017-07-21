@@ -4,7 +4,7 @@ import sys
 import argparse
 import bottle
 import traceback
-from bottle import route, default_app, request, parse_auth, HTTPResponse, response
+from bottle import route, default_app, request, redirect, static_file, parse_auth, HTTPResponse, response
 import time
 import os
 import tempfile
@@ -21,6 +21,21 @@ bottle.BaseRequest.MEMFILE_MAX = 1024 * 1024 *1024
 api = default_app()
 
 #log = app.get_logger('api')
+current_directory = os.path.dirname(os.path.abspath(__file__))
+
+# default to the network analysis app index page
+@bottle.get('/')
+def index():
+    redirect('/index.html')
+
+
+# generic API to serve any resource in the static directory
+@bottle.get('/<filepath:path>')
+def static(filepath):
+    print filepath
+    print current_directory
+    return static_file(filepath, root=os.path.join(current_directory, 'ui'))
+
 
 @bottle.get('/status')
 def api_message(message):
@@ -29,6 +44,7 @@ def api_message(message):
 @route('/upload', method='POST')
 def do_upload():
 #    plan   = request.forms.get('plan')
+    json_data = request.forms.get('plan')
     upload     = request.files.get('upload')
     plan   = request.files.get('plan')
 
@@ -93,7 +109,7 @@ def main():
 
     try:
  #       log.info('entering main loop')
-        api.install(EnableCors())
+        #api.install(EnableCors())
         api.run(host='0.0.0.0', port=args.port)
  #   except KeyboardInterrupt:
  #       log.info('exiting main loop')
