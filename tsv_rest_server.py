@@ -62,7 +62,7 @@ def do_upload():
     desc = request.forms.get('description')
 
     try:
-        import_plan = d2c.TSVLoadingPlan(pfile)
+        import_plan = d2c.TSVLoadingPlan(pfile.name)
 
     except jsonschema.ValidationError as e1:
         print "Failed to parse the loading plan: " + e1.message
