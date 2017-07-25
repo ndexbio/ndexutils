@@ -299,8 +299,8 @@ class TSV2CXConverter:
                         if column_raw.get('data_type'):
                             value = data_to_type(value, column_raw['data_type'])
 
-                        if comp_plan.get('value_prefix'):
-                            value = comp_plan.get('value_prefix') + ":"+ value
+                        if column_raw.get('value_prefix'):
+                            value = column_raw.get('value_prefix') + ":"+ value
 
 
                         if column_raw.get('attribute_name'):
