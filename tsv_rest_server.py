@@ -100,6 +100,8 @@ def do_upload():
     name = request.forms.get('name')
     desc = request.forms.get('description')
     style_template = request.forms.get('template')
+    print 'Style template: '
+    print style_template
 
     #==================
     # SAVE TO MONGO
@@ -134,6 +136,7 @@ def do_upload():
     ng = tsv_converter.convert_tsv_to_cx(tf.name, name=name, description=desc)
 
     if len(style_template) > 0:
+        print 'Applying style template'
         toolbox.apply_template(ng, style_template, server='http://dev2.ndexbio.org', username='scratch', password='scratch') # NCI PID
 
     #ng.set_network_attribute('hasLayout', True)
@@ -146,6 +149,7 @@ def do_upload():
     uniprot_lookup = db.uniprot_lookup
     uniprot_full_lookup = db.uniprot_full_lookup
 
+    count = 0
     for node in ng.nodes(data=True):
         if len(node) > 1:
             node_name = node[1].get('name')
@@ -176,7 +180,9 @@ def do_upload():
                     if uniprot_dict.get('GO_title') is not None and len(uniprot_dict.get('GO_title')) > 0:
                         ng.set_node_attribute(node[0],'GO_title', uniprot_dict.get('GO_title'))
 
-                print node_name
+                if count % 50 == 0:
+                    print node_name + ' ' + str(count)
+        count += 1
 
     cx_stream = ng.to_cx_stream()
     my_ndex.save_cx_stream_as_new_network(cx_stream)
