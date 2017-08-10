@@ -5,6 +5,9 @@ import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 from ndex.networkn import NdexGraph
 import networkx as nx
+import requests
+import mygene
+import json
 
 NDEX_SIF_INTERACTIONS = ["controls-state-change-of",
                          # First protein controls a reaction that changes the state of the second protein.
@@ -57,6 +60,18 @@ CONTROL_INTERACTIONS = ["controls-state-change-of",
                         "controls-phosphorylation-of",
                         "controls-expression-of"
                         ]
+
+current_directory = dirname(abspath(__file__))
+def get_json_from_file(file_path):
+    if(isfile(file_path)):
+        c_file = open(file_path, "r")
+        c_data = json.load(c_file)
+        c_file.close()
+        return c_data
+    else:
+        return None
+
+gene_symbol_mapping = get_json_from_file(join(current_directory, 'gene_symbol_mapping.json'))
 
 
 def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout=None,
@@ -716,7 +731,6 @@ def load_ebs_file_to_dict(path):
 
     return ebs
 
-
 def _get_node_type(ebs_type):
     if ebs_type is None:
         return "Other"
@@ -730,23 +744,69 @@ def _get_node_type(ebs_type):
         return "Rna"
     return "Other"
 
-
-
+import requests
 
 def ebs_to_network(ebs, name="not named"):
     G = NdexGraph()
     G.set_name(name)
     node_id_map = {}
     identifier_citation_id_map = {}
+    node_mapping = {}
+    mg = mygene.MyGeneInfo()
 
     # Create Nodes
     # PARTICIPANT	PARTICIPANT_TYPE	PARTICIPANT_NAME	UNIFICATION_XREF	RELATIONSHIP_XREF
+
+    id_list = []
+    for node in ebs.get("node_table"):
+        if "PARTICIPANT" in node:
+            participant = node["PARTICIPANT"]
+            participant = clean_brackets(participant)
+            if participant is not None and '_HUMAN' in participant and node_mapping.get(participant) is None:
+                id_list.append(participant)
+
+    url = 'https://biodbnet-abcc.ncifcrf.gov/webServices/rest.php/biodbnetRestApi.json?method=db2db&input=uniprot entry name&inputValues=' + ','.join(id_list) + '&outputs=genesymbol&taxonId=9606&format=row'
+    look_up_req = requests.get(url)
+    look_up_json = look_up_req.json()
+    if look_up_json is not None:
+        for bio_db_item in look_up_json:
+            gene_symbol_mapping[bio_db_item.get('InputValue')] = bio_db_item.get('Gene Symbol')
+            node_mapping[bio_db_item.get('InputValue')] = bio_db_item.get('Gene Symbol')
+
     for node in ebs.get("node_table"):
         attributes = {}
         if "PARTICIPANT" in node:
             participant = node["PARTICIPANT"]
+            participant = clean_brackets(participant)
+            participant_symbol = ''
+            if participant is not None:
+                #participant = participant.replace('_HUMAN', '')
+
+                participant_symbol = gene_symbol_mapping.get(participant)
+                #=====================================
+                # if the node is not a protien type
+                # then skip mygene.info look up
+                #=====================================
+                if node.get('PARTICIPANT_TYPE') is not None and node.get('PARTICIPANT_TYPE') != 'ProteinReference':
+                    participant_symbol = participant
+
+                if participant_symbol is None:
+                    participant_symbol = mg.query(participant, species='human')
+                    if participant_symbol is not None and participant_symbol.get('hits') is not None and len(participant_symbol.get('hits')) > 0:
+                        ph = participant_symbol.get('hits')[0]
+                        if 'symbol' in ph:
+                            participant_symbol = str(ph.get('symbol'))
+                            gene_symbol_mapping[participant] = participant_symbol
+                    else:
+                        participant_symbol = None
+
             participant_name = None
-            node_name = participant
+            if participant_symbol is not None:
+                node_name = participant_symbol
+            else:
+                node_name = participant
+
+            node_name_tmp = participant
 
             if "PARTICIPANT_NAME" in node:
                 name = node["PARTICIPANT_NAME"]
@@ -768,8 +828,12 @@ def ebs_to_network(ebs, name="not named"):
 
             attributes["type"] = node_type
 
-            if node_name.startswith("CHEBI") and participant_name:
+            if node_name_tmp.startswith("CHEBI") and participant_name:
                 node_name = participant_name
+
+            # check mygene.info
+
+            #if there is a result use the gene symbol and add the uniprot id as an alias
 
             node_id = G.add_new_node(node_name, attributes)
             node_id_map[participant] = node_id
@@ -799,8 +863,14 @@ def ebs_to_network(ebs, name="not named"):
                 pmids = pmid_string.split(";")
                 attributes["pmid"] = pmids
 
-        source_node_id = node_id_map.get(edge["PARTICIPANT_A"])
-        target_node_id = node_id_map.get(edge["PARTICIPANT_B"])
+        participant_a = clean_brackets(edge["PARTICIPANT_A"])
+        participant_b = clean_brackets(edge["PARTICIPANT_B"])
+        #if participant_a is not None:
+        #    participant_a = participant_a.replace('_HUMAN', '')
+        #if participant_b is not None:
+        #    participant_b = participant_b.replace('_HUMAN', '')
+        source_node_id = node_id_map.get(participant_a)
+        target_node_id = node_id_map.get(participant_b)
         edge_id = G.add_edge_between(source_node_id, target_node_id, interaction=interaction, attr_dict=attributes)
 
         # handle pmids in CX citation and edgeCitation aspect representations in networkn network object
@@ -813,12 +883,19 @@ def ebs_to_network(ebs, name="not named"):
                 if prefixed_pmid not in identifier_citation_id_map:
                     citation_id = G.add_citation(identifier=prefixed_pmid)
                     identifier_citation_id_map[prefixed_pmid] = citation_id
-                    G.add_edge_citation_ref(edge_id, citation_id)
+
+                    G.add_citation_to_edge(edge_id, prefixed_pmid) #add_edge_citation_ref(edge_id, citation_id)
                 else:
                     citation_id = identifier_citation_id_map[prefixed_pmid]
-                    G.add_edge_citation_ref(edge_id, citation_id)
+                    G.add_citation_to_edge(edge_id, prefixed_pmid) #add_edge_citation_ref(edge_id, citation_id)
+
+    # save gene_symbol_mapping to file (caching)
+    with open(join(current_directory, 'gene_symbol_mapping.json'), 'w') as outfile:
+        json.dump(gene_symbol_mapping, outfile, indent=4)
 
     return G
+
+#def get_mygene_info_label():
 
 NCI_DESCRIPTION_TEMPLATE = ("<i>%s</i> was derived from the latest BioPAX3 version of the Pathway Interaction Database (PID)"
                                 " curated by NCI/Nature. The BioPAX was first converted to Extended Binary SIF (EBS) by"
@@ -826,3 +903,42 @@ NCI_DESCRIPTION_TEMPLATE = ("<i>%s</i> was derived from the latest BioPAX3 versi
                                 " edges, to add a 'directed flow' layout, and to add a graphic style using Cytoscape Visual Properties."
                                 " This network can be found in searches using its original PID accession id, present in"
                                 " the 'labels' property.")
+
+def clean_brackets(clean_this_string):
+    return_this = ''
+    if clean_this_string is not None:
+        return_this = clean_this_string.replace('[','').replace(']','')
+        #if ',' in return_this:
+        #    return_this = return_this.split(',')[0].upper()
+        return return_this
+    else:
+        return clean_this_string
+
+
+def get_my_gene_info(gene_id):
+    alt_term_id = []
+    if(len(gene_id) > 0):
+        r_json = {}
+        try:
+            url = 'http://mygene.info/v3/query?q=' + gene_id
+
+            r = requests.get(url)
+            r_json = r.json()
+            if 'hits' in r_json and len(r_json['hits']) > 0:
+                for alt_term in r_json['hits']:
+                    if(isinstance(alt_term['symbol'], list)):
+                        alt_term_id.append(alt_term['symbol'][0].upper())
+                    else:
+                        alt_term_id.append(alt_term['symbol'].upper())
+
+                #gene_symbol = r_json['hits'][0]['symbol'].upper()
+                return alt_term_id
+        except Exception as e:
+            print e.message
+            return {'hits': [{'symbol': gene_id, 'entrezgene': '', 'name': 'Entrez results: 0'}]}
+
+        return ["UNKNOWN"]
+    else :
+        return ["UNKNOWN"]
+
+
