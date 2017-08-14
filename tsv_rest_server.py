@@ -62,17 +62,17 @@ def api_plans():
 
 @bottle.get('/templates')
 def api_styles():
-    #ndex_meta_client = nc.Ndex('http://dev2.ndexbio.org', 'scratch', 'scratch')
-    #summaries = ndex_meta_client.search_networks('style', 'scratch',0,500)
-    edge_types = {}
+    ndex_meta_client = nc.Ndex('http://dev2.ndexbio.org', 'scratch', 'scratch')
+    summaries = ndex_meta_client.search_networks('name:"style"', 'scratch',0,500)
+    edge_types = {} #updated
 
-    #return_this = []
-    #for summary in summaries.get('networks'):
-    #    return_this.append({'name': summary.get('name'), 'uuid': summary.get('externalId')})
+    return_this = []
+    for summary in summaries.get('networks'):
+        return_this.append({'name': summary.get('name'), 'uuid': summary.get('externalId')})
 
-    #return json.dumps({'results': return_this})
-    return json.dumps({"results": [{"name": "style template 1", "uuid": "32b91bb8-6e3a-11e7-a55f-0660b7976219"}, {"name": "NCI Map Style", "uuid": "3aeca6e7-c3c5-11e6-a7bc-0660b7976219"}
-                                   , {"name": "MDA231_All_AP-MS_20170804 style 2", "uuid": "c62cbbce-7d2d-11e7-9743-0660b7976219"}]})
+    return json.dumps({'results': return_this})
+    #return json.dumps({"results": [{"name": "style template 1", "uuid": "32b91bb8-6e3a-11e7-a55f-0660b7976219"}, {"name": "NCI Map Style", "uuid": "3aeca6e7-c3c5-11e6-a7bc-0660b7976219"}
+    #                               , {"name": "MDA231_All_AP-MS_20170804 style 2", "uuid": "c62cbbce-7d2d-11e7-9743-0660b7976219"}]})
 
 @bottle.get('/status')
 def api_message(message):
