@@ -194,9 +194,11 @@ def do_upload():
         count += 1
 
     cx_stream = ng.to_cx_stream()
-    my_ndex.save_cx_stream_as_new_network(cx_stream)
+    return_uri = my_ndex.save_cx_stream_as_new_network(cx_stream)
 
-    return 'OK'
+    response.content_type = 'application/json'
+
+    return json.dumps({'uri': return_uri})
 
 def lookup_uniprot(prey):
     return_dict = {'recommended_name': '', 'function': [], 'subcellular_location': [],'similarity': [], 'synonyms': [], 'GO': [], 'GO_title': []}
