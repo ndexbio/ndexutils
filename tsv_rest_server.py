@@ -116,13 +116,17 @@ def do_upload():
 
     import_plans = db.import_plans
 
-    plan_string = plan.file.read()
+    try:
+        plan_string = plan.file.read()
 
-    print type(plan_string)
+        print type(plan_string)
 
-    data = json.loads(plan_string)
-    if save_plan:
-        import_plans.save({'plan_name': name + ' ' + strftime("%a, %d %b %Y %H:%M:%S", gmtime()), 'import_plan': data})
+        data = json.loads(plan_string)
+        if save_plan:
+            import_plans.save({'plan_name': name + ' ' + strftime("%a, %d %b %Y %H:%M:%S", gmtime()), 'import_plan': data})
+    except Exception as e:
+        print e.message
+        return e.message
 
     try:
         import_plan = d2c.TSVLoadingPlan(pfile.name)
