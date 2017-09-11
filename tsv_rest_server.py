@@ -100,6 +100,9 @@ def do_upload():
     name = request.forms.get('name')
     desc = request.forms.get('description')
     style_template = request.forms.get('template')
+    if style_template and len(style_template) > 0 and len(style_template) < 35:
+        return {'error': 'Style template was provided, but does not appear to be a valid UUID'}
+
     print 'Style template: '
     print style_template
     ndex_server = request.forms.get('ndexServer')
@@ -201,6 +204,9 @@ def do_upload():
     return_uri = my_ndex.save_cx_stream_as_new_network(cx_stream)
 
     response.content_type = 'application/json'
+    if return_uri and '/' in return_uri:
+        url_parts = return_uri.split('/')
+        return json.dumps({'uri': return_uri, 'uuid': url_parts[-1]})
 
     return json.dumps({'uri': return_uri})
 
