@@ -102,6 +102,11 @@ def do_upload():
     style_template = request.forms.get('template')
     print 'Style template: '
     print style_template
+    ndex_server = request.forms.get('ndexServer')
+    if ndex_server and not 'http' in ndex_server:
+        ndex_server = 'http://' + ndex_server
+    user = request.forms.get('user')
+    pw = request.forms.get('pw')
 
     #==================
     # SAVE TO MONGO
@@ -131,11 +136,15 @@ def do_upload():
 
     tsv_converter = d2c.TSV2CXConverter(import_plan)
 
-    my_ndex = nc.Ndex("http://dev2.ndexbio.org", 'scratch','scratch')
+    my_ndex = None
+    if ndex_server and user and pw:
+        my_ndex = nc.Ndex(ndex_server, user, pw)
+    else:
+        my_ndex = nc.Ndex("http://dev2.ndexbio.org", 'scratch','scratch')
 
     ng = tsv_converter.convert_tsv_to_cx(tf.name, name=name, description=desc)
 
-    if len(style_template) > 0:
+    if style_template and len(style_template) > 0:
         print 'Applying style template'
         toolbox.apply_template(ng, style_template, server='http://dev2.ndexbio.org', username='scratch', password='scratch') # NCI PID
 
