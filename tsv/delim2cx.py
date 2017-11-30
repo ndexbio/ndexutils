@@ -299,7 +299,10 @@ class TSV2CXConverter:
                             value = data_to_type_local(value, column_raw['data_type'])
 
                         if column_raw.get('value_prefix'):
-                            value = column_raw.get('value_prefix') + ":"+ value
+                            if isinstance(value, list):
+                                value = [ (column_raw.get('value_prefix') + ":"+ s) for s in value]
+                            else:
+                                value = column_raw.get('value_prefix') + ":"+ value
 
 
                         if column_raw.get('attribute_name'):
@@ -351,9 +354,8 @@ def data_to_type_local(data, data_type):
         return_data = None
 
         if(type(data) is str):
-            data = data.replace('[', '').replace(']','')
             if('list_of' in data_type):
-                data = data.split(',')
+                data = re.split("[,;\|]\s*",data)
 
         if data_type == "boolean":
             if(type(data) is str):
