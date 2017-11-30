@@ -53,21 +53,21 @@ def main():
 
  #       plan_filename = os.path.join(current_directory, "import_plans", arg.plan)
 
-        print "loading plan from: " + arg.plan
+        print ("loading plan from: " + arg.plan)
 
         try :
             import_plan = d2c.TSVLoadingPlan(arg.plan)
 
         except jsonschema.ValidationError as e1:
-            print "Failed to parse the loading plan '" + arg.plan + "': " + e1.message
-            print 'at path: ' + str(e1.absolute_path)
-            print "in block: "
-            print e1.instance
+            print ("Failed to parse the loading plan '" + arg.plan + "': " + e1.message)
+            print ('at path: ' + str(e1.absolute_path))
+            print ("in block: ")
+            print (e1.instance)
             return
 
         # set up the tsv -> cx converter
 
-        print "parsing tsv file using loading plan ..."
+        print ("parsing tsv file using loading plan ...")
         tsv_converter = d2c.TSV2CXConverter(import_plan)
 
 
@@ -96,7 +96,7 @@ def main():
 
                 except requests.HTTPError as err:
                    if err.response.status_code == 404:
-                       print "No cyVisualProperties aspect found in old network, not adding it."
+                       print ("No cyVisualProperties aspect found in old network, not adding it.")
                    else:
                        raise
 
@@ -114,13 +114,13 @@ def main():
                     layouts.apply_directed_flow_layout(ng)
             my_ndex.save_cx_stream_as_new_network(ng.to_cx_stream())
 
-        print "Done."
+        print ("Done.")
 
     except jsonschema.exceptions.ValidationError as ve:
-        print str(ve)
+        print (str(ve))
         exit(1)
-    except requests.exceptions.RequestException, e:
-        print "error in request to NDEx server: " + str(e)
+    except requests.exceptions.RequestException as e:
+        print ("error in request to NDEx server: " + str(e))
         raise e
 
 

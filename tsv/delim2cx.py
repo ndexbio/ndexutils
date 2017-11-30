@@ -1,7 +1,6 @@
 
 import csv
 import json
-from ndex.networkn import data_to_type
 from os import path
 from jsonschema import validate
 from ndex.ndexGraphBuilder import ndexGraphBuilder
@@ -285,7 +284,7 @@ class TSV2CXConverter:
                         column = col_list[0]
                         value = row.get(column)
                         if value:
-                            attr[column] = data_to_type(value, data_type)
+                            attr[column] = data_to_type_local(value, data_type)
                 else:
                     value = None
 
@@ -297,7 +296,7 @@ class TSV2CXConverter:
 
                     if value:
                         if column_raw.get('data_type'):
-                            value = data_to_type(value, column_raw['data_type'])
+                            value = data_to_type_local(value, column_raw['data_type'])
 
                         if column_raw.get('value_prefix'):
                             value = column_raw.get('value_prefix') + ":"+ value
@@ -348,6 +347,60 @@ class TSV2CXConverter:
 
         self.ng_builder.addEdge(src_node_id,tgt_node_id,predicate_str, edge_attr)
 
+def data_to_type_local(data, data_type):
+        return_data = None
 
+        if(type(data) is str):
+            data = data.replace('[', '').replace(']','')
+            if('list_of' in data_type):
+                data = data.split(',')
+
+        if data_type == "boolean":
+            if(type(data) is str):
+                return_data = data.lower() == 'true'
+            else:
+                return_data = bool(data)
+        elif data_type == "byte":
+            return_data = str(data).encode()
+        elif data_type == "char":
+            return_data = str(data)
+        elif data_type == "double":
+            return_data = float(data)
+        elif data_type == "float":
+            return_data = float(data)
+        elif data_type == "integer":
+            return_data = int(data)
+        elif data_type == "long":
+            return_data = int(data)
+        elif data_type == "short":
+            return_data = int(data)
+        elif data_type == "string":
+            return_data = str(data)
+        elif data_type == "list_of_boolean":
+            # Assumption: if the first element is a string then so are the rest...
+            if(type(data[0]) is str):
+                return_data = [s.lower() == 'true' for s in data]
+            else:
+                return_data = [bool(s) for s in data]
+        elif data_type == "list_of_byte":
+                return_data = [bytes(s) for s in data]
+        elif data_type == "list_of_char":
+                return_data = [str(s) for s in data]
+        elif data_type == "list_of_double":
+                return_data = [float(s) for s in data]
+        elif data_type == "list_of_float":
+                return_data = [float(s) for s in data]
+        elif data_type == "list_of_integer":
+                return_data = [int(s) for s in data]
+        elif data_type == "list_of_long":
+                return_data = [int(s) for s in data]
+        elif data_type == "list_of_short":
+                return_data = [int(s) for s in data]
+        elif data_type == "list_of_string":
+                return_data = [str(s) for s in data]
+        else:
+                return None
+
+        return return_data
 
 
