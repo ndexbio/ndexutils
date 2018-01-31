@@ -18,12 +18,12 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 if __name__ == '__main__':
     setup(
-        name='ndex-util',
+        name='ndexutil',
 
         # Versions should comply with PEP440.  For a discussion on single-sourcing
         # the version across setup.py and the project code, see
         # https://packaging.python.org/en/latest/single_source_version.html
-        version='0.0.1b',
+        version='0.0.3',
 
         description='Nice CX Python includes a client and a data model.',
         long_description='Unsupported NDEx utilities',
@@ -76,6 +76,7 @@ if __name__ == '__main__':
             'pandas',
             'enum34',
             'enum; python_version == "2.6" or python_version=="2.7"'
+            'jsonschema'
         ],
 
         include_package_data=True
