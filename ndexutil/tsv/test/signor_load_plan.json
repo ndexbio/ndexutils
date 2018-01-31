@@ -3,7 +3,7 @@
         "signor": "http://signor.uniroma2.it/relation_result.php?id=",
         "BTO": "http://identifiers.org/bto/BTO:",
         "uniprot": "http://identifiers.org/uniprot/",
-        "PMID": "http://identifiers.org/pubmed/",
+        "pubmed": "http://identifiers.org/pubmed/",
         "cid": "http://identifiers.org/pubchem.compound/",
         "sid": "http://identifiers.org/pubchem.substance/"
     },
