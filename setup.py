@@ -23,9 +23,9 @@ if __name__ == '__main__':
         # Versions should comply with PEP440.  For a discussion on single-sourcing
         # the version across setup.py and the project code, see
         # https://packaging.python.org/en/latest/single_source_version.html
-        version='0.0.3',
+        version='0.0.12',
 
-        description='Nice CX Python includes a client and a data model.',
+        description='NDEx utils',
         long_description='Unsupported NDEx utilities',
 
         # The project's main homepage.
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         # You can just specify the packages manually here if your project is
         # simple. Or you can use find_packages().
         packages=find_packages(exclude=[]),
-
+        data_files=[('schema', ['ndexutil/tsv/loading_plan_schema.json'])],
         install_requires = [
             'ndex2',
             'requests',
@@ -75,8 +75,9 @@ if __name__ == '__main__':
             'urllib3>=1.16',
             'pandas',
             'enum34',
-            'enum; python_version == "2.6" or python_version=="2.7"'
-            'jsonschema'
+            'enum; python_version == "2.6" or python_version=="2.7"',
+            'jsonschema',
+            'gspread'
         ],
 
         include_package_data=True

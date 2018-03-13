@@ -8,11 +8,11 @@
       "NodeMapping": {
         "type": "object",
         "properties": {
-          "id_prefix": {
+          "rep_prefix": {
             "description": "Prefix that need to be added to the id column",
             "type": "string"
           },
-          "id_column": {
+          "rep_column": {
            "description": "Column that will be used as the represent field of a node. The first non-empty value in the list will be used to populate the node represent field.",
             "type": "string"
           },
@@ -42,8 +42,12 @@
                   "data_type": {
                       "description": "data type of the attribute values, default is string",
                       "type": "string",
-                      "enum": ["string","double","float", "boolean", "char","integer","long","short","list_of_string",
-                          "list_of_double", "list_of_float","list_of_boolean", "list_of_integer", "list_of_long"]
+                      "enum": ["string", "double", "boolean", "integer" ,"long", "list_of_string",
+                          "list_of_double", "list_of_boolean", "list_of_integer", "list_of_long"]
+                  },
+                  "delimiter": {
+                      "description": "delimiter character for array data types",
+                      "type": "string"
                   },
                   "default_value": {
                     "description": "default value of this property when column_name is missing or the value in that column is missing",
@@ -118,11 +122,10 @@
               "type": "string"
             },
             "citation_id_column": {
-              "description": "Data in this column will be added as a edge property called 'citiation_ids'. Value in the cells of this column can be a single id or a comma seperated id list.",
+              "description": "column that specify the edge name. If the value in this cell is missing, we will use the value defined in 'defalut_predicate', if it exists.",
               "type": "string"
             },
             "citation_id_prefix": {
-              "description": "The prefix need to be added to the citation. If it is a list defining this prefix value will cause an error",
               "type": "string"
             },
             "property_columns": {
@@ -148,6 +151,10 @@
                       "type": "string",
                       "enum": ["string","double","float", "boolean", "char","integer","long","short","list_of_string",
                           "list_of_double", "list_of_float","list_of_boolean", "list_of_integer", "list_of_long"]
+                  },
+                  "delimiter": {
+                      "description": "delimiter character for array data types",
+                      "type": "string"
                   },
                   "default_value": {
                     "description": "default value of this property when column_name is missing or the value in that column is missing",

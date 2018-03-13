@@ -21,10 +21,18 @@ version="0.1"
 def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_rows=None,
                                             name=None, description=None,
                                             network_attributes=None, provenance=None):
+
+    # open the schema first
+    here = path.abspath(path.dirname(__file__))
+    with open(path.join(here, 'loading_plan_schema.json')) as json_file:
+        plan_schema = json.load(json_file)
+
+    validate(load_plan, plan_schema)
+
     node_lookup = {}
     nice_cx = ndex2.NiceCXNetwork()
     row_count = 0
-    t1 = long(time.time()*1000)
+    t1 = int(time.time()*1000)
     #Add context if they are defined
     if load_plan.get('context'):
         nice_cx.set_context([load_plan.get('context')])
@@ -60,7 +68,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     tsv_data_event = {
             "inputs": None,
             "startedAtTime": t1,
-            "endedAtTime": long(time.time()*1000),
+            "endedAtTime": int(time.time()*1000),
             "eventType": "TSV network generation",
             "properties": [{
                             "name": "TSV loader version",
@@ -175,6 +183,7 @@ valid_cx_data_types = ['boolean', 'byte', 'char', 'double', 'float', 'integer', 
 def add_node_attributes(nice_cx, node_element, load_plan, row):
     if load_plan.get('property_columns'):
         for column_raw in load_plan['property_columns']:
+            type_temp = column_raw.get('data_type')
             value = None
 
             if column_raw.get('column_name'):
@@ -184,24 +193,51 @@ def add_node_attributes(nice_cx, node_element, load_plan, row):
                 value = column_raw['default_value']
 
             if value:
-                if column_raw.get('data_type'):
-                    if column_raw['data_type'] not in valid_cx_data_types:
-                        raise Exception('data_type: ' + column_raw['data_type'] + ' is not valid')
+                if column_raw.get('delimiter'):
+                    if column_raw.get('data_type'):
+                        if column_raw['data_type'] not in valid_cx_data_types:
+                            raise Exception('data_type: ' + column_raw['data_type'] + ' is not valid')
+                        value = value.split(column_raw.get('delimiter'))
 
-                    value = data_to_type(value, column_raw['data_type'])
+                        value = data_to_type(value, column_raw['data_type'])
+                        if not type_temp.startswith('list'):
+                            type_temp = 'list_of_' + type_temp
+                    else:
+                        if not isinstance(value, str):
+                            value = str(value)
+                        value = value.split(column_raw.get('delimiter'))
+                        type_temp = 'list_of_string'
 
-                if column_raw.get('value_prefix'):
-                    value = column_raw.get('value_prefix') + ":" + str(value)
+
+                    if column_raw.get('value_prefix'):
+                        value_temp = ''
+                        value_list_temp = []
+                        for value_item in value:
+                            value_temp = column_raw.get('value_prefix') + ":" + str(value_item)
+                            value_list_temp.append(value_temp)
+                        value = value_list_temp
+
+
+                else:
+                    if column_raw.get('data_type'):
+                        if column_raw['data_type'] not in valid_cx_data_types:
+                            raise Exception('data_type: ' + column_raw['data_type'] + ' is not valid')
+
+                        value = data_to_type(value, column_raw['data_type'])
+
+                    if column_raw.get('value_prefix'):
+                        value = column_raw.get('value_prefix') + ":" + str(value)
 
                 if column_raw.get('attribute_name'):
                     # create
-                    nice_cx.set_node_attribute(node_element, column_raw['attribute_name'], value, type=column_raw.get('data_type'))
+                    nice_cx.set_node_attribute(node_element, column_raw['attribute_name'], value, type=type_temp) # column_raw.get('data_type'))
                 else:
-                    nice_cx.set_node_attribute(node_element, column_raw['column_name'], value, type=column_raw.get('data_type'))
+                    nice_cx.set_node_attribute(node_element, column_raw['column_name'], value, type=type_temp) # column_raw.get('data_type'))
 
 def add_edge_attributes(nice_cx, edge_id, load_plan, row):
     if load_plan.get('property_columns'):
         for column_raw in load_plan['property_columns']:
+            type_temp = column_raw.get('data_type')
             value = None
 
             if column_raw.get('column_name'):
@@ -215,22 +251,43 @@ def add_edge_attributes(nice_cx, edge_id, load_plan, row):
 
             if value:
                 dt = None
-                if column_raw.get('data_type'):
-                    dt = str(column_raw.get('data_type'))
-                    if dt not in valid_cx_data_types:
-                        raise Exception('data_type: ' + dt + ' is not valid')
 
-                    value = data_to_type(value, dt)
+                if column_raw.get('delimiter'):
+                    if column_raw.get('data_type'):
+                        dt = str(column_raw.get('data_type'))
+                        if dt not in valid_cx_data_types:
+                            raise Exception('data_type: ' + dt + ' is not valid')
 
-                if column_raw.get('value_prefix'):
-                    value = column_raw.get('value_prefix') + ":" + str(value)
+                        value = value.split(column_raw.get('delimiter'))
+                        value = data_to_type(value, dt)
+                        if not type_temp.startswith('list'):
+                            type_temp = 'list_of_' + type_temp
+                    else:
+                        value = value.split(column_raw.get('delimiter'))
+                        type_temp = 'list_of_string'
+
+                    if column_raw.get('value_prefix'):
+                        value_temp = ''
+                        value_list_temp = []
+                        for value_item in value:
+                            value_temp = column_raw.get('value_prefix') + ":" + str(value_item)
+                            value_list_temp.append(value_temp)
+                        value = value_list_temp
+                else:
+                    if column_raw.get('data_type'):
+                        dt = str(column_raw.get('data_type'))
+                        if dt not in valid_cx_data_types:
+                            raise Exception('data_type: ' + dt + ' is not valid')
+
+                        value = data_to_type(value, dt)
+
+                    if column_raw.get('value_prefix'):
+                        value = column_raw.get('value_prefix') + ":" + str(value)
 
                 if column_raw.get('attribute_name'):
-                    nice_cx.set_edge_attribute(edge_id, column_raw['attribute_name'], value, type=dt)
+                    nice_cx.set_edge_attribute(edge_id, column_raw['attribute_name'], value, type=type_temp) # dt)
                 else:
-                    nice_cx.set_edge_attribute(edge_id, column_raw['column_name'], value, type=dt)
-
-
+                    nice_cx.set_edge_attribute(edge_id, column_raw['column_name'], value, type=type_temp)
 
 
 def data_to_type(data, data_type):
