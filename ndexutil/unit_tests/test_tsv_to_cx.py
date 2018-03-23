@@ -12,6 +12,8 @@ from ndex.networkn import NdexGraph
 import jsonschema
 import requests
 import ndexebs.ebs2cx as ebs2cx
+import pandas as pd
+import ndexutil.tsv.tsv2nicecx as t2n
 
 class ScratchTests(unittest.TestCase):
     #==============================
@@ -44,7 +46,13 @@ class ScratchTests(unittest.TestCase):
 
         self.assertTrue(True)
 
-    #@unittest.skip("not working using this method")
+
+
+
+
+
+
+    @unittest.skip("not working using this method")
     def test_fix_backup_cx(self):
         current_directory = os.path.dirname(os.path.abspath(__file__))
         cx_path = os.path.join(current_directory, '..', 'cx_backup')
@@ -228,3 +236,60 @@ class ScratchTests(unittest.TestCase):
             raise e
 
         self.assertTrue(True)
+
+    @unittest.skip("skipping")
+    def test_small_tsv(self):
+        path_this = os.path.dirname(os.path.abspath(__file__))
+        path_to_network = os.path.join(path_this, 'SIGNOR-MacroCCL2TR.txt')
+
+        with open(path_to_network, 'rU') as tsvfile:
+            #header = [h.strip() for h in tsvfile.readline().split('\t')]
+            header = ["entitya", "typea", "ida", "entityb", "typeb", "idb", "effect", "mechanism", "residue",
+                       "sequence", "tax_id", "cell_data", "tissue_data", "pmid", "direct", "notes", "annotator",
+                       "sentence"]
+
+            lp = json.load(open('signor_load_plan.json'))
+            #df = pd.read_csv(tsvfile,delimiter='\t',engine='python',names=header)
+
+            df = pd.read_csv(tsvfile, dtype=str, na_filter=False, delimiter='\t', engine='python')
+
+
+            rename = {}
+            for column_name in df.columns:
+                rename[column_name] = column_name.upper()
+
+            df = df.rename(columns=rename)
+
+            network = t2n.convert_pandas_to_nice_cx_with_load_plan(df, lp)
+            network.upload_to('http://dev.ndexbio.org', 'scratch', 'scratch')
+
+            print(network)
+
+    #@unittest.skip("skipping")
+    def test_array_property_tsv(self):
+        path_this = os.path.dirname(os.path.abspath(__file__))
+        path_to_network = os.path.join(path_this, 'SIGNOR-MonoIL10TR.txt')
+
+        with open(path_to_network, 'rU') as tsvfile:
+            #header = [h.strip() for h in tsvfile.readline().split('\t')]
+            header = ["entitya", "typea", "ida", "entityb", "typeb", "idb", "effect", "mechanism", "residue",
+                       "sequence", "tax_id", "cell_data", "tissue_data", "pmid", "direct", "notes", "annotator",
+                       "sentence"]
+
+            lp = json.load(open('signor_load_plan.json'))
+            #df = pd.read_csv(tsvfile,delimiter='\t',engine='python',names=header)
+
+            df = pd.read_csv(tsvfile, dtype=str, na_filter=False, delimiter='\t', engine='python')
+
+
+            rename = {}
+            for column_name in df.columns:
+                rename[column_name] = column_name.upper()
+
+            df = df.rename(columns=rename)
+
+            network = t2n.convert_pandas_to_nice_cx_with_load_plan(df, lp)
+            network.upload_to('http://dev.ndexbio.org', 'scratch', 'scratch')
+
+            print(network)
+
