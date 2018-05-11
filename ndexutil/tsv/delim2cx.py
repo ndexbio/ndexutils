@@ -1,20 +1,14 @@
 
 import csv
 import json
-from ndex.networkn import data_to_type
 from os import path
 from jsonschema import validate
-from ndex.ndexGraphBuilder import ndexGraphBuilder
-import pandas as pd
-import ndex2
 import time
 import re
 import numpy as np
 import types
 import six
-import gspread
-from ndex2.cx.aspects import ATTRIBUTE_DATA_TYPE
-
+#from ndexutil.tsv.TSVNiceCXNetworkBuilder import TSVNiceCXNetworkBuilder
 
 
 # convert a delimited file to CX based on a JSON 'plan' which specifies the mapping of
@@ -55,21 +49,19 @@ class TSV2CXConverter:
 
         # the plan specifying the parsing of rows
         self.plan = plan
-        self.ng_builder = ndexGraphBuilder() #   Graph()
+        self.cx_builder = TSVNiceCXNetworkBuilder()
 
 
     def check_header_vs_plan(self, header):
         # each column name referenced in the plan must be in the header, otherwise raise an exception
-        self.check_column(self.plan.source_plan.get('id_column'), header)
+        self.check_column(self.plan.source_plan.get('rep_column'), header)
         self.check_column(self.plan.source_plan.get('node_name_column'), header)
-        self.check_column(self.plan.source_plan.get('alias_column'),header)
         self.check_plan_property_columns(self.plan.source_plan,header)
 
-        self.check_column(self.plan.target_plan.get('id_column'), header)
+        self.check_column(self.plan.target_plan.get('rep_column'), header)
         self.check_column(self.plan.target_plan.get('node_name_column'), header)
         self.check_plan_property_columns(self.plan.target_plan, header)
 
-        self.check_column(self.plan.edge_plan.get('id_column'), header)
         self.check_column(self.plan.edge_plan.get('predicate_id_column'), header)
         self.check_column(self.plan.edge_plan.get('citation_id_column'), header)
         self.check_plan_property_columns(self.plan.edge_plan, header)
@@ -106,10 +98,9 @@ class TSV2CXConverter:
     #==================================
     def convert_tsv_to_cx(self, filename, max_rows = None,  name=None, description=None, network_attributes=None, provenance=None):
 
-        t1 = long(time.time()*1000)
         #Add context if they are defined
         if self.plan.context:
-            self.ng_builder.addNamespaces(self.plan.context)
+            self.cx_builder.set_context(self.plan.context)
 
         with open(filename, 'rU') as tsvfile:
             header = [h.strip() for h in tsvfile.next().split('\t')]
@@ -170,54 +161,6 @@ class TSV2CXConverter:
 
         return ndexGraph
 
-    #==================================
-    # CONVERT GOOGLE SHEET TO CX USING Network_n
-    #==================================
-    def convert_google_worksheet_to_cx(self, worksheet, max_rows = None,  name=None, description=None):
-
-        t1 = long(time.time()*1000)
-        #Add context if they are defined
-        if self.plan.context:
-            self.ng_builder.addNamespaces(self.plan.context)
-
-        # Get records - list of dicts with column names as keys
-        records = worksheet.get_all_records()
-        # count the rows as shown in sheet, i.e. first data row is #2
-        row_count = 2
-        for row in records:
-            try:
-                self.process_row(row)
-                row_count = row_count + 1
-                if max_rows and row_count > max_rows+2:
-                    break
-            except RuntimeError as err1:
-                print("Error occurred in line " + str(row_count) + ". Message: " + err1.message)
-                raise err1
-            except Exception as err2:
-                print("Error occurred in line " + str(row_count) + ". Message: " + err2.message)
-                raise err2
-
-        ndexGraph = self.ng_builder.getNdexGraph()
-
-        ndexGraph.set_name(name)
-        ndexGraph.set_network_attribute('description', description)
-        ndexGraph.set_provenance(
-            {
-                "entity": {
-                    "creationEvent": {
-                        "inputs": None,
-                        "startedAtTime": t1,
-                        "endedAtTime": long(time.time()*1000),
-                        "eventType": "TSV network generation",
-                        "properties": [{
-                            "name": "TSV loader version",
-                            "value": version
-                        }]
-                    }
-                }
-            }
-        )
-        return ndexGraph
 
     #==================================
     # Process Row USING Networkn
@@ -243,11 +186,11 @@ class TSV2CXConverter:
         ext_id = None
         use_name_as_id = False
 
-        if not node_plan.get('id_column'):
+        if not node_plan.get('rep_column'):
             use_name_as_id = True
 
         if use_name_as_id and node_plan.get('id_prefix'):
-            raise RuntimeError("Id column needs to be defined if id_prefix is defined in your query plan.")
+            raise RuntimeError("rep_column needs to be defined if id_prefix is defined in your loading plan.")
 
         if 'node_name_column' in node_plan:
             nodeName = row.get(node_plan['node_name_column'])
@@ -318,7 +261,7 @@ class TSV2CXConverter:
     def create_edge(self, src_node_id, tgt_node_id, row):
 
         predicate_str = None
-        if  self.plan.edge_plan.get('predicate_id_column'):
+        if self.plan.edge_plan.get('predicate_id_column'):
             predicate_str = row.get(self.plan.edge_plan['predicate_id_column'])
 
         if not predicate_str and self.plan.edge_plan.get('default_predicate'):
@@ -352,6 +295,91 @@ class TSV2CXConverter:
             edge_attr['citation_ids'] = citation_id
 
         self.ng_builder.addEdge(src_node_id,tgt_node_id,predicate_str, edge_attr)
+
+
+    #==================================
+    # CONVERT GOOGLE SHEET TO CX USING Network_n
+    #==================================
+    def convert_google_worksheet_to_cx(self, worksheet, max_rows = None,  name=None, description=None):
+
+        #Add context if they are defined
+        if self.plan.context:
+            self.ng_builder.addNamespaces(self.plan.context)
+
+        # Get records - list of dicts with column names as keys
+        records = worksheet.get_all_records()
+        # count the rows as shown in sheet, i.e. first data row is #2
+        row_count = 2
+        for row in records:
+            try:
+                self.process_row(row)
+                row_count = row_count + 1
+                if max_rows and row_count > max_rows+2:
+                    break
+            except RuntimeError as err1:
+                print("Error occurred in line " + str(row_count) + ". Message: " + err1.message)
+                raise err1
+            except Exception as err2:
+                print("Error occurred in line " + str(row_count) + ". Message: " + err2.message)
+                raise err2
+
+        ndexGraph = self.ng_builder.getNdexGraph()
+
+        ndexGraph.set_name(name)
+        ndexGraph.set_network_attribute('description', description)
+        ndexGraph.set_provenance(
+            {
+                "entity": {
+                    "creationEvent": {
+                        "inputs": None,
+                        "startedAtTime": t1,
+                        "endedAtTime": long(time.time()*1000),
+                        "eventType": "TSV network generation",
+                        "properties": [{
+                            "name": "TSV loader version",
+                            "value": version
+                        }]
+                    }
+                }
+            }
+        )
+        return ndexGraph
+
+def data_to_type(data, data_type):
+    return_data = None
+
+    if type(data) is str:
+        data = data.replace('[', '').replace(']', '')
+        if ('list_of' in data_type):
+            data = data.split(',')
+
+    if data_type == "boolean":
+        if (type(data) is str):
+            return_data = data.lower() == 'true'
+        else:
+            return_data = bool(data)
+    elif data_type == "double" or data_type == "float":
+        return_data = float(data)
+    elif data_type == "long" or data_type == "integer":
+        return_data = int(data)
+    elif data_type == "string":
+        return_data = str(data)
+    elif data_type == "list_of_boolean":
+        # Assumption: if the first element is a string then so are the rest...
+        if type(data[0]) is str:
+            return_data = [s.lower() == 'true' for s in data]
+        else:
+            return_data = [bool(s) for s in data]
+    elif data_type == "list_of_double" or data_type == "list_of_float":
+        return_data = [float(s) for s in data]
+    elif data_type == "list_of_long"  or data_type == "list_of_integer":
+        return_data = [int(s) for s in data]
+    elif data_type == "list_of_string":
+        return_data = [str(s) for s in data]
+    else:
+        return None
+
+    return return_data
 
 if __name__ == '__main__':
     print('made it')

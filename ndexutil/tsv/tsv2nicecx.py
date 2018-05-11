@@ -4,14 +4,14 @@ import json
 from os import path
 from jsonschema import validate
 import pandas as pd
-import ndex2
+#import ndex2
+from ndex2.NiceCXNetworkBuilder import NiceCXNetworkBuilder
 import time
 import re
 import numpy as np
 import types
 import six
 import gspread
-from ndex2.cx.aspects import ATTRIBUTE_DATA_TYPE
 
 version="0.1"
 
@@ -30,17 +30,17 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     validate(load_plan, plan_schema)
 
     node_lookup = {}
-    nice_cx = ndex2.NiceCXNetwork()
+    nice_cx_builder = NiceCXNetworkBuilder()
     row_count = 0
     t1 = int(time.time()*1000)
     #Add context if they are defined
     if load_plan.get('context'):
-        nice_cx.set_context([load_plan.get('context')])
+        nice_cx_builder.set_context(load_plan.get('context'))
         #self.ng_builder.addNamespaces(self.plan.context)
 
     for index, row in pandas_dataframe.iterrows():
         # As each row is processed, self.G_nx is updated
-        process_row(nice_cx, load_plan, row, node_lookup)
+        process_row(nice_cx_builder, load_plan, row, node_lookup)
         row_count = row_count + 1
         if max_rows and row_count > max_rows + 2:
             break
@@ -88,17 +88,17 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
 # Process Row USING NiceCX
 # Added by Aaron G
 #==================================
-def process_row(nice_cx, load_plan, row, node_lookup):
+def process_row(nice_cx_builder, load_plan, row, node_lookup):
     # For each row, we create an edge + edge properties
     # For that edge, we may create elements if they are new
     # - source node + properties
     # - target node + properties
     # - predicate term
 
-    source_node = create_node(row, load_plan.get('source_plan'), nice_cx, node_lookup)
-    target_node = create_node(row, load_plan.get('target_plan'), nice_cx, node_lookup)
+    source_node = create_node(row, load_plan.get('source_plan'), nice_cx_builder, node_lookup)
+    target_node = create_node(row, load_plan.get('target_plan'), nice_cx_builder, node_lookup)
 
-    create_edge(nice_cx, source_node.get_id(), target_node.get_id(), row, load_plan)
+    create_edge(nice_cx_builder, source_node.get_id(), target_node.get_id(), row, load_plan)
 
 def create_node(row, node_plan, nice_cx, node_lookup):
 
@@ -107,11 +107,14 @@ def create_node(row, node_plan, nice_cx, node_lookup):
     ext_id = None
     use_name_as_id = False
 
-    if not node_plan.get('rep_column'):
-        raise Exception("Represents is a required element of the plan")
+    if not node_plan.get('id_column'):
+        use_name_as_id = True
 
-    if not node_plan.get('node_name_column'):
-        raise Exception("Node name is a required element of the plan")
+#    if not node_plan.get('rep_column'):
+#        raise Exception("Represents is a required element of the plan")
+
+#   if not node_plan.get('node_name_column'):
+#        raise Exception("Node name is a required element of the plan")
 
     if use_name_as_id and node_plan.get('rep_prefix'):
         raise RuntimeError("Id column needs to be defined if id_prefix is defined in your query plan.")
