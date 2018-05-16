@@ -23,7 +23,7 @@ if __name__ == '__main__':
         # Versions should comply with PEP440.  For a discussion on single-sourcing
         # the version across setup.py and the project code, see
         # https://packaging.python.org/en/latest/single_source_version.html
-        version='0.0.13',
+        version='0.0.19',
 
         description='NDEx utils',
         long_description='Unsupported NDEx utilities',
@@ -82,3 +82,6 @@ if __name__ == '__main__':
 
         include_package_data=True
     )
+
+
+

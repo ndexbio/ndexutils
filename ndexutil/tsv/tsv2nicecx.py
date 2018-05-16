@@ -38,12 +38,18 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
         nice_cx.set_context([load_plan.get('context')])
         #self.ng_builder.addNamespaces(self.plan.context)
 
+    total_row_count = pandas_dataframe.shape
+    if len(total_row_count) > 1:
+        total_row_count = str(total_row_count[0])
     for index, row in pandas_dataframe.iterrows():
         # As each row is processed, self.G_nx is updated
         process_row(nice_cx, load_plan, row, node_lookup)
         row_count = row_count + 1
         if max_rows and row_count > max_rows + 2:
             break
+
+        if row_count % 100 == 0:
+            print('processing %s out of %s edges' % (str(row_count), total_row_count))
 
         #try :
         #    process_row(nice_cx, load_plan, row, node_lookup)
@@ -173,7 +179,8 @@ def create_edge(nice_cx, src_node_id, tgt_node_id, row, import_plan):
         citation_id = newList
 
     if citation_id:
-        nice_cx.set_edge_attribute(edge_id, 'citation_ids', citation_id, type='list_of_string')
+        nice_cx.set_edge_attribute(edge_id, 'citation', citation_id, type='list_of_string')
+        #nice_cx.set_edge_attribute(edge_id, 'citation_ids', citation_id, type='list_of_string')
 
 
 valid_cx_data_types = ['boolean', 'byte', 'char', 'double', 'float', 'integer', 'long', 'short', 'string', 'list_of_boolean',
@@ -182,7 +189,29 @@ valid_cx_data_types = ['boolean', 'byte', 'char', 'double', 'float', 'integer', 
 
 def add_node_attributes(nice_cx, node_element, load_plan, row):
     if load_plan.get('property_columns'):
-        for column_raw in load_plan['property_columns']:
+        for column_raw_temp in load_plan['property_columns']:
+            if isinstance(column_raw_temp, dict):
+                column_raw = column_raw_temp
+            else:
+                if '::' in column_raw_temp:
+                    column_split = column_raw_temp.split('::')
+                    if len(column_split) > 1:
+                        column_raw = {
+                            'column_name': column_split[0],
+                            'attribute_name': column_split[0],
+                            'data_type': column_split[1]
+                        }
+                    else:
+                        column_raw = {
+                            'column_name': column_raw_temp,
+                            'attribute_name': column_raw_temp
+                        }
+                else:
+                    column_raw = {
+                        'column_name': column_raw_temp,
+                        'attribute_name': column_raw_temp
+                    }
+
             type_temp = column_raw.get('data_type')
             value = None
 
@@ -236,8 +265,31 @@ def add_node_attributes(nice_cx, node_element, load_plan, row):
 
 def add_edge_attributes(nice_cx, edge_id, load_plan, row):
     if load_plan.get('property_columns'):
-        for column_raw in load_plan['property_columns']:
+        for column_raw_temp in load_plan['property_columns']:
+            if isinstance(column_raw_temp, dict):
+                column_raw = column_raw_temp
+            else:
+                if '::' in column_raw_temp:
+                    column_split = column_raw_temp.split('::')
+                    if len(column_split) > 1:
+                        column_raw = {
+                            'column_name': column_split[0],
+                            'attribute_name': column_split[0],
+                            'data_type': column_split[1]
+                        }
+                    else:
+                        column_raw = {
+                            'column_name': column_raw_temp,
+                            'attribute_name': column_raw_temp
+                        }
+                else:
+                    column_raw = {
+                        'column_name': column_raw_temp,
+                        'attribute_name': column_raw_temp
+                    }
+
             type_temp = column_raw.get('data_type')
+
             value = None
 
             if column_raw.get('column_name'):
@@ -292,57 +344,59 @@ def add_edge_attributes(nice_cx, edge_id, load_plan, row):
 
 def data_to_type(data, data_type):
     return_data = None
-
-    if(type(data) is str):
-        data = data.replace('[', '').replace(']','')
-        if('list_of' in data_type):
-            data = data.split(',')
-
-    if data_type == "boolean":
+    try:
         if(type(data) is str):
-            return_data = data.lower() == 'true'
+            data = data.replace('[', '').replace(']','')
+            if('list_of' in data_type):
+                data = data.split(',')
+
+        if data_type == "boolean":
+            if(type(data) is str):
+                return_data = data.lower() == 'true'
+            else:
+                return_data = bool(data)
+        elif data_type == "byte":
+            return_data = str(data).encode()
+        elif data_type == "char":
+            return_data = str(data)
+        elif data_type == "double":
+            return_data = float(data)
+        elif data_type == "float":
+            return_data = float(data)
+        elif data_type == "integer":
+            return_data = int(data)
+        elif data_type == "long":
+            return_data = int(data)
+        elif data_type == "short":
+            return_data = int(data)
+        elif data_type == "string":
+            return_data = str(data)
+        elif data_type == "list_of_boolean":
+            # Assumption: if the first element is a string then so are the rest...
+            if(type(data[0]) is str):
+                return_data = [s.lower() == 'true' for s in data]
+            else:
+                return_data = [bool(s) for s in data]
+        elif data_type == "list_of_byte":
+            return_data = [bytes(s) for s in data]
+        elif data_type == "list_of_char":
+            return_data = [str(s) for s in data]
+        elif data_type == "list_of_double":
+            return_data = [float(s) for s in data]
+        elif data_type == "list_of_float":
+            return_data = [float(s) for s in data]
+        elif data_type == "list_of_integer":
+            return_data = [int(s) for s in data]
+        elif data_type == "list_of_long":
+            return_data = [int(s) for s in data]
+        elif data_type == "list_of_short":
+            return_data = [int(s) for s in data]
+        elif data_type == "list_of_string":
+            return_data = [str(s) for s in data]
         else:
-            return_data = bool(data)
-    elif data_type == "byte":
-        return_data = str(data).encode()
-    elif data_type == "char":
-        return_data = str(data)
-    elif data_type == "double":
-        return_data = float(data)
-    elif data_type == "float":
-        return_data = float(data)
-    elif data_type == "integer":
-        return_data = int(data)
-    elif data_type == "long":
-        return_data = int(data)
-    elif data_type == "short":
-        return_data = int(data)
-    elif data_type == "string":
-        return_data = str(data)
-    elif data_type == "list_of_boolean":
-        # Assumption: if the first element is a string then so are the rest...
-        if(type(data[0]) is str):
-            return_data = [s.lower() == 'true' for s in data]
-        else:
-            return_data = [bool(s) for s in data]
-    elif data_type == "list_of_byte":
-        return_data = [bytes(s) for s in data]
-    elif data_type == "list_of_char":
-        return_data = [str(s) for s in data]
-    elif data_type == "list_of_double":
-        return_data = [float(s) for s in data]
-    elif data_type == "list_of_float":
-        return_data = [float(s) for s in data]
-    elif data_type == "list_of_integer":
-        return_data = [int(s) for s in data]
-    elif data_type == "list_of_long":
-        return_data = [int(s) for s in data]
-    elif data_type == "list_of_short":
-        return_data = [int(s) for s in data]
-    elif data_type == "list_of_string":
-        return_data = [str(s) for s in data]
-    else:
-        return_data = str(data)
+            return_data = str(data)
+    except Exception as err2:
+        return_data = None
 
     return return_data
 
