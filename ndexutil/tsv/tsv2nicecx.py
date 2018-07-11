@@ -2,10 +2,14 @@
 import csv
 import json
 from os import path
+import os
+import sys
 from jsonschema import validate
 import pandas as pd
 #import ndex2
-from ndex2.NiceCXNetworkBuilder import NiceCXNetworkBuilder
+#sys.path.append(os.path.abspath('/Users/aarongary/Development/Projects/ndex2_performance/ndex2-client'))
+from ndex2cx.NiceCXBuilder import NiceCXBuilder #.NiceCXBuilder import NiceCXBuilder
+#from ndex2. import NiceCXNetworkBuilder
 import time
 import re
 import numpy as np
@@ -14,6 +18,8 @@ import six
 import gspread
 
 version="0.1"
+
+current_directory = path.dirname(path.abspath(__file__))
 
 #=====================
 # NON-CLASS FUNCTIONS
@@ -30,7 +36,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     validate(load_plan, plan_schema)
 
     node_lookup = {}
-    nice_cx_builder = NiceCXNetworkBuilder()
+    nice_cx_builder = NiceCXBuilder()
     row_count = 0
     t1 = int(time.time()*1000)
     #Add context if they are defined
@@ -113,7 +119,7 @@ def create_node(row, node_plan, nice_cx, node_lookup):
     ext_id = None
     use_name_as_id = False
 
-    if not node_plan.get('id_column'):
+    if not node_plan.get('rep_column'):
         use_name_as_id = True
 
 #    if not node_plan.get('rep_column'):
@@ -447,7 +453,7 @@ def find_or_create_node(nice_cx, name, represents, node_lookup):
     if node_lookup.get(represents):
         return nice_cx.nodes.get(node_lookup.get(represents))
     else:
-        new_node_id = nice_cx.create_node(node_name=name, node_represents=represents)
+        new_node_id = nice_cx.add_node(name=name, represents=represents) #.create_node(node_name=name, node_represents=represents)
         node_lookup[represents] = new_node_id
         return nice_cx.nodes.get(new_node_id)
 

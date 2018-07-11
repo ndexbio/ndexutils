@@ -44,31 +44,15 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     if len(total_row_count) > 1:
         total_row_count = str(total_row_count[0])
     for index, row in pandas_dataframe.iterrows():
-        if index == 679:
-            print('here')
-
         # As each row is processed, self.G_nx is updated
         process_row(nice_cx_builder, load_plan, row, node_lookup)
         row_count = row_count + 1
         if max_rows and row_count > max_rows + 2:
             break
 
-        if row_count % 100 == 0:
+        if row_count % 10000 == 0:
             print('processing %s out of %s edges' % (str(row_count), total_row_count))
 
-        #try :
-        #    process_row(nice_cx, load_plan, row, node_lookup)
-        #    row_count = row_count + 1
-        #    if max_rows and row_count > max_rows+2:
-        #        break
-        ##except RuntimeError as err1:
-        #    print "Error occurred in line " + str(row_count) + ". Message: " + err1.message
-        #    raise err1
-        #except Exception as err2:
-        #    print "Error occurred in line " + str(row_count) + ". Message: " + err2.message
-        #    raise err2
-
-    #ndexGraph = self.ng_builder.getNdexGraph()
     if network_attributes:
         for attribute in network_attributes:
             if attribute.get("n") == "name":
@@ -76,8 +60,6 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
             else:
                 nice_cx_builder.add_network_attribute(name=attribute.get('n'), values=attribute.get('v'),
                                                       type=attribute.get('d'))
-
-                    #(name=attribute.get("n"), values=attribute.get("v"), type=attribute.get("d"))
 
     tsv_data_event = {
             "inputs": None,
@@ -108,64 +90,58 @@ def process_row(nice_cx_builder, load_plan, row, node_lookup):
     # - source node + properties
     # - target node + properties
     # - predicate term
+    skipped_edge = False
 
     source_node = create_node(row, load_plan.get('source_plan'), nice_cx_builder, node_lookup)
     target_node = create_node(row, load_plan.get('target_plan'), nice_cx_builder, node_lookup)
 
-    create_edge(nice_cx_builder, source_node, target_node, row, load_plan)
+    if source_node is not None and target_node is not None:
+        create_edge(nice_cx_builder, source_node, target_node, row, load_plan)
 
 def create_node(row, node_plan, nice_cx_builder, node_lookup):
-
-    nodeName = None
-    nodeRepresent = None
-    ext_id = None
     use_name_as_id = False
+    node_name_column = node_plan['node_name_column']
+    node_name_type = None
+    if '::' in node_name_column:
+        node_name_split = node_name_column.split('::')
+        node_plan['node_name_column'] = node_name_split[0]
+        node_name_type = node_name_split[1]
 
+    #=======================================
+    # IF NO REP_COLUMN USE NODE NAME COLUMN
+    #=======================================
     if not node_plan.get('rep_column'):
+        node_plan['rep_column'] = node_plan['node_name_column']
         use_name_as_id = True
-
-#    if not node_plan.get('rep_column'):
-#        raise Exception("Represents is a required element of the plan")
-
-#   if not node_plan.get('node_name_column'):
-#        raise Exception("Node name is a required element of the plan")
 
     if use_name_as_id and node_plan.get('rep_prefix'):
         raise RuntimeError("Id column needs to be defined if id_prefix is defined in your query plan.")
 
     node_name = row[node_plan['node_name_column']]
-
-    if not node_name:
-        raise RuntimeError("Id value is missing.")
-
     ext_id = row[node_plan['rep_column']]
 
-    if not ext_id:
-        raise RuntimeError("Id value is missing.")
-
-    if node_plan.get('rep_prefix'):
+    if ext_id and node_plan.get('rep_prefix'):
         ext_id = node_plan['rep_prefix'] + ":" + str(ext_id)
 
-    #def find_or_create_node(nice_cx, name, represents, node_lookup):
+    #========================================
+    # NAME  |  EXT ID  | ACTION
+    #----------------------------------------
+    # VALID |  VALID   | NORMAL
+    # VALID |  None    | SUB NAME FOR EXT ID
+    # None  |  VALID   | SUB EXT ID FOR NAME
+    # None  |  None    | SKIP ROW
+    #========================================
+    if node_name and not ext_id:
+        ext_id = node_name
+    elif not node_name and ext_id:
+        node_name = ext_id
+    elif not node_name and not ext_id:
+        #print('No node name or ext id.  Skipping this node (%s)' % node_plan['node_name_column'])
+        return None
 
-    #node_element = find_or_create_node(nice_cx, node_name, ext_id, node_lookup)
-
-    node_id = nice_cx_builder.add_node(name=node_name, represents=ext_id)
+    node_id = nice_cx_builder.add_node(name=node_name, represents=ext_id, data_type=node_name_type)
 
     add_node_attributes(nice_cx_builder, node_id, node_plan, row)
-
-
-    #if node_lookup.get(ext_id):
-    #    return nice_cx_builder.nodes.get(node_lookup.get(represents))
-    #else:
-    #    #new_node_id = nice_cx.create_node(node_name=name, node_represents=represents)
-    #    new_node_id = nice_cx.create_node(node_name=name, node_represents=represents)
-
-    #    node_lookup[represents] = new_node_id
-    #    return nice_cx.nodes.get(new_node_id)
-
-    # ATTRIBUTES
-    #add_node_attributes(nice_cx, node_element, node_plan, row)
 
     return node_id
 
@@ -264,16 +240,12 @@ def add_node_attributes(nice_cx_builder, node_element, load_plan, row):
                         value = value.split(column_raw.get('delimiter'))
                         type_temp = 'list_of_string'
 
-
                     if column_raw.get('value_prefix'):
-                        value_temp = ''
                         value_list_temp = []
                         for value_item in value:
                             value_temp = column_raw.get('value_prefix') + ":" + str(value_item)
                             value_list_temp.append(value_temp)
                         value = value_list_temp
-
-
                 else:
                     if column_raw.get('data_type'):
                         if column_raw['data_type'] not in valid_cx_data_types:
@@ -287,12 +259,9 @@ def add_node_attributes(nice_cx_builder, node_element, load_plan, row):
                         value = column_raw.get('value_prefix') + ":" + str(value)
 
                 if column_raw.get('attribute_name'):
-                    # create
                     nice_cx_builder.add_node_attribute(node_element, column_raw['attribute_name'], value, type=type_temp)
-                    #nice_cx.set_node_attribute(node_element, column_raw['attribute_name'], value, type=type_temp) # column_raw.get('data_type'))
                 else:
                     nice_cx_builder.add_node_attribute(node_element, column_raw['column_name'], value, type=type_temp)
-                    #nice_cx.set_node_attribute(node_element, column_raw['column_name'], value, type=type_temp) # column_raw.get('data_type'))
 
 def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
     if load_plan.get('property_columns'):
@@ -326,7 +295,7 @@ def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
             if column_raw.get('column_name'):
                 value = row.get(column_raw['column_name'])
 
-            if pd.isnull(value):
+            if pd.isnull(value) or value == 'None':
                 if column_raw.get('default_value'):
                     value = column_raw['default_value']
                 else:
@@ -350,7 +319,6 @@ def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
                         type_temp = 'list_of_string'
 
                     if column_raw.get('value_prefix'):
-                        value_temp = ''
                         value_list_temp = []
                         for value_item in value:
                             value_temp = column_raw.get('value_prefix') + ":" + str(value_item)
@@ -370,13 +338,9 @@ def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
                 if column_raw.get('attribute_name'):
                     nice_cx_builder.add_edge_attribute(property_of=edge_id, name=column_raw['attribute_name'],
                                                        values=value, type=type_temp)
-
-                    #nice_cx.set_edge_attribute(edge_id, column_raw['attribute_name'], value, type=type_temp) # dt)
                 else:
                     nice_cx_builder.add_edge_attribute(property_of=edge_id, name=column_raw['column_name'],
                                                        values=value, type=type_temp)
-
-                    #nice_cx.set_edge_attribute(edge_id, column_raw['column_name'], value, type=type_temp)
 
 
 def data_to_type(data, data_type):
