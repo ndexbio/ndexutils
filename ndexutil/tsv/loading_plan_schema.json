@@ -1,0 +1,188 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "NDEx TSV Loading Plan",
+    "description": "Loading plan used by TSV loader",
+
+    "definitions": {
+
+      "NodeMapping": {
+        "type": "object",
+        "properties": {
+          "rep_prefix": {
+            "description": "Prefix that need to be added to the id column",
+            "type": "string"
+          },
+          "rep_column": {
+           "description": "Column that will be used as the represent field of a node. The first non-empty value in the list will be used to populate the node represent field.",
+            "type": "string"
+          },
+          "node_name_column": {
+            "description": "The name of a node. If id_column is missing in this object, the node_name will be used as a unique id of a node. This version of TSV loader requires node name to be unique in a network",
+            "type": "string"
+          },
+          "property_columns": {
+            "description": "Defines the mapping of all node properties. An Each of the non-empty value in these columns ",
+            "type": "array",
+            "items" : { "oneOf": [
+              {"type" : "string"},
+              {"type" : "object",
+                "properties": {
+                  "column_name": {
+                      "description": "name of the column in the spreadsheet",
+                      "type":"string"
+                    },
+                  "attribute_name": {
+                      "description": "attribute_name this column maps to",
+                      "type": "string"
+                  },
+                  "value_prefix": {
+                      "description": "prefix that need to be added to the values of this attributes(without colon).",
+                      "type": "string"
+                  },
+                  "data_type": {
+                      "description": "data type of the attribute values, default is string",
+                      "type": "string",
+                      "enum": ["string", "double", "boolean", "integer" ,"long", "list_of_string",
+                          "list_of_double", "list_of_boolean", "list_of_integer", "list_of_long"]
+                  },
+                  "delimiter": {
+                      "description": "delimiter character for array data types",
+                      "type": "string"
+                  },
+                  "default_value": {
+                    "description": "default value of this property when column_name is missing or the value in that column is missing",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "type":"object",
+                    "required": ["column_name"]
+                  },
+                  {
+                    "type":"object",
+                    "required": ["attribute_name"]
+                  }
+                ]
+              }
+             ]
+            }
+          }
+
+        },
+        "additionalProperties": false,
+        "anyOf": [
+            {
+              "type":"object",
+              "required": ["id_column"]
+            },
+            {
+              "type":"object",
+              "required": ["node_name_column"]
+            }
+          ]
+      }
+
+    },
+
+    "type": "object",
+    "properties": {
+        "context": {
+          "description": "Declare the namespaces that are used in this TSV file.",
+          "type": "object",
+           "patternProperties": {
+                "^[^/@\\$\\^]+$": {
+                  "type": "string",
+                  "format": "uniref"
+                }
+            },
+            "additionalProperties": false
+        },
+        "source_plan": {
+            "description": "Mapping of the source nodes",
+            "$ref": "#/definitions/NodeMapping"
+        },
+        "target_plan": {
+             "description": "Mapping of the target nodes",
+            "$ref": "#/definitions/NodeMapping"
+        },
+        "edge_plan": {
+          "type": "object",
+          "properties": {
+            "default_predicate": {
+              "description": "default value for edge name (interaction name).",
+              "type": "string"
+            },
+            "predicate_id_column": {
+              "description": "column that specify the edge name. If the value in this cell is missing, we will use the value defined in 'defalut_predicate', if it exists.",
+              "type": "string"
+            },
+            "predicate_prefix": {
+              "type": "string"
+            },
+            "citation_id_column": {
+              "description": "column that specify the edge name. If the value in this cell is missing, we will use the value defined in 'defalut_predicate', if it exists.",
+              "type": "string"
+            },
+            "citation_id_prefix": {
+              "type": "string"
+            },
+            "property_columns": {
+              "type": "array",
+              "items": { "oneOf": [
+              {"type" : "string"},
+              {"type" : "object",
+                "properties": {
+                  "column_name": {
+                      "description": "name of the column in the spreadsheet",
+                      "type":"string"
+                    },
+                  "attribute_name": {
+                      "description": "attribute_name this column maps to",
+                      "type": "string"
+                  },
+                  "value_prefix": {
+                      "description": "prefix that need to be added to the values of this attributes(without colon).",
+                      "type": "string"
+                  },
+                  "data_type": {
+                      "description": "data type of the attribute values, default is string",
+                      "type": "string",
+                      "enum": ["string","double","float", "boolean", "char","integer","long","short","list_of_string",
+                          "list_of_double", "list_of_float","list_of_boolean", "list_of_integer", "list_of_long"]
+                  },
+                  "delimiter": {
+                      "description": "delimiter character for array data types",
+                      "type": "string"
+                  },
+                  "default_value": {
+                    "description": "default value of this property when column_name is missing or the value in that column is missing",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "type":"object",
+                    "required": ["column_name"]
+                  },
+                  {
+                    "type":"object",
+                    "required": ["attribute_name"]
+                  }
+                ]
+              }
+             ]
+            }
+            }
+          },
+          "additionalProperties": false
+
+        }
+
+    },
+    "additionalProperties": false,
+    "required": ["source_plan","target_plan","edge_plan"]
+
+}
