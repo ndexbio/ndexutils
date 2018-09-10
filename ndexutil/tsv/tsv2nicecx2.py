@@ -1,5 +1,11 @@
 
+import ndex2 # The ndex2 Python client
+import ndex2.client as nc
 import csv
+import sys
+import os
+sys.path.insert(0, os.path.abspath('../../../ndex2_performance/ndex2-client'))
+
 import json
 from os import path
 from jsonschema import validate
@@ -50,7 +56,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
         if max_rows and row_count > max_rows + 2:
             break
 
-        if row_count % 10000 == 0:
+        if row_count % 2500 == 0:
             print('processing %s out of %s edges' % (str(row_count), total_row_count))
 
     if network_attributes:
@@ -78,7 +84,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     if description:
         nice_cx_builder.set_network_attribute(name='description', values=description)
 
-    return nice_cx_builder.nice_cx
+    return nice_cx_builder.get_nice_cx()
 
 #==================================
 # Process Row USING NiceCX
@@ -136,7 +142,7 @@ def create_node(row, node_plan, nice_cx_builder, node_lookup):
     elif not node_name and ext_id:
         node_name = ext_id
     elif not node_name and not ext_id:
-        #print('No node name or ext id.  Skipping this node (%s)' % node_plan['node_name_column'])
+        print('No node name or ext id.  Skipping this node (%s)' % node_plan['node_name_column'])
         return None
 
     node_id = nice_cx_builder.add_node(name=node_name, represents=ext_id, data_type=node_name_type)
@@ -166,14 +172,23 @@ def create_edge(nice_cx_builder, src_node_id, tgt_node_id, row, import_plan):
     add_edge_attributes(nice_cx_builder, edge_id, edge_plan, row)
 
     # Deal with citiations
-    #citation_id = None
-    #if edge_plan.get("citation_id_column"):
-    #    citation_id = str(row[edge_plan['citation_id_column']])
+    citation_id = None
+    if edge_plan.get("citation_id_column"):
+        citation_id = str(row[edge_plan['citation_id_column']])
 
-    #if citation_id is not None:
-    #    citation_id = citation_id.replace(';', ',')
-    #    citation_id = citation_id.replace('|', ',')
-    #    citation_id = re.split('\s*,\s*', citation_id)
+    if citation_id is not None:
+        citation_id = citation_id.replace(';', ',')
+        citation_id = citation_id.replace('|', ',')
+        if edge_plan.get("citation_id_prefix"):
+            citation_id_temp = re.split('\s*,\s*', citation_id)
+            citation_id = []
+            for c in citation_id_temp:
+                citation_id.append(edge_plan.get("citation_id_prefix") + ':' + c)
+            #citation_id = edge_plan.get("citation_id_prefix") + ':' + citation_id
+        else:
+            citation_id = re.split('\s*,\s*', citation_id)
+
+        nice_cx_builder.add_edge_attribute(property_of=edge_id, name='citation', values=citation_id, type='list_of_string')
 
     #if citation_id and edge_plan.get("citation_id_prefix"):
     #    newList = []
@@ -301,7 +316,7 @@ def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
                 else:
                     continue
 
-            if value:
+            if value is not None:
                 dt = None
 
                 if column_raw.get('delimiter'):
