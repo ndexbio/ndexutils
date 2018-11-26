@@ -1,0 +1,41 @@
+{
+  "context": {
+      "cid": "https://pubchem.ncbi.nlm.nih.gov/compound/",
+      "uniprot": "http://identifiers.org/uniprot/",
+      "pubmed": "http://identifiers.org/pubmed/"
+  },
+
+  "source_plan": {
+    "id_prefix": "",
+    "id_column": "PubChem CID",
+    "node_name_column": "BindingDB Monomer ID",
+    "property_columns": [
+      "BindingDB Compound Page",
+      "Compound SMILES",
+      "US Patent Number",
+      "Commercial Supplier"
+    ]
+  },
+  "target_plan": {
+    "id_prefix": "uniprot",
+    "id_column": "Target UniProt ID",
+    "node_name_column": "Target Name",
+    "property_columns": [
+      "BindingDB Target Page"
+      
+    ]
+  },
+  "edge_plan": {
+    "default_predicate": "binds",
+    "property_columns": [
+      "Affinity Type",
+      "Affinity (nM)",
+      "BindingDB Details of Measurement",
+      "All BindingDB Data for Ligand-Target Pair",
+      "Data Curation Source"
+    ],
+    "citation_id_prefix": "pubmed",
+    "citation_id_column": "PMID"
+  }
+
+}

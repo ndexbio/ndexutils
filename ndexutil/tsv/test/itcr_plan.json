@@ -1,0 +1,17 @@
+{
+    "source_plan":
+    {
+        "id_column": "From Resource A",
+        "node_name_column": "From Resource A"
+    },
+    "target_plan": 
+    {
+        "id_column": "To Resource B",
+        "node_name_column": "To Resource B"
+    },
+    "edge_plan": 
+    {
+        "default_predicate": "Links To",
+        "property_columns": ["Why? To Answer Question X","Suggested By", "Exists / Proposed"]
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "context": {
+        "signor": "http://signor.uniroma2.it/relation_result.php?id=",
+        "BTO": "http://identifiers.org/bto/BTO:",
+        "uniprot": "http://identifiers.org/uniprot/",
+        "PMID": "http://identifiers.org/pubmed/",
+        "cid": "http://identifiers.org/pubchem.compound/",
+        "sid": "http://identifiers.org/pubchem.substance/"
+    },
+    "source_plan":
+    {
+        "id_prefix":"genecards",
+        "rep_column": "var1",
+        "node_name_column": "var1",
+        "property_columns":
+           [ {"attribute_name":"molecule_type", "default_value": "miRNA"}
+           ]
+    },
+    "target_plan": 
+    {
+        "id_prefix":"genecards",
+        "id_column": "var2",
+        "node_name_column": "var2",
+        "property_columns": [{"attribute_name":"molecule_type", "default_value": "RNA"} ]
+    },
+    "edge_plan": 
+    {
+        "default_predicate": "correlation",
+        "property_columns": ["correlation::float","p-value::float"]
+    }
+}

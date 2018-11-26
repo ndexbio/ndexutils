@@ -1,0 +1,25 @@
+{
+    "context":
+        {
+            "mesh": "http://identifiers.org/mesh/",
+            "omim": "http://identifiers.org/omim/"
+        },
+
+    "source_plan": 
+    {
+        "id_column": "Disease ID",
+        "node_name_column": "DiseaseName"
+    },
+    "target_plan": 
+    {
+        "id_column": "PathwayName",
+        "node_name_column": "PathwayName",
+        "property_columns": ["Pathway Source"]
+    },
+    "edge_plan": 
+    {
+        "default_predicate": "affects",
+        "property_columns": ["Pathway Source",
+                            "Inference Gene Symbol"]
+    }
+}

@@ -1,0 +1,25 @@
+{
+    "context": {
+            "NCBI Gene": "http://identifiers.org/ncbigene/"
+    },
+
+    "source_plan":
+    {
+        "id_prefix": "NCBI Gene",
+        "id_column": "entrez_gene_ida",
+        "node_name_column": "symbol_a",
+        "property_columns": []
+    },
+    "target_plan": 
+    {
+        "id_prefix": "NCBI Gene",
+        "id_column": "entrez_gene_idb",
+        "node_name_column": "symbol_b",
+        "property_columns": []
+    },
+    "edge_plan": 
+    {
+        "default_predicate": "interacts with",
+        "property_columns": []
+    }
+  }

@@ -1,0 +1,86 @@
+{
+    "context": {
+        "signor": "http://signor.uniroma2.it/relation_result.php?id=",
+        "BTO": "http://identifiers.org/bto/BTO:",
+        "uniprot": "http://identifiers.org/uniprot/",
+        "pubmed": "http://identifiers.org/pubmed/",
+        "cid": "http://identifiers.org/pubchem.compound/",
+        "sid": "http://identifiers.org/pubchem.substance/"
+    },
+    "source_plan":
+    {
+        "rep_prefix": "uniprot",
+        "rep_column": "IDA",
+        "node_name_column": "ENTITYA",
+        "property_columns":
+           [
+               {
+                    "column_name": "TYPEA",
+                    "attribute_name": "TYPE"
+                }
+           ]
+    },
+    "target_plan":
+    {
+        "rep_prefix": "uniprot",
+        "rep_column": "IDB",
+        "node_name_column": "ENTITYB",
+        "property_columns":
+           [
+               {
+                    "column_name": "TYPEB",
+                    "attribute_name": "TYPE"
+                }
+           ]
+    },
+    "edge_plan":
+    {
+        "default_predicate": "correlation",
+        "predicate_id_column": "EFFECT",
+        "citation_id_column": "PMID",
+        "citation_id_prefix": "pubmed",
+        "property_columns": [
+               {
+                    "column_name": "MECHANISM",
+                    "attribute_name": "MECHANISM"
+                },
+               {
+                    "column_name": "RESIDUE",
+                    "attribute_name": "RESIDUE"
+                },
+               {
+                    "column_name": "SEQUENCE",
+                    "attribute_name": "SEQUENCE"
+                },
+               {
+                    "column_name": "TAX_ID",
+                    "attribute_name": "TAX_ID",
+                    "data_type": "string"
+                },
+               {
+                    "column_name": "CELL_DATA",
+                    "attribute_name": "CELL_DATA"
+                },
+               {
+                    "column_name": "TISSUE_DATA",
+                    "attribute_name": "TISSUE_DATA"
+                },
+               {
+                    "column_name": "DIRECT",
+                    "attribute_name": "DIRECT"
+                },
+               {
+                    "column_name": "NOTES",
+                    "attribute_name": "NOTES"
+                },
+               {
+                    "column_name": "ANNOTATOR",
+                    "attribute_name": "ANNOTATOR"
+                },
+               {
+                    "column_name": "SENTENCE",
+                    "attribute_name": "SENTENCE"
+                }
+        ]
+    }
+}

@@ -1,0 +1,11 @@
+
+
+.idea
+session/*
+downloads/*
+import/*
+import_plans/*
+*.pyc
+
+
+
