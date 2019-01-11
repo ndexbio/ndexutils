@@ -29,7 +29,7 @@ if __name__ == '__main__':
         long_description='Unsupported NDEx utilities',
 
         # The project's main homepage.
-        url='https://www.ndexbio.org',
+        url='https://github.com/ndexbio/ndexutils',
 
         # Author details
         author='The NDEx Project',
@@ -76,8 +76,7 @@ if __name__ == '__main__':
             'pandas',
             'enum34',
             'enum; python_version == "2.6" or python_version=="2.7"',
-            'jsonschema',
-            'gspread'
+            'jsonschema'
         ],
 
         include_package_data=True
