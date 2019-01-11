@@ -77,6 +77,7 @@ setup(
         'networkx==1.11',
         'urllib3>=1.16',
         'pandas',
+        'mygene',
         'enum34',
         'enum; python_version == "2.6" or python_version=="2.7"',
         'jsonschema'
