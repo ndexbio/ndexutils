@@ -1,13 +1,18 @@
+
+
+import logging
 import csv
-from os import listdir, makedirs
-from os.path import isfile, isdir, join, abspath, dirname, exists, basename, splitext
+from os import listdir
+from os.path import isfile, join, abspath, dirname, basename, splitext
 import ndex.beta.layouts as layouts
 import ndex.beta.toolbox as toolbox
 from ndex.networkn import NdexGraph
 import networkx as nx
-import requests
 import mygene
 import json
+
+logger = logging.getLogger(__name__)
+
 
 NDEX_SIF_INTERACTIONS = ["controls-state-change-of",
                          # First protein controls a reaction that changes the state of the second protein.
@@ -82,7 +87,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
     network_id_map = {}
     network_count = 0
     if max is not None:
-        print "max files: " + str(max)
+        logger.info("max files: " + str(max))
 
     in_dir = []
     in_nci_table = []
@@ -105,23 +110,22 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
             network_name = network_name_from_path(file)
             file_network_names.append(network_name)
 
-    print "%s SIF files to load" % (len(files))
-    print "%s Non-Biopax Networks in the account" % (len(account_network_map))
+    logger.info(str(len(files)) + 'SIF files to load')
+    logger.info(str(len(account_network_map)) + 'Non-Biopax Networks in the account')
 
     account_networks = account_network_map.keys()
     account_not_file = list(set(account_networks).difference(set(file_network_names)))
 
-    print "%s Networks in the account not in upload files" % (len(account_not_file))
+    logger.info("%s Networks in the account not in upload files" % (len(account_not_file)))
     for network_name in account_not_file:
-        print " - %s" % (network_name)
+        logger.info(" - %s" % (network_name))
 
     for filename in files:
         network_count = network_count + 1
         if max is not None and network_count > max:
             break
 
-        print ""
-        print "loading ndexebs file #" + str(network_count) + ": " + filename
+        logger.info("loading ndexebs file #" + str(network_count) + ": " + filename)
         path = join(dirpath, filename)
         network_name = network_name_from_path(path)
         in_dir.append(network_name)
@@ -131,21 +135,21 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         if matching_networks and update:
             matching_network_count = len(matching_networks)
             if matching_network_count > 1:
-                print "skipping this file because %s existing networks match '%s'" % (len(matching_networks), network_name)
+                logger.info("skipping this file because %s existing networks match '%s'" % (len(matching_networks), network_name))
                 skipped.append(network_name  + " :duplicate names")
                 continue
 
         ebs = load_ebs_file_to_dict(path)
 
         if len(ebs) == 0:
-            print "skipping this file because no rows were found when processing it as EBS"
+            logger.info("skipping this file because no rows were found when processing it as EBS")
             skipped.append(network_name + " :no rows in file")
             continue
 
         ebs_network = ebs_to_network(ebs, name=network_name)
 
         if len(ebs_network.nodes()) == 0:
-            print "skipping this network because no nodes were found when processing it as EBS"
+            logger.info("skipping this network because no nodes were found when processing it as EBS")
             skipped.append(network_name + " :no nodes in file")
             continue
 
@@ -153,7 +157,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         # this is not ideal, but ok for special case of this loader
         if my_template_network:
             toolbox.apply_network_as_template(ebs_network, template_network)
-            print "applied graphic style from " + str(template_network.get_name())
+            logger.info("applied graphic style from " + str(template_network.get_name()))
 
         if my_filter:
             if filter == "cravat_1":
@@ -167,7 +171,7 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
                                                    node_width=25,
                                                    use_degree_edge_weights=True,
                                                    iterations=200)
-                print "applied directed_flow layout"
+                logger.info("applied directed_flow layout")
 
         provenance_props = [{"name": "dc:title", "value": network_name}]
 
@@ -185,20 +189,20 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
 
         if update:
             if matching_network_count == 0:
-                print "saving new network " + network_name
+                logger.info("saving new network " + network_name)
                 network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
                 network_id = network_url.split("/")[-1]
 
             elif matching_network_count == 1:
                 network_to_update = matching_networks[0]
-                print "updating network " + network_to_update.get("name") + " with " + network_name
+                logger.info("updating network " + network_to_update.get("name") + " with " + network_name)
                 network_id = network_to_update.get("externalId")
                 ndex.update_cx_network(ebs_network.to_cx_stream(), network_id)
 
             else:
                 raise ValueError("unexpected case: should not try to update when more than one matching network")
         else:
-            print "saving new network " + network_name
+            logger.info("saving new network " + network_name)
             network_url = ndex.save_cx_stream_as_new_network(ebs_network.to_cx_stream())
             network_id = network_url.split("/")[-1]
 
@@ -206,29 +210,17 @@ def upload_ebs_files(dirpath, ndex, group_id=None, template_network=None, layout
         network_id_map[network_name] = network_id
 
     if group_id:
-        print "granting networks to group id " + group_id
+        logger.info("granting networks to group id " + group_id)
         ndex.grant_networks_to_group(group_id, network_id_map.values())
-
-    # if len(not_in_nci_table) > 0:
-    #     print "Networks in directory not found in NCI table:"
-    #     for name in not_in_nci_table:
-    #         print "   " + name
-    #
-    # if len(in_nci_table) > 0:
-    #     in_table_not_in_dir = list(set(in_nci_table) - set(in_dir))
-    #     if len(in_table_not_in_dir) > 0:
-    #         print "Networks in NCI table not found in directory:"
-    #         for name in not_in_nci_table:
-    #             print "   " + name
 
     for network_name in account_network_map:
         networks = account_network_map[network_name]
         if len(networks) > 1:
-            print "Skipped %s because of multiple non-BioPAX matches in the account" % (network_name)
+            logger.info("Skipped %s because of multiple non-BioPAX matches in the account" % (network_name))
 
-    print "-----------------"
+    logger.info("-----------------")
     for network_name in skipped:
-        print "Skipped %s" % (network_name)
+        logger.info("Skipped %s" % (network_name))
 
     return network_id_map
 
@@ -239,7 +231,7 @@ def search_for_non_biopax_networks(ndex):
     else:
         networks_in_account = search_result
 
-    print "%s networks in account %s" % (len(networks_in_account), ndex.username)
+    logger.info("%s networks in account %s" % (len(networks_in_account), ndex.username))
 
     account_non_biopax_network_map = {}
     biopax_network_count = 0
@@ -262,12 +254,12 @@ def search_for_non_biopax_networks(ndex):
                 account_non_biopax_network_map[name] = networks
             networks.append(network)
 
-    print "%s BioPAX networks in account %s" % (biopax_network_count, ndex.username)
+    logger.info("%s BioPAX networks in account %s" % (biopax_network_count, ndex.username))
     for name in account_non_biopax_network_map:
         networks = account_non_biopax_network_map[name]
         if len(networks) > 1:
-            print "%s duplicate non-biopax networks for %s" % (len(networks), name)
-    print "%s non-BioPAX networks in account %s" % (len(account_non_biopax_network_map), ndex.username)
+            logger.info("%s duplicate non-biopax networks for %s" % (len(networks), name))
+    logger.info("%s non-BioPAX networks in account %s" % (len(account_non_biopax_network_map), ndex.username))
 
     return account_non_biopax_network_map
 
@@ -291,12 +283,12 @@ def check_upload_account(username, ndex, dirpath, nci_table):
                         account_sif_names.append(network.get("name"))
                         break
 
-    print "%s non-BioPAX networks in account %s" % (len(account_sif_names), username)
+    logger.info("%s non-BioPAX networks in account %s" % (len(account_sif_names), username))
 
     upload_names = []
     for path in listdir(dirpath):
         upload_names.append(network_name_from_path(path))
-    print "%s networks to upload / update" % (len(upload_names))
+    logger.info("%s networks to upload / update" % (len(upload_names)))
 
     # Raise an exception if any of the upload_names are in the account_sif_names multiple times
 
@@ -315,43 +307,33 @@ def check_upload_account(username, ndex, dirpath, nci_table):
                 nci_corrected_names.append(c_name)
                 original_to_corrected_map[original_name] = c_name
 
-    print ""
-    print "--------------------"
-    print "there are %s NCI networks specified in the NCI table:" % (len(nci_names))
+    logger.info("there are %s NCI networks specified in the NCI table:" % (len(nci_names)))
 
     all_nci_names = list(set(nci_corrected_names).union(set(nci_names)))
 
     # case 1: NCI network names NOT in account_sif names:
     nci_not_account_sifs = list(set(nci_names).difference(set(account_sif_names)))
-    print ""
-    print "--------------------"
-    print "%s NCI networks out of %s are not in the account:" % (len(nci_not_account_sifs), len(nci_names))
+    logger.info("%s NCI networks out of %s are not in the account:" % (len(nci_not_account_sifs), len(nci_names)))
     for name in nci_not_account_sifs:
-        print name
+        logger.info(name)
 
     # case 1a: Corrected NCI names NOT in account_sif names:
     nci_corrected_not_account_sifs = list(set(nci_corrected_names).difference(set(account_sif_names)))
-    print ""
-    print "--------------------"
-    print "%s NCI (corrected name) networks out of %s are not in the account:" % (len(nci_corrected_not_account_sifs), len(nci_corrected_names))
+    logger.info("%s NCI (corrected name) networks out of %s are not in the account:" % (len(nci_corrected_not_account_sifs), len(nci_corrected_names)))
     for name in nci_corrected_not_account_sifs:
-        print name
+        logger.info(name)
 
     # case 2: NCI network names NOT in upload names:
     nci_original_not_upload = list(set(nci_names).difference(set(upload_names)))
-    print ""
-    print "--------------------"
-    print "%s NCI original names out of %s are not in the %s upload names:" % (len(nci_original_not_upload), len(nci_names), len(upload_names))
+    logger.info("%s NCI original names out of %s are not in the %s upload names:" % (len(nci_original_not_upload), len(nci_names), len(upload_names)))
     for name in nci_original_not_upload:
-        print name
+        logger.info(name)
 
     # case 2a: Corrected NCI names NOT in upload names:
     nci_corrected_not_upload = list(set(nci_corrected_names).difference(set(upload_names)))
-    print ""
-    print "--------------------"
-    print "%s NCI (corrected name) networks out of %s are not in the %s upload names:" % (len(nci_corrected_not_upload), len(nci_corrected_names), len(upload_names))
+    logger.info("%s NCI (corrected name) networks out of %s are not in the %s upload names:" % (len(nci_corrected_not_upload), len(nci_corrected_names), len(upload_names)))
     for name in nci_corrected_not_upload:
-        print name
+        logger.info(name)
 
     # case 4: NCI Networks for which neither the original or corrected name is in the upload list
     # case 2: NCI network names NOT in upload names:
@@ -368,47 +350,37 @@ def check_upload_account(username, ndex, dirpath, nci_table):
         else:
             nci_not_upload.append([original_name, corrected_name])
 
-    print ""
-    print "--------------------"
-    print "%s NCI networks from table not in the %s upload names:" % (len(nci_not_upload), len(upload_names))
+    logger.info("%s NCI networks from table not in the %s upload names:" % (len(nci_not_upload), len(upload_names)))
     for item in nci_not_upload:
         if len(item) == 1:
-            print item[0]
+            logger.info(item[0])
         else:
-            print "%s -> %s" % (item[0], item[1])
+            logger.info("%s -> %s" % (item[0], item[1]))
 
 
     # case 5: duplicates of upload names in account_sif names:
 
     # case 6: upload names not matching any NCI names: CREATE
     upload_not_nci = list(set(upload_names).difference(set(all_nci_names)))
-    print ""
-    print "--------------------"
-    print "%s upload networks out of %s do not match any of the names from the nci table (corrected or original) and therefore will be created :" % (len(upload_not_nci), len(upload_names))
+    logger.info("%s upload networks out of %s do not match any of the names from the nci table (corrected or original) and therefore will be created :" % (len(upload_not_nci), len(upload_names)))
     for name in upload_not_nci:
-        print name
+        logger.info(name)
 
     # case 7: upload names matching some NCI name: UPDATE
     upload_and_nci = list(set(upload_names).intersection(set(all_nci_names)))
-    print ""
-    print "--------------------"
-    print "%s upload networks out of %s that match an nci name (corrected or original) and therefore will be updated):" % (len(upload_and_nci), len(upload_names))
+    logger.info("%s upload networks out of %s that match an nci name (corrected or original) and therefore will be updated):" % (len(upload_and_nci), len(upload_names)))
 
     # case 8: account non-BioPAX names not matching any upload name
     account_sif_not_upload = list(set(account_sif_names).difference(set(upload_names)))
-    print ""
-    print "--------------------"
-    print "%s account (non-BioPAX) networks out of %s do not match any of the upload networks :" % (len(account_sif_not_upload), len(account_sif_names))
+    logger.info("%s account (non-BioPAX) networks out of %s do not match any of the upload networks :" % (len(account_sif_not_upload), len(account_sif_names)))
     for name in account_sif_not_upload:
-        print name
+        logger.info(name)
 
     # case 8: upload names not in account (non-BioPAX)  names=
     upload_not_account_sif = list(set(upload_names).difference(set(account_sif_names)))
-    print ""
-    print "--------------------"
-    print "%s upload networks out of %s do not match any of the account (non-BioPAX)  networks :" % (len(upload_not_account_sif), len(upload_names))
+    logger.info("%s upload networks out of %s do not match any of the account (non-BioPAX)  networks :" % (len(upload_not_account_sif), len(upload_names)))
     for name in upload_not_account_sif:
-        print name
+        logger.info(name)
 
 
 
@@ -425,7 +397,7 @@ def remove_my_orphans(network):
     after_node_count = nx.number_of_nodes(network)
     delta = before_node_count - after_node_count
     if delta > 0:
-        print "removed " + str(delta) + " orphans"
+        logger.info("removed " + str(delta) + " orphans")
 
 
 def _check_filter_(the_filter):
@@ -452,7 +424,7 @@ def _check_template_network_(template):
     elif not isinstance(template, NdexGraph):
         raise "template_network is not an NdexGraph: " + str(template)
     else:
-        print "style template network: " + str(template.get_name())
+        logger.info("style template network: " + str(template.get_name()))
         return template
 
 
@@ -529,7 +501,7 @@ def ndex_edge_filter(network):
     #             # remove all but one
     #             for edge_id in range(1, n_neighbors - 1):
     #                 network.remove_edge_by_id(edge_id)
-    #                 print "removing edge " + str(edge_id) + " " + "neighbor-of"
+    #                 logger.info("removing edge " + str(edge_id) + " " + "neighbor-of")
     #             continue
     #
     #     # controls-state-change-of
@@ -557,10 +529,10 @@ def ndex_edge_filter(network):
     #                 cp_b_a = edge["edge_id"]
     #     if csc_a_b and cp_a_b:
     #         network.remove_edge_by_id(csc_a_b)
-    #         print "removing edge " + str(csc_a_b) + " " + "controls-state-change-of"
+    #         logger.info("removing edge " + str(csc_a_b) + " " + "controls-state-change-of")
     #     if csc_b_a and cp_b_a:
     #         network.remove_edge_by_id(csc_b_a)
-    #         print "removing edge " + str(csc_b_a) + " " + "controls-state-change-of"
+    #         logger.info("removing edge " + str(csc_b_a) + " " + "controls-state-change-of")
 
 
 def remove_subsumed_edges_of_type_in_network(edge_type, tuple_to_edge_map, network):
@@ -614,13 +586,13 @@ def remove_subsumed_edges_of_type(edge_type, edges, network):
             for pmid in edge["pmid"]:
                 if pmid in subsuming_pmids:
                     network.remove_edge_by_id(edge["edge_id"])
-                    print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+                    logger.info("removing edge " + str(edge["edge_id"]) + " : " + edge_type)
                     some_edge_removed = True
         else:
             # there is no pmid in the subsumed edge,
             # it can therefore be removed without loss of information
             network.remove_edge_by_id(edge["edge_id"])
-            print "removing edge " + str(edge["edge_id"]) + " : " + edge_type
+            logger.info("removing edge " + str(edge["edge_id"]) + " : " + edge_type)
             some_edge_removed = True
 
     return some_edge_removed
@@ -934,7 +906,7 @@ def get_my_gene_info(gene_id):
                 #gene_symbol = r_json['hits'][0]['symbol'].upper()
                 return alt_term_id
         except Exception as e:
-            print e.message
+            logger.exception('Caught exception')
             return {'hits': [{'symbol': gene_id, 'entrezgene': '', 'name': 'Entrez results: 0'}]}
 
         return ["UNKNOWN"]
