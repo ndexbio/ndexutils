@@ -10,6 +10,9 @@ To install these modules, type the following commands:
 pip install requests
 pip install requests-toolbelt
 pip install ndex2
+pip install networkx==1.11
+pip install pandas
+pip install jsonschema
 ```
 
 Utility Scripts:
