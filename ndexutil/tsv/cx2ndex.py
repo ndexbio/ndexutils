@@ -6,12 +6,16 @@ Created on Mon Oct  6 22:34:42 2014
 
 @author: dexter pratt
 """
-import tempfile
+import logging
 import json
+
+
+logger = logging.getLogger(__name__)
 
 # ---------------------
 # Misc utility functions
 #---------------------
+
 
 def blankNdexNetwork():
     return {"type": "Network",
@@ -26,6 +30,7 @@ def blankNdexNetwork():
             "reifiedEdgeTerms": {}
     }
 
+
 def blankNdexNode():
     return {"type": "Node",
             "aliases": [],
@@ -35,6 +40,7 @@ def blankNdexNode():
             "supportIds": []
     }
 
+
 def blankNdexEdge():
     return {"type": "Edge",
             "citationIds": [],
@@ -43,10 +49,12 @@ def blankNdexEdge():
             "supportIds": []
     }
 
+
 def blankNdexBaseTerm():
     return {"type": "BaseTerm",
             "termType": "BaseTerm",
     }
+
 
 def blankNdexFunctionTerm():
     return {"type": "FunctionTerm",
@@ -54,10 +62,12 @@ def blankNdexFunctionTerm():
             "termType": "FunctionTerm",
     }
 
+
 def blankNdexReifiedEdgeTerm():
     return {"type": "ReifiedEdgeTerm",
             "termType": "ReifiedEdgeTerm",
     }
+
 
 def blankNdexCitation():
     return {"type": "Citation",
@@ -68,6 +78,7 @@ def blankNdexCitation():
             "properties": [],
     }
 
+
 def blankNdexSupport():
     return {"type": "Support",
             "edges": [],
@@ -76,11 +87,13 @@ def blankNdexSupport():
             "properties": [],
     }
 
+
 def blankNdexNamespace():
     return {"type": "Namespace",
             "presentationProperties": [],
             "properties": [],
     }
+
 
 def writeAspectElements(aspectName, elements, out):
     jsonString = json.dumps({aspectName: elements})
@@ -147,7 +160,6 @@ class Cx2NdexConverter:
         ndex_edge_id = self.getNdexId(cx_id)
         if create and not ndex_edge_id:
             ndex_edge_id = self.getNdexId(cx_id, True)
-            #print("creating ndex edge " + str(ndex_edge_id) + " for cx_id " + cx_id)
             ndex_edge = blankNdexEdge()
             ndex_edge['id'] = ndex_edge_id
             self.ndex_network['edges'][str(ndex_edge_id)] = ndex_edge
@@ -225,7 +237,6 @@ class Cx2NdexConverter:
         return id
 
     def convertToNdex(self):
-        #print str(self.ndex_network)
         for aspect_fragment in self.cx_aspect_fragments:
             self.handle_aspect_fragment(aspect_fragment)
 
@@ -238,7 +249,6 @@ class Cx2NdexConverter:
         type = keys[0]
         elements = aspect_fragment.get(type)
         for element in elements:
-            # print type + " : " + str(element)
             if type == "@context":
                 self.handle_context_aspect_fragment(element)
             elif type == "nodes":
@@ -264,13 +274,12 @@ class Cx2NdexConverter:
             elif type == "reifiedEdges":
                 self.handle_reified_edges_aspect_fragment(element)
             else:
-                print "Unknown aspect_fragment type: " + type
+                logger.error("Unknown aspect_fragment type: " + type)
 
     def handle_context_aspect_fragment(self, element):
         # expecting {prefix : uri}
         # references to the namespace by prefix in previously processed aspect_fragments may already have created it.
         # but we use a method that will create it if it has not been created yet.
-        # print "context aspect_fragment element = " + str(element)
         prefix = element.keys()[0]
         ndex_namespace_id = self.get_ndex_namespace_id_by_prefix(prefix, True)
         ndex_namespace = self.ndex_network['namespaces'].get(str(ndex_namespace_id))
