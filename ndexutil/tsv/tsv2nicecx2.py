@@ -1,23 +1,11 @@
 
-import ndex2 # The ndex2 Python client
-import ndex2.client as nc
-import csv
-import sys
-import os
-sys.path.insert(0, os.path.abspath('../../../ndex2_performance/ndex2-client'))
-
 import json
 from os import path
 from jsonschema import validate
 import pandas as pd
-#import ndex2
-from ndex2cx.NiceCXBuilder import NiceCXBuilder
+from ndex2cx.nice_cx_builder import NiceCXBuilder
 import time
 import re
-import numpy as np
-import types
-import six
-import gspread
 
 version="0.1"
 
