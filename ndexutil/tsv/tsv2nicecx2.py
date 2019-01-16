@@ -181,6 +181,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
 
     return nice_cx_builder.get_nice_cx()
 
+
 #==================================
 # Process Row USING NiceCX
 # Added by Aaron G
@@ -198,6 +199,7 @@ def process_row(nice_cx_builder, load_plan, row, node_lookup):
 
     if source_node is not None and target_node is not None:
         create_edge(nice_cx_builder, source_node, target_node, row, load_plan)
+
 
 def create_node(row, node_plan, nice_cx_builder, node_lookup):
     use_name_as_id = False
@@ -300,6 +302,7 @@ valid_cx_data_types = ['boolean', 'byte', 'char', 'double', 'float', 'integer', 
  'list_of_byte', 'list_of_char', 'list_of_double', 'list_of_float', 'list_of_integer', 'list_of_long',
  'list_of_short','list_of_string']
 
+
 def add_node_attributes(nice_cx_builder, node_element, load_plan, row):
     if load_plan.get('property_columns'):
         for column_raw_temp in load_plan['property_columns']:
@@ -372,6 +375,7 @@ def add_node_attributes(nice_cx_builder, node_element, load_plan, row):
                     nice_cx_builder.add_node_attribute(node_element, column_raw['attribute_name'], value, type=type_temp)
                 else:
                     nice_cx_builder.add_node_attribute(node_element, column_raw['column_name'], value, type=type_temp)
+
 
 def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
     if load_plan.get('property_columns'):
@@ -511,45 +515,6 @@ def data_to_type(data, data_type):
 
     return return_data
 
-'''
-def create_edge(src_node_id, tgt_node_id, row, plan, nice_cx):
-
-    predicate_str = None
-    if  plan.edge_plan.get('predicate_id_column'):
-        predicate_str = row.get(plan.edge_plan['predicate_id_column'])
-
-    if not predicate_str and plan.edge_plan.get('default_predicate'):
-        predicate_str = plan.edge_plan['default_predicate']
-
-    if not predicate_str :
-        raise RuntimeError("Value for predicate string is not found this row.")
-
-    if plan.edge_plan.get("predicate_prefix"):
-        predicate_str = plan.edge_plan['predicate_prefix']+ ":"+ predicate_str
-
-    edge_attr = create_attr_obj(plan.edge_plan, row)
-
-    #Deal with citiations
-    citation_id = None
-    if  self.plan.edge_plan.get("citation_id_column"):
-        citation_id = row.get(self.plan.edge_plan['citation_id_column'])
-
-    if citation_id is not None:
-        citation_id = citation_id.replace(';', ',')
-        citation_id = citation_id.replace('|', ',')
-        citation_id = re.split('\s*,\s*',citation_id)
-
-    if citation_id and plan.edge_plan.get("citation_id_prefix"):
-            newList = []
-            for cid in citation_id:
-                newList.append(plan.edge_plan["citation_id_prefix"] + ":" + cid)
-            citation_id = newList
-
-    if citation_id :
-        edge_attr['citation_ids'] = citation_id
-
-    ng_builder.addEdge(src_node_id,tgt_node_id,predicate_str, edge_attr)
-'''
 
 def find_or_create_node(nice_cx, name, represents, node_lookup):
     if node_lookup.get(represents):
