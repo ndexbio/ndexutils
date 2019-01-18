@@ -343,7 +343,7 @@ def add_node_attributes(nice_cx_builder, node_element, load_plan, row):
                         if column_raw['data_type'] not in valid_cx_data_types:
                             raise Exception('data_type: ' + column_raw['data_type'] + ' is not valid')
                         value = value.split(column_raw.get('delimiter'))
-
+                        value = [entry.strip() for entry in value]
                         value = data_to_type(value, column_raw['data_type'])
                         if not type_temp.startswith('list'):
                             type_temp = 'list_of_' + type_temp
@@ -351,6 +351,7 @@ def add_node_attributes(nice_cx_builder, node_element, load_plan, row):
                         if not isinstance(value, str):
                             value = str(value)
                         value = value.split(column_raw.get('delimiter'))
+                        value = [entry.strip() for entry in value]
                         type_temp = 'list_of_string'
 
                     if column_raw.get('value_prefix'):
@@ -425,11 +426,13 @@ def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
                             raise Exception('data_type: ' + dt + ' is not valid')
 
                         value = value.split(column_raw.get('delimiter'))
+                        value = [entry.strip() for entry in value]
                         value = data_to_type(value, dt)
                         if not type_temp.startswith('list'):
                             type_temp = 'list_of_' + type_temp
                     else:
                         value = value.split(column_raw.get('delimiter'))
+                        value = [entry.strip() for entry in value]
                         type_temp = 'list_of_string'
 
                     if column_raw.get('value_prefix'):
