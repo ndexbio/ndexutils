@@ -152,7 +152,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
             break
 
         if row_count % 2500 == 0:
-            print('processing %s out of %s edges' % (str(row_count), total_row_count))
+            logger.info('processing %s out of %s edges' % (str(row_count), total_row_count))
 
     if network_attributes:
         for attribute in network_attributes:
@@ -194,6 +194,7 @@ def process_row(nice_cx_builder, load_plan, row, node_lookup):
     # - predicate term
     skipped_edge = False
 
+    logger.debug(row)
     source_node = create_node(row, load_plan.get('source_plan'), nice_cx_builder, node_lookup)
     target_node = create_node(row, load_plan.get('target_plan'), nice_cx_builder, node_lookup)
 
@@ -260,7 +261,6 @@ def create_edge(nice_cx_builder, src_node_id, tgt_node_id, row, import_plan):
 
     if not predicate_str:
         raise RuntimeError("Value for predicate string is not found in this row.")
-
     if edge_plan.get("predicate_prefix"):
         predicate_str = edge_plan['predicate_prefix'] + ":" + predicate_str
 
@@ -451,6 +451,15 @@ def add_edge_attributes(nice_cx_builder, edge_id, load_plan, row):
 
                     if column_raw.get('value_prefix'):
                         value = column_raw.get('value_prefix') + ":" + str(value)
+
+                if value is None:
+                    logger.debug('Value is None, skipping edge attribute'
+                                 'edge id => ' + str(edge_id) +
+                                 ' name => ' + str(column_raw) +
+                                 ' values => ' + str(value) +
+                                 ' type => ' + str(type_temp))
+
+                    continue
 
                 if column_raw.get('attribute_name'):
                     nice_cx_builder.add_edge_attribute(property_of=edge_id, name=column_raw['attribute_name'],
