@@ -82,6 +82,9 @@ setup(
         'enum; python_version == "2.6" or python_version=="2.7"',
         'jsonschema'
     ],
+    test_requires=[
+        'requests-mock'
+    ],
     include_package_data=True
 )
 
