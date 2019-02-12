@@ -70,8 +70,9 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
     data_files=[('schema', ['ndexutil/tsv/loading_plan_schema.json'])],
+    scripts = ['ndexutil/ndexutils.py'],
     install_requires = [
-        'ndex2',
+        'ndex2==3.0.0a1',
         'requests',
         'requests_toolbelt',
         'networkx==1.11',
@@ -79,9 +80,12 @@ setup(
         'pandas',
         'mygene',
         'enum34',
+        'pandas',
         'enum; python_version == "2.6" or python_version=="2.7"',
-        'jsonschema'
+        'jsonschema',
+        'biothings_client'
     ],
+    test_suite='tests',
     test_requires=[
         'requests-mock'
     ],
