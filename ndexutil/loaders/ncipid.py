@@ -451,10 +451,27 @@ class NciPidContentLoader(object):
 
         return neighbor_of_map, controls_state_change_map, other_edge_exists
 
-    def _remove_neighbor_of_edges(self, network, neighbor_of_map,
-                                  other_edge_exists):
+    def _remove_other_edges_in_neighbor_of_edges(self, network,
+                                                 neighbor_of_map,
+                                                 other_edge_exists):
         """
+        Iterate through 'neighbor_of_map' which is a dict of this
+        structure which had interactions named 'neighbor-of'
 
+        [source node id][target node id]
+                                          => edge id
+        [target node id][source node id]
+
+        Then iterate through 'other_edge_exists' which is a dict of
+        this structure and had interactions OTHER then 'neighbor-of'
+        and 'controls-state-change-of'
+
+        [source node id][target node id]
+                                          => edge id
+        [target node id][source node id]
+
+        and remove any edges and edge attributes
+        that are in 'other_edge_exists'
         :param network:
         :param neighbor_of_map:
         :return:
@@ -466,12 +483,124 @@ class NciPidContentLoader(object):
                 if other_edge_exists.get(s) is not None:
                     if other_edge_exists[s].get(t) is not None:
                         network.remove_edge(i)
-                        # =========================================
-                        # REMOVE EDGE ATTRIBUTES FOR DELETED EDGE
-                        # =========================================
+                        # remove edge attributes for deleted edge
                         net_attrs = network.get_edge_attributes(i)
                         for net_attr in net_attrs:
                             network.remove_edge_attribute(i, net_attr['n'])
+
+    def _remove_other_edges_in_controls_state_of_edges(self,
+                                                       network,
+                                                       controls_state_change_map,
+                                                       other_edge_exists):
+        """
+        Iterate through 'controls_state_change_map' which is a dict of this
+        structure which had interactions named 'controls-state-change-of'
+
+        [source node id][target node id]
+                                          => edge id
+        [target node id][source node id]
+
+        Then iterate through 'other_edge_exists' which is a dict of
+        this structure and had interactions OTHER then 'neighbor-of'
+        and 'controls-state-change-of'
+
+        [source node id][target node id]
+                                          => edge id
+        [target node id][source node id]
+
+        and remove any edges and edge attributes
+        that are in 'other_edge_exists'
+        :param network:
+        :param controls_state_change_map:
+        :param other_edge_exists:
+        :return:
+        """
+        n_edges = controls_state_change_map.items()
+        for s, ti in n_edges:
+            inner_neighbor = ti.items()
+            for t, i in inner_neighbor:
+                if other_edge_exists.get(s) is not None:
+                    if other_edge_exists[s].get(t) is not None:
+                        network.remove_edge(i)
+                        # remove edge attributes for deleted edge
+                        net_attrs = network.get_edge_attributes(i)
+                        for net_attr in net_attrs:
+                            network.remove_edge_attribute(i, net_attr['n'])
+
+    def _set_alias_and_represents(self, network, node_to_update,
+                                  node_info):
+        """
+
+        :return:
+        """
+        unification_xref = node_info.get('UNIFICATION_XREF')
+        if unification_xref is not None and len(unification_xref) > 0:
+            unification_xref_array_tmp = unification_xref.split(';')
+            unification = unification_xref_array_tmp[0]
+            unification_xref_array = []
+            for uxr in unification_xref_array_tmp:
+                if uxr.upper().count('CHEBI') > 1:
+                    unification_xref_array.append(uxr.replace('chebi:', '', 1))
+
+            if len(unification_xref_array) < 1:
+                if len(unification_xref_array_tmp) > 1:
+                    unification_xref_array_tmp = unification_xref_array_tmp[1:]
+                    network.set_node_attribute(node_to_update['@id'], 'alias', unification_xref_array_tmp,
+                                               type='list_of_string',
+                                               overwrite=True)
+                elif len(unification_xref_array_tmp) == 1:
+                    network.remove_node_attribute(node_to_update['@id'], 'alias')
+                else:
+                    network.set_node_attribute(node_to_update['@id'], 'alias', unification_xref_array_tmp,
+                                               type='list_of_string',
+                                               overwrite=True)
+            else:
+                if len(unification_xref_array) > 1:
+                    unification_xref_array = unification_xref_array[1:]
+                    network.set_node_attribute(node_to_update['@id'], 'alias', unification_xref_array,
+                                               type='list_of_string',
+                                               overwrite=True)
+                else:
+                    network.remove_node_attribute(node_to_update['@id'], 'alias')
+
+        else:
+            unification = node_info.get('PARTICIPANT').lstrip('[').rstrip(']')
+        node_to_update['r'] = unification.replace('chebi:', '', 1)
+
+    def _update_node_name_with_gene_symbol(self, node_to_update, participant_name):
+        """
+
+        :param node_to_update:
+        :param participant_name:
+        :return:
+        """
+        if participant_name is not None and '_HUMAN' in participant_name and self._gene_symbol_map.get(
+                participant_name) is not None:
+            gene_symbol_mapped_name = self._gene_symbol_map.get(participant_name)
+            if len(gene_symbol_mapped_name) > 25:
+                clean_symbol = gene_symbol_mapped_name.split('/')[0]
+            else:
+                clean_symbol = self._gene_symbol_map.get(participant_name)
+            if len(clean_symbol) == 0 or clean_symbol == '-':
+                logger.debug('Mapping came back with -. Going with old name: ' + node_to_update['n'])
+            else:
+                logger.debug('Updating node from name: ' + node_to_update['n'] + ' to ' + clean_symbol)
+                node_to_update['n'] = clean_symbol
+
+    def _update_node_name_if_chebi_and_get_participant_name(self, node_to_update, node_info):
+        """
+
+        :param node_to_update:
+        :param node_info:
+        :return:
+        """
+        participant_name = node_info.get('PARTICIPANT_NAME')
+        if participant_name is not None:
+            participant_name = participant_name.lstrip('[').rstrip(']')
+        if node_to_update['n'].startswith("CHEBI") and participant_name:
+            if participant_name is not None:
+                node_to_update['n'] = participant_name
+        return participant_name
 
     def _process_sif(self, file_name):
         """
@@ -496,31 +625,15 @@ class NciPidContentLoader(object):
 
         self._replace_uniprot_with_gene_name_and_set_represents(network)
 
-        # =============================
-        # POST-PROCESS EDGE ATTRIBUTES
-        # =============================
         (neighbor_of_map, controls_state_change_map,
          other_edge_exists) = self._get_edge_type_maps(network)
 
-        # =============================
-        # REMOVE neighbor-of EDGES
-        # =============================
-        self._remove_neighbor_of_edges(network, neighbor_of_map,
-                                       other_edge_exists)
+        self._remove_other_edges_in_neighbor_of_edges(network, neighbor_of_map,
+                                                      other_edge_exists)
 
-        n_edges = controls_state_change_map.items()
-        for s, ti in n_edges:
-            inner_neighbor = ti.items()
-            for t, i in inner_neighbor:
-                if other_edge_exists.get(s) is not None:
-                    if other_edge_exists[s].get(t) is not None:
-                        network.remove_edge(i)
-                        # =========================================
-                        # REMOVE EDGE ATTRIBUTES FOR DELETED EDGE
-                        # =========================================
-                        net_attrs = network.get_edge_attributes(i)
-                        for net_attr in net_attrs:
-                            network.remove_edge_attribute(i, net_attr['n'])
+        self._remove_other_edges_in_controls_state_of_edges(network,
+                                                            controls_state_change_map,
+                                                            other_edge_exists)
 
         node_reader = csv.DictReader(node_lines, fieldnames=node_fields, dialect='excel-tab')
         for dict in node_reader:
@@ -532,67 +645,13 @@ class NciPidContentLoader(object):
         for node_info in node_table:
             node_to_update = network.get_node_by_name(node_info.get('PARTICIPANT').lstrip('[').rstrip(']'))
 
-            participant_name = node_info.get('PARTICIPANT_NAME')
-            if participant_name is not None:
-                participant_name = participant_name.lstrip('[').rstrip(']')
-            if node_to_update['n'].startswith("CHEBI") and participant_name:
-                if participant_name is not None:
-                    node_to_update['n'] = participant_name
+            participant_name = self._update_node_name_if_chebi_and_get_participant_name(node_to_update,
+                                                                                        node_info)
 
-            # =======================
-            # SET REPRESENTS
-            # =======================
-            unification_xref = node_info.get('UNIFICATION_XREF')
-            if unification_xref is not None and len(unification_xref) > 0:
-                unification_xref_array_tmp = unification_xref.split(';')
-                unification = unification_xref_array_tmp[0]
-                unification_xref_array = []
-                for uxr in unification_xref_array_tmp:
-                    if uxr.upper().count('CHEBI') > 1:
-                        unification_xref_array.append(uxr.replace('chebi:', '', 1))
+            self._set_alias_and_represents(network, node_to_update, node_info)
 
-                if len(unification_xref_array) < 1:
-                    if len(unification_xref_array_tmp) > 1:
-                        unification_xref_array_tmp = unification_xref_array_tmp[1:]
-                        network.set_node_attribute(node_to_update['@id'], 'alias', unification_xref_array_tmp,
-                                                   type='list_of_string',
-                                                   overwrite=True)
-                    elif len(unification_xref_array_tmp) == 1:
-                        network.remove_node_attribute(node_to_update['@id'], 'alias')
-                    else:
-                        network.set_node_attribute(node_to_update['@id'], 'alias', unification_xref_array_tmp,
-                                                   type='list_of_string',
-                                                   overwrite=True)
-                else:
-                    if len(unification_xref_array) > 1:
-                        unification_xref_array = unification_xref_array[1:]
-                        network.set_node_attribute(node_to_update['@id'], 'alias', unification_xref_array,
-                                                   type='list_of_string',
-                                                   overwrite=True)
-                    else:
-                        network.remove_node_attribute(node_to_update['@id'], 'alias')
+            self._update_node_name_with_gene_symbol(node_to_update, participant_name)
 
-            else:
-                unification = node_info.get('PARTICIPANT').lstrip('[').rstrip(']')
-            node_to_update['r'] = unification.replace('chebi:', '', 1)
-
-            # =====================================
-            # PREP UNIPROT TO GENE SYMBOL LOOKUP
-            # =====================================
-            if participant_name is not None and '_HUMAN' in participant_name and self._gene_symbol_map.get(
-                    participant_name) is not None:
-                gene_symbol_mapped_name = self._gene_symbol_map.get(participant_name)
-                if len(gene_symbol_mapped_name) > 25:
-                    clean_symbol = gene_symbol_mapped_name.split('/')[0]
-                else:
-                    clean_symbol = self._gene_symbol_map.get(participant_name)
-                if len(clean_symbol) == 0 or clean_symbol == '-':
-                    logger.debug('Mapping came back with -. Going with old name: ' + node_to_update['n'])
-                else:
-                    logger.debug('Updating node from name: ' + node_to_update['n'] + ' to ' + clean_symbol)
-                    node_to_update['n'] = clean_symbol
-
-            logger.debug('Node to update after lookup section: ' + str(node_to_update))
             network.set_node_attribute(node_to_update['@id'], 'type',
                                        participant_type_map.get(node_info.get('PARTICIPANT_TYPE')),
                                        type='string',
