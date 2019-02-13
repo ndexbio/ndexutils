@@ -87,7 +87,8 @@ setup(
     ],
     test_suite='tests',
     test_requires=[
-        'requests-mock'
+        'requests-mock',
+        'mock'
     ],
     include_package_data=True
 )
