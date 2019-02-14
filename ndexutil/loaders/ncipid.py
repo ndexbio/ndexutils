@@ -77,6 +77,10 @@ def get_argument_parser(subparsers):
                         default=ncon.get_config_file())
     parser.add_argument('--genesymbol', help='Path to gene symbol mapping json file')
     parser.add_argument('--loadplan', help='Load plan json file', required=True)
+    parser.add_argument('--networkattribcsv', help='tab delimited file containing'
+                                                   'PID Pathway Name, reviewed by, '
+                                                   'curated by and revision data'
+                                                   'for ncipid networks', required=True)
     parser.add_argument('--releaseversion', help='Sets version network attribute',
                         default='APR-2018')
     parser.add_argument('--singlefile', help='Only process file matching name in'
