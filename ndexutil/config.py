@@ -17,9 +17,10 @@ class NDExUtilConfig(object):
     PASSWORD = 'password'
     SERVER = 'server'
 
-    def __init__(self):
+    def __init__(self, conf_file=None):
         """Constructor
         """
+        self._conf_file = conf_file
         self._homedir = os.path.expanduser('~')
 
     def set_home_directory(self, path):
@@ -43,7 +44,9 @@ class NDExUtilConfig(object):
         Gets config file
         :return:
         """
-        return os.path.join(self._homedir, NDExUtilConfig.CONFIG_FILE)
+        if self._conf_file is None:
+            return os.path.join(self._homedir, NDExUtilConfig.CONFIG_FILE)
+        return self._conf_file
 
     def get_config(self):
         """
