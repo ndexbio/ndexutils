@@ -72,7 +72,7 @@ setup(
     data_files=[('schema', ['ndexutil/tsv/loading_plan_schema.json'])],
     scripts = ['ndexutil/ndexutils.py'],
     install_requires = [
-        'ndex2==3.0.0a1',
+        'ndex2>=3.1.0a1,<=4.0.0',
         'requests',
         'requests_toolbelt',
         'networkx==1.11',
