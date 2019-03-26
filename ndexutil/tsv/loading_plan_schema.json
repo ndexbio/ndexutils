@@ -17,7 +17,7 @@
             "type": "string"
           },
           "node_name_column": {
-            "description": "The name of a node. If id_column is missing in this object, the node_name will be used as a unique id of a node. This version of TSV loader requires node name to be unique in a network",
+            "description": "The name of a node. If rep_column is missing in this object, the node_name will be used as a unique id of a node. This version of TSV loader requires node name to be unique in a network",
             "type": "string"
           },
           "property_columns": {
@@ -75,7 +75,7 @@
         "anyOf": [
             {
               "type":"object",
-              "required": ["id_column"]
+              "required": ["rep_column"]
             },
             {
               "type":"object",
@@ -121,13 +121,6 @@
             "predicate_prefix": {
               "type": "string"
             },
-            "citation_id_column": {
-              "description": "column that specify the edge name. If the value in this cell is missing, we will use the value defined in 'defalut_predicate', if it exists.",
-              "type": "string"
-            },
-            "citation_id_prefix": {
-              "type": "string"
-            },
             "property_columns": {
               "type": "array",
               "items": { "oneOf": [
@@ -149,8 +142,8 @@
                   "data_type": {
                       "description": "data type of the attribute values, default is string",
                       "type": "string",
-                      "enum": ["string","double","float", "boolean", "char","integer","long","short","list_of_string",
-                          "list_of_double", "list_of_float","list_of_boolean", "list_of_integer", "list_of_long"]
+                      "enum": ["string","double","boolean","integer","long","list_of_string",
+                          "list_of_double","list_of_boolean", "list_of_integer", "list_of_long"]
                   },
                   "delimiter": {
                       "description": "delimiter character for array data types",
