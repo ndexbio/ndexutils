@@ -24,10 +24,9 @@ class TeststreamTSVLoader(unittest.TestCase):
         """Tear down test fixtures, if any."""
         pass
 
-    def test_parse_arguments(self):
+    def test_creating_network(self):
         temp_dir = tempfile.mkdtemp()
         try:
-            self.assertEqual(1,1)
             here = os.path.dirname(__file__)
             tsvfile = os.path.join(here, 'ctd_test.tsv')
             with open (tsvfile, 'r') as tsvfile:
@@ -54,6 +53,35 @@ class TeststreamTSVLoader(unittest.TestCase):
                 self.assertEqual(len(nicecx.opaqueAspects.get("cyVisualProperties")), 3)
         finally:
             shutil.rmtree(temp_dir)
+
+
+    def test_network_without_represent(self):
+        temp_dir = tempfile.mkdtemp()
+        try:
+            here = os.path.dirname(__file__)
+            tsvfile = os.path.join(here, 'BRCA-2012-TP53-pathway.txt_with_a_b.csv')
+            with open (tsvfile, 'r') as tsvfile:
+                #with open (os.path.join ( temp_dir, "out.cx"),"w") as out:
+                tmpcx = 'out.cx'
+                with open(tmpcx, "w") as out:
+                    loader = StreamTSVLoader(os.path.join(here, 'BRCA-2012-loadplan.json'), None)
+                    loader.write_cx_network(tsvfile, out, [{'n': 'name', 'v': "test pathway"},
+                                                           {'n':'version', 'v': "0.0.1"}])
+
+                nicecx = ndex2.create_nice_cx_from_file(tmpcx)
+                self.assertEqual(len(nicecx.networkAttributes), 3)
+                self.assertEqual(len(nicecx.edges), 8)
+                self.assertEqual(len(nicecx.nodes), 9)
+                self.assertEqual(nicecx.nodes[0].get('r'), None)
+                node_attr_cnt = 0
+                for key, value in nicecx.nodeAttributes.items():
+                    node_attr_cnt += len(value)
+                self.assertEqual(node_attr_cnt, 25)
+
+        finally:
+            shutil.rmtree(temp_dir)
+
+
 
  #   def test_parse_arguments(self):
  #           here = os.path.dirname(__file__)

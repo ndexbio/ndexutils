@@ -276,14 +276,14 @@ class StreamTSVLoader (object):
         if not ext_id:
             raise RuntimeError("Id value is missing.")
 
-        represent = (node_plan['rep_prefix'] + ":" + ext_id) if node_plan.get('rep_prefix') else ext_id
-
         node_attr = self._create_attr_obj(node_plan, row)
 
         if use_name_as_id:
-            return self._add_node(ext_id, nodename, None, node_attr)
+            represent = None
         else:
-            return self._add_node(ext_id, nodename, represent, node_attr)
+            represent = (node_plan['rep_prefix'] + ":" + ext_id) if node_plan.get('rep_prefix') else ext_id
+
+        return self._add_node(ext_id, nodename, represent, node_attr)
 
     def _add_node(self, external_id, node_name, represent, attributes):
         existing_node = self.nodeTable.get(external_id)

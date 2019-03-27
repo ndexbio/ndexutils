@@ -1,0 +1,51 @@
+{
+    "context": {
+        "pubmed": "http://identifiers.org/pubmed/",
+        "chebi": "http://identifiers.org/chebi/CHEBI:",
+        "uniprot": "http://identifiers.org/uniprot/",
+        "cas": "http://identifiers.org/cas/",
+        "kegg.compound": "http://identifiers.org/kegg.compound/",
+        "hprd": "http://identifiers.org/hprd/"
+    },
+    "source_plan":
+    {
+        "node_name_column": "SOURCE",
+        "property_columns": [
+             {
+                  "column_name": "NODE_TYPE",
+                  "attribute_name": "type"
+             },
+            {
+                  "column_name": "POSX",
+                  "attribute_name": "POSX"
+            },
+            {
+                  "column_name": "POSY--",
+                  "attribute_name": "POSY"
+            }
+        ]
+    },
+    "target_plan":
+    {
+        "node_name_column": "TARGET",
+        "property_columns": [
+             {
+                  "column_name": "NODE_TYPE_B",
+                  "attribute_name": "type"
+             },
+            {
+                  "column_name": "POSX_B",
+                  "attribute_name": "POSX"
+            },
+            {
+                  "column_name": "POSY--_B",
+                  "attribute_name": "POSY"
+            }
+        ]
+    },
+    "edge_plan":
+    {
+        "default_predicate": "unknown",
+        "predicate_id_column": "EDGE_TYPE"
+    }
+}
