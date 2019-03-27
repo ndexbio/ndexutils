@@ -243,7 +243,7 @@ def create_node(row, node_plan, nice_cx_builder, node_lookup):
         print('No node name or ext id.  Skipping this node (%s)' % node_plan['node_name_column'])
         return None
 
-    node_id = nice_cx_builder._add_node(name=node_name, represents=ext_id, data_type=node_name_type)
+    node_id = nice_cx_builder.add_node(name=node_name, represents=ext_id, data_type=node_name_type)
 
     add_node_attributes(nice_cx_builder, node_id, node_plan, row)
 
@@ -532,8 +532,8 @@ def find_or_create_node(nice_cx, name, represents, node_lookup):
     if node_lookup.get(represents):
         return nice_cx.nodes.get(node_lookup.get(represents))
     else:
-        #new_node_id = nice_cx._create_node(node_name=name, node_represents=represents)
-        new_node_id = nice_cx._create_node(node_name=name, node_represents=represents)
+        #new_node_id = nice_cx.create_node(node_name=name, node_represents=represents)
+        new_node_id = nice_cx.create_node(node_name=name, node_represents=represents)
 
         node_lookup[represents] = new_node_id
         return nice_cx.nodes.get(new_node_id)
