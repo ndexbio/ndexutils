@@ -55,14 +55,14 @@ class TeststreamTSVLoader(unittest.TestCase):
         finally:
             shutil.rmtree(temp_dir)
 
-    def test_parse_arguments(self):
-            here = os.path.dirname(__file__)
-            tsvfile = os.path.join("/Users/chenjing/git/ndexctdloader/ndexctdloader", 'collapsed_Homo_sapiens.tsv')
-            with open(tsvfile, 'r') as tsvfile:
+ #   def test_parse_arguments(self):
+ #           here = os.path.dirname(__file__)
+ #           tsvfile = os.path.join("/Users/chenjing/git/ndexctdloader/ndexctdloader", 'collapsed_Homo_sapiens.tsv')
+ #           with open(tsvfile, 'r') as tsvfile:
                 # with open (os.path.join ( temp_dir, "out.cx"),"w") as out:
-                with open("/Users/chenjing/Downloads/ctdout.cx", "w") as out:
-                    nicecx = ndex2.create_nice_cx_from_file(os.path.join(here, 'gene-disease-style.cx'))
-                    loader = StreamTSVLoader(os.path.join(here, 'ctd-gene-disease-2019-norm-plan-collapsed.json'),
-                                             nicecx)
-                    loader.write_cx_network(tsvfile, out, [{'n': 'name', 'v': "CTD: gene-disease association (Homo_Sapiens)"},
-                                                           {'n': 'version', 'v': "0.0.1"}], batchsize=5000)
+ #               with open("/Users/chenjing/Downloads/ctdout.cx", "w") as out:
+ #                   nicecx = ndex2.create_nice_cx_from_file(os.path.join(here, 'gene-disease-style.cx'))
+ #                   loader = StreamTSVLoader(os.path.join(here, 'ctd-gene-disease-2019-norm-plan-collapsed.json'),
+ #                                            nicecx)
+ #                   loader.write_cx_network(tsvfile, out, [{'n': 'name', 'v': "CTD: gene-disease association (Homo_Sapiens)"},
+ #                                                          {'n': 'version', 'v': "0.0.1"}], batchsize=5000)
