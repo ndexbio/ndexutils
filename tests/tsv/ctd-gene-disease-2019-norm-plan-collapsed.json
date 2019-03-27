@@ -1,0 +1,46 @@
+{
+    "context":
+        {
+            "ncbigene": "http://ctdbase.org/detail.go?type=gene&acc=",
+            "OMIM": "http://ctdbase.org/detail.go?type=disease&acc=OMIM:",
+            "MESH": "http://ctdbase.org/detail.go?type=disease&acc=MESH:",
+            "pubmed": "http://ctdbase.org/detail.go?type=reference&acc="
+        },
+
+    "source_plan": 
+    {
+        "rep_prefix": "ncbigene",
+        "rep_column": "GeneID",
+        "node_name_column": "GeneSymbol",
+        "property_columns": [{"attribute_name":"type", "default_value": "gene"}]
+    },
+    "target_plan": 
+    {
+        "rep_prefix": "",
+        "rep_column": "DiseaseID",
+        "node_name_column": "DiseaseName",
+        "property_columns": [{"attribute_name":"type", "default_value": "disease"}]
+    },
+    "edge_plan": 
+    {
+        "default_predicate": "involved-in",
+        "property_columns": [
+            {
+               "column_name": "InferenceChemicalName",
+                "data_type": "list_of_string",
+                "delimiter": "|"
+            },
+                             "InferenceScore::double",
+                            {"column_name":"PubMedIDs",
+                             "attribute_name":"citation",
+                             "value_prefix":"pubmed",
+                             "data_type":"list_of_string",
+                             "delimiter":"|"},
+                            {"column_name":"DirectEvidence",
+                             "attribute_name":"DirectEvidence",
+                             "value_prefix":"",
+                             "data_type":"list_of_string",
+                             "delimiter":"|"}]
+      
+    }
+}
