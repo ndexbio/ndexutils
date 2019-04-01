@@ -12,57 +12,92 @@ logger = logging.getLogger(__name__)
 
 
 class CXStreamWriter:
-
-    # file descriptor or similar object
-    # state of the writing CX
-    #  0 -- begining of a stream
-    #  1 -- after premetadata, outside a fragment
-    #  2 -- after postmetadata
+    """Writes CX data to stream
+    """
 
     def __init__(self, f):
-        self._outputStream = f
+        """
+        Constructor
+        :param f: Output stream
+        """
+        self._outputstream = f
+        #  0 -- begining of a stream
+        #  1 -- after premetadata, outside a fragment
+        #  2 -- after postmetadata
         self._state = 0  # beginning of a stream
 
     def write_pre_metadata(self, metadata):
+        """
+        Writes the pre meta data aspect
+        :param metadata:
+        :raises NdexUtilError: if write_aspect_fragment or
+                               write_post_metadata has already been called or
+                               if output stream set in constructor is None
+        :return: None
+        """
+        if self._outputstream is None:
+            raise NDExUtilError("Output stream is None")
         if self._state != 0:
-            raise NDExUtilError("PreMetadata have already been written, you can only write it once.")
-        self._outputStream.write('[')
-        json.dump({"numberVerification": [{"longNumber": 281474976710655}]}, self._outputStream)
-        self._outputStream.write(',')
-        json.dump({"metaData": metadata}, self._outputStream)
-        self._outputStream.write(',\n')
-        self._outputStream.flush()
+            raise NDExUtilError("PreMetadata has already been written, you can only write it once.")
+        self._outputstream.write('[')
+        json.dump({"numberVerification": [{"longNumber": 281474976710655}]}, self._outputstream)
+        self._outputstream.write(',')
+        json.dump({"metaData": metadata}, self._outputstream)
+        self._outputstream.write(',\n')
+        self._outputstream.flush()
         self._state = 1  # premetadata has been written.
 
-    # If the fragment have values of type list_of_double, list_of_boolean, list_of_long or list_of_integer
-    # the values in the list need to be quoted
     def write_aspect_fragment(self, fragment):
+        """
+        Writes aspect fragment.
+        If the fragment have values of type list_of_double,
+        list_of_boolean, list_of_long or list_of_integer
+        the values in the list need to be quoted
+        :param fragment: Fragment as list or dict to convert to JSON via json.dump
+        :raises NdexUtilError: if write_pre_metadata has not been called first
+        :return: None
+        """
         if self._state != 1:
             raise NDExUtilError("Data aspects can only be written between PreMetadata and PostMetadata.")
 
-        json.dump(fragment, self._outputStream)
-        self._outputStream.write(',')
+        json.dump(fragment, self._outputstream)
+        self._outputstream.write(',')
 
     def write_post_metadata(self, metadata):
+        """
+        Writes the post meta data aspect. Once this is called this object
+        can no longer be used cause all methods will raise an error.
+        :param metadata:
+        :return:
+        """
         if self._state != 1:
-            raise NDExUtilError("Data aspects can only be written after PreMetadata and data aspects.")
-        json.dump({"metaData": metadata}, self._outputStream)
-        self._outputStream.write(',')
-        json.dump({"status": [{"error": "", "success": True}]}, self._outputStream)
-        self._outputStream.write(']')
-        self._outputStream.flush()
+            raise NDExUtilError("Post metadata aspect can only be written after PreMetadata and data aspects.")
+        json.dump({"metaData": metadata}, self._outputstream)
+        self._outputstream.write(',')
+        json.dump({"status": [{"error": "", "success": True}]}, self._outputstream)
+        self._outputstream.write(']')
+        self._outputstream.flush()
         self._state = 2
 
 
 class StreamTSVLoader (object):
-
-    # fullpath of the loading plan json file
-    # style CX object (niceCX object)
-    # _plan is the full loading plan
-    # _sytle_cx is a niceCx object which has the style we are going to use in this loader.
+    """
+    Stream based TSV Loader
+    """
 
     def __init__(self, loading_plan_file, style_cx):
+        """
+        Constructor that loads and validates the loading_plan_file as well as extracts
+        the style from the style_cx object
+        :param loading_plan_file: Path to loading plan file
+        :param style_cx: NiceCXNetwork object containing a style 'cyVisualProperties' as
+                         an opaque aspect
+        """
 
+        # fullpath of the loading plan json file
+        # style CX object (niceCX object)
+        # _plan is the full loading plan
+        # _sytle_cx is a niceCx object which has the style we are going to use in this loader.
         # read and validate the plan
         # open the schema first
         if style_cx:
@@ -94,13 +129,21 @@ class StreamTSVLoader (object):
             logger.exception(e1)
             raise NDExUtilError("Malformed TSV loading plan: " + str(e1.absolute_path) + ' : ' + str(e1))
 
-    # Both input and output descriptor as objects NOT file names.
-    # this function is not thread safe
-    # caller need to close the input and output stream after this function is executed.
-    # the attributes in the networkAttributes parameter need to be in the format of cx. eg: quoted values in list.
+    def write_cx_network(self, tsv_file_discriptor, output_file_descriptor,
+                         network_attributes = None, batchsize=20000):
+        """
+        Both input and output descriptor as objects NOT file names.
+        this function is not thread safe
+        caller need to close the input and output stream after this function is executed.
+        the attributes in the networkAttributes parameter need to be in the format
+        of cx. eg: quoted values in list.
 
-    def write_cx_network(self, tsv_file_discriptor, output_file_descriptor, network_attributes = None, batchsize=20000):
-
+        :param tsv_file_discriptor:
+        :param output_file_descriptor:
+        :param network_attributes:
+        :param batchsize:
+        :return:
+        """
         # initialize the environment
         self.batchsize = batchsize
 
@@ -242,11 +285,15 @@ class StreamTSVLoader (object):
                         str(header))
 
     def _process_row(self, row):
-        # For each row, we create an edge + edge properties
-        # For that edge, we may create elements if they are new
-        # - source node + properties
-        # - target node + properties
-        # - predicate term
+        """
+        For each row, we create an edge + edge properties
+        For that edge, we may create elements if they are new
+        - source node + properties
+        - target node + properties
+        - predicate term
+        :param row:
+        :return:
+        """
 
         source_node_id = self._create_node(row, self._plan.get('source_plan'))
         target_node_id = self._create_node(row, self._plan.get('target_plan'))
@@ -318,9 +365,13 @@ class StreamTSVLoader (object):
             self.newNodes.append(new_node)
             return new_node["id"]
 
-    # node_or_edge_plan: node or edge plan in the loading plan
-    # row current row to be parsed
     def _create_attr_obj(self, node_or_edge_plan, row):
+        """
+        Create attribute object
+        :param node_or_edge_plan: node or edge plan in the loading plan
+        :param row: current row to be parsed
+        :return:
+        """
         attr = {}
         if node_or_edge_plan.get('property_columns'):
             for column_raw_temp in node_or_edge_plan['property_columns']:
