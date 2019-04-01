@@ -70,12 +70,11 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
     data_files=[('schema', ['ndexutil/tsv/loading_plan_schema.json'])],
-    scripts = ['ndexutil/ndexutils.py'],
     install_requires = [
         'ndex2>=3.1.0a1,<=4.0.0',
         'requests',
         'requests_toolbelt',
-        'networkx==1.11',
+        'networkx',
         'urllib3>=1.16',
         'pandas',
         'mygene',
