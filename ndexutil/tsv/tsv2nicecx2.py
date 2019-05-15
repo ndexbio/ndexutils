@@ -136,10 +136,13 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     nice_cx_builder = NiceCXBuilder()
     row_count = 0
     t1 = int(time.time()*1000)
+
     #Add context if they are defined
-    if load_plan.get('context'):
-        nice_cx_builder.set_context(load_plan.get('context'))
-        #self.ng_builder.addNamespaces(self.plan.context)
+    context = load_plan.get('context')
+    if context:
+        if network_attributes is None:
+            network_attributes = []
+        network_attributes.append({"n": "@context", "v": json.dumps(context)})
 
     total_row_count = pandas_dataframe.shape
     if len(total_row_count) > 1:
@@ -177,7 +180,7 @@ def convert_pandas_to_nice_cx_with_load_plan(pandas_dataframe, load_plan, max_ro
     if name:
         nice_cx_builder.set_name(name)
     if description:
-        nice_cx_builder.set_network_attribute(name='description', values=description)
+        nice_cx_builder.add_network_attribute(name='description', values=description)
 
     return nice_cx_builder.get_nice_cx()
 
