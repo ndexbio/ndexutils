@@ -2,6 +2,12 @@
 History
 =======
 
+0.3.0 2019-05-14
+----------------
+
+* tsv2nicecx2.convert_pandas_to_nice_cx_with_load_plan now loads @context
+  data into a @context network attribute instead of a separate aspect
+
 0.2.0 2019-04-01
 ----------------
 
