@@ -9,6 +9,9 @@ class NetworkIssueReport(object):
     def __init__(self, network_name):
         """
         Constructor
+
+        :param network_name: name of network to display in report
+        :type network_name: string
         """
         self._networkname = network_name
         self._issuemap = {}
@@ -17,9 +20,10 @@ class NetworkIssueReport(object):
     def add_nodetype(self, nodetype):
         """
         Adds `nodetype` to set of node types
+
         :param nodetype: value of type node attribute
         :type nodetype: string
-        :return:
+        :return: None
         """
         if nodetype is None:
             return
@@ -28,6 +32,7 @@ class NetworkIssueReport(object):
     def get_nodetypes(self):
         """
         Gets node types
+
         :return: set of node types
         :rtype: set
         """
@@ -35,10 +40,11 @@ class NetworkIssueReport(object):
 
     def addissues(self, description, issue_list):
         """
+        Adds issues to the report
 
         :param description: description of issue
         :type description: string
-        :param issue_list:
+        :param issue_list: list of strings describing the issues
         :type issue_list: list
         :return: None
         """
@@ -54,7 +60,9 @@ class NetworkIssueReport(object):
         """
         Gets report as string
 
-        :return:
+        :return: report in a human readable form with newlines
+                 and tabs for indenting the issues
+        :rtype: string
         """
         res = ''
         for key in self._issuemap.keys():
