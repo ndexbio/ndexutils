@@ -2,6 +2,12 @@
 History
 =======
 
+0.4.0 2019-05-23
+----------------
+
+* Added loaderutils.py module with two new classes, NetworkIssueReport and
+  an abstract class NetworkUpdator
+
 0.3.0 2019-05-14
 ----------------
 
