@@ -2,6 +2,14 @@
 History
 =======
 
+0.5.0 2019-06-06
+----------------
+
+* Added GeneSymbolSearcher class to loaderutils.py module
+
+* Minor bug fix in NetworkIssueReport get_fullreport_as_string() where
+  issue text is wrapped in str() in case its not a string 
+
 0.4.0 2019-05-23
 ----------------
 
