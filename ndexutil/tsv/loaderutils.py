@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 
+import re
+import logging
+import requests
+from requests.exceptions import HTTPError
+from biothings_client import get_client
+
+logger = logging.getLogger(__name__)
+
 
 class NetworkIssueReport(object):
     """
@@ -106,3 +114,95 @@ class NetworkUpdator(object):
         :return:
         """
         raise NotImplementedError('subclasses should implement')
+
+
+class GeneSymbolSearcher(object):
+    """
+    Wrapper around :py:mod:`biothings_client` to query
+    """
+
+    def __init__(self,
+                 bclient=get_client('gene')):
+        """
+        Constructor
+        """
+        self._cache = {}
+        self._bclient = bclient
+
+    def _query_mygene(self, val):
+        """
+        Queries biothings_client with 'val' to find
+        hit
+
+        :param val: id to send to :py:mod:`biothings_client`
+        :type val: string
+        :return: gene symbol or None
+        :rtype: string
+        """
+        try:
+            res = self._bclient.query(val)
+            if res is None:
+                logger.debug('Got None back from query for: ' + val)
+                return ''
+            logger.debug('Result from query for ' + val + ' ' + str(res))
+            if res['total'] == 0:
+                logger.debug('Got No hits back from query for: ' + val)
+                return ''
+            if len(res['hits']) > 0:
+                logger.debug('Got a hit from query for: ' + val)
+                sym_name = res['hits'][0].get('symbol')
+                if sym_name is None:
+                    logger.debug('Symbol name was None for ' + val)
+                    return ''
+                return sym_name.upper()
+        except HTTPError as he:
+            logger.error('Caught exception running query for: ' + val)
+
+        return None
+
+    def _query_uniprot(self, val):
+        """
+
+        :param val:
+        :return:
+        """
+        res = requests.get('https://www.uniprot.org/uniprot/' +
+                           val.upper() + '.txt')
+        for entry in res.text.split('\n'):
+            if entry.startswith('GN'):
+                if 'Name' in entry:
+                    return re.sub(';.*', '',
+                                  re.sub(' .*', '',
+                                         re.sub('^GN.*Name=',
+                                                '', entry)))
+        return None
+
+    def get_symbol(self, val):
+        """
+        Queries biothings_client with 'val' to find
+        hit
+
+        :param val: id to send to :py:mod:`biothings_client`
+        :type val: string
+        :return: gene symbol or None
+        :rtype: string
+        """
+        if val is None:
+            logger.error('None passed in')
+            return None
+
+        cache_symbol = self._cache.get(val)
+        if cache_symbol is not None:
+            if cache_symbol == '':
+                return None
+            return cache_symbol
+
+        sym_name = self._query_mygene(val)
+        if sym_name is None or sym_name == '':
+            res = self._query_uniprot(val)
+            if res is not None:
+                self._cache[val] = res
+                return res
+            sym_name = ''
+        self._cache[val] = sym_name
+        return sym_name
