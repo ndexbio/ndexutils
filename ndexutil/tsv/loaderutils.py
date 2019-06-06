@@ -82,7 +82,7 @@ class NetworkIssueReport(object):
             res += '\t' + str(num_issues) + ' ' + issue_word + ' -- ' +\
                    key + '\n'
             for entry in self._issuemap[key]:
-                res += '\t\t' + entry + '\n'
+                res += '\t\t' + str(entry) + '\n'
         if len(res) is 0:
             return ''
 
