@@ -397,8 +397,13 @@ class StreamTSVLoader (object):
                             'attribute_name': column_raw_temp
                         }
 
-                if not column_raw.get('data_type'):   # set the default datatype to string
-                    column_raw['data_type'] = 'string'
+                if not column_raw.get('data_type'):
+                    if column_raw.get('delimiter'):
+                        # if there is a delimiter, set the default datatype to list of strings
+                        column_raw['data_type'] = 'list_of_string'
+                    else:
+                        # set the default datatype to string
+                        column_raw['data_type'] = 'string'
 
                 if not column_raw.get('attribute_name'):  # set the attribute name if it is not defined.
                     column_raw['attribute_name'] = column_raw.get('column_name')
