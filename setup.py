@@ -84,6 +84,7 @@ setup(
         'jsonschema',
         'biothings_client'
     ],
+    scripts = [ 'ndexutil/ndexmisctools.py' ],
     test_suite='tests',
     test_requires=[
         'requests-mock',
