@@ -2,6 +2,14 @@
 History
 =======
 
+0.6.0 2019-07-10
+----------------
+
+* Added new commandline utility *ndexmisctools.py* which lets caller
+  copy a network from one NDEx account to another and lets one update
+  network attributes of a network in NDEx.
+  WARNING: THIS IS AN UNTESTED ALPHA RELEASE AND MAY CONTAIN ERRORS
+
 0.5.0 2019-06-06
 ----------------
 
