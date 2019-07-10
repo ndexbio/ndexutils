@@ -85,7 +85,7 @@ class CopyNetwork(object):
 
             Version {version}
 
-            This command copies an NDEx network specified by --uuid 
+            The copynetwork command copies an NDEx network specified by --uuid 
             to another user account. 
             
             The source and destination accounts are specified by configuration
@@ -240,7 +240,7 @@ class NetworkAttributeSetter(object):
         
         Version {version}
         
-        This command updates network attributes on a network
+        The {cmd} command updates network attributes on a network
         specified by --uuid with values set in --name, --type, and --value
         
         NOTE: Currently only 1 attribute can be updated at a time. Invoke
@@ -249,7 +249,8 @@ class NetworkAttributeSetter(object):
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
 
-        """.format(version=ndexutil.__version__)
+        """.format(version=ndexutil.__version__,
+                   cmd=NetworkAttributeSetter.COMMAND)
         help_formatter = argparse.RawDescriptionHelpFormatter
 
         parser = subparsers.add_parser(NetworkAttributeSetter.COMMAND,
@@ -286,7 +287,10 @@ def _parse_arguments(desc, args):
     parser = argparse.ArgumentParser(description=desc,
                                      formatter_class=help_formatter)
 
-    subparsers = parser.add_subparsers(dest='command')
+    subparsers = parser.add_subparsers(dest='command', required=True,
+                                       help='Command to run.'
+                                            'Type <command> -h for '
+                                            'more information')
 
     NetworkAttributeSetter.add_subparser(subparsers)
     CopyNetwork.add_subparser(subparsers)
@@ -362,8 +366,10 @@ def main(arglist):
         if theargs.command == CopyNetwork.COMMAND:
             cmd = CopyNetwork(theargs)
 
-        if cmd is not None:
-            return cmd.run()
+        if cmd is None:
+            raise NDExUtilError('Invalid command: ' + str(theargs.command))
+
+        return cmd.run()
     finally:
         logging.shutdown()
     return 100
