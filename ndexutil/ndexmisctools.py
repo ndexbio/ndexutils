@@ -163,9 +163,31 @@ class NetworkAttributeSetter(object):
         :type net_attribs: list of dicts
         :return: None
         """
+        items_to_delete = []
         for theindex, entry in enumerate(net_attribs):
             if entry['n'] == self._args.name:
-                del net_attribs[theindex]
+                items_to_delete.append(theindex)
+
+        items_to_delete.sort(reverse=True)
+        for theindex in items_to_delete:
+            del net_attribs[theindex]
+
+    def _remove_name_description_summary(self, net_attribs):
+        """
+        Removes from net_attribs any dicts whose value of 'n'
+        matches self._args.name
+        :param net_attribs: network attributes
+        :type net_attribs: list of dicts
+        :return: None
+        """
+        excludelist = ['name', 'description', 'version']
+        items_to_delete = []
+        for theindex, entry in enumerate(net_attribs):
+            if entry['n'] in excludelist:
+                items_to_delete.append(theindex)
+        items_to_delete.sort(reverse=True)
+        for theindex in items_to_delete:
+            del net_attribs[theindex]
 
     def _convert_attributes_to_ndexpropertyvaluepair(self, net_attribs):
         """
@@ -204,20 +226,29 @@ class NetworkAttributeSetter(object):
         """
         logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
                        'AND MAY CONTAIN ERRORS')
+        if self._args.name in ['name', 'description', 'version']:
+            raise NDExUtilError('Sorry, but name, description, and version'
+                                'CANNOT be updated by this call.')
         self._parse_config()
+
         client = self._get_client()
         res = client.get_network_aspect_as_cx_stream(self._args.uuid,
                                                      'networkAttributes')
         if res.status_code != 200:
             raise NDExUtilError('Received error status when querying'
-                                'NDex: ' + str(res.status_code) +
+                                'NDEx: ' + str(res.status_code) +
                                 ' : ' + str(res.text))
 
         net_attribs = json.loads(res.text)
+
+        # remove name description summary
+        self._remove_name_description_summary(net_attribs)
+
         # remove existing attribute if found
         self._remove_existing_attribute(net_attribs)
 
         new_attribs = self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+
         if self._args.value is not None:
             new_entry = {'predicateString': self._args.name}
             if self._args.type != 'string':
@@ -245,6 +276,10 @@ class NetworkAttributeSetter(object):
         
         NOTE: Currently only 1 attribute can be updated at a time. Invoke
               multiple times to update several attributes at once.
+        
+        BIGPROBLEM: Due to issues on server (we would need to make different call)
+                    the network attributes name, version, and description CANNOT
+                    be updated by this call and will currently return an error
 
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
