@@ -2,6 +2,15 @@
 History
 =======
 
+0.6.1 2019-07-12
+----------------
+
+* Fixed bug where *ndexmisctools.py* *networkattributeupdate was creating
+  duplicate network attributes for name, description, and value. This is
+  due to server bug. To deal with this the code removes those entries when
+  doing the network attribute update and forbids caller from trying to
+  update those attributes
+
 0.6.0 2019-07-10
 ----------------
 
