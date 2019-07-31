@@ -314,6 +314,150 @@ class NetworkAttributeSetter(object):
         return parser
 
 
+class StyleUpdator(object):
+    """
+    Updates style on a network in NDEx
+    """
+    COMMAND = 'styleupdate'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+        self._user = None
+        self._pass = None
+        self._server = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def run(self):
+        """
+        Connects to NDEx server, downloads network(s) specified by --uuid
+        or by --networkset and applies style specified by --style flag
+        updating those networks in place on the server.
+        WARNING: This is very inefficient method since the full network
+                 is downloaded and uploaded. YOU HAVE BEEN WARNED.
+
+        :raises NDExUtilError if there is an error
+        :return: number of networks updated
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+
+        self._parse_config()
+        raise NDExUtilError('Does not work yet!!!!')
+
+        client = self._get_client()
+        client.get_network_as_cx_stream(self._args.uuid)
+        net = ndex2.create_nice_cx_from_server(self._srcserver,
+                                               self._srcuser,
+                                               self._srcpass,
+                                               self._args.uuid)
+        net.upload_to(self._destserver, self._destuser,
+                      self._destpass)
+        res = client.get_network_aspect_as_cx_stream(self._args.uuid,
+                                                     'networkAttributes')
+        if res.status_code != 200:
+            raise NDExUtilError('Received error status when querying'
+                                'NDEx: ' + str(res.status_code) +
+                                ' : ' + str(res.text))
+
+        net_attribs = json.loads(res.text)
+
+        # remove name description summary
+        self._remove_name_description_summary(net_attribs)
+
+        # remove existing attribute if found
+        self._remove_existing_attribute(net_attribs)
+
+        new_attribs = self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+
+        if self._args.value is not None:
+            new_entry = {'predicateString': self._args.name}
+            if self._args.type != 'string':
+                new_entry['dataType'] = self._args.type
+            new_entry['value'] = self._args.value
+            new_attribs.append(new_entry)
+
+        logger.debug(str(new_attribs))
+        res = client.set_network_properties(self._args.uuid, new_attribs)
+        return res
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command updates network attributes on a network
+        specified by --uuid with values set in --name, --type, and --value
+
+        NOTE: Currently only 1 attribute can be updated at a time. Invoke
+              multiple times to update several attributes at once.
+
+        BIGPROBLEM: Due to issues on server (we would need to make different call)
+                    the network attributes name, version, and description CANNOT
+                    be updated by this call and will currently return an error
+
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=NetworkAttributeSetter.COMMAND)
+        help_formatter = argparse.RawDescriptionHelpFormatter
+
+        parser = subparsers.add_parser(NetworkAttributeSetter.COMMAND,
+                                       help='Updates network attributes',
+                                       description=desc,
+                                       formatter_class=help_formatter)
+
+        parser.add_argument('--uuid',
+                            help='The UUID of network in NDEx to update')
+        parser.add_argument('--name',
+                            help='Name of attribute')
+        parser.add_argument('--type',
+                            help='Type of attribute (default string),'
+                                 'can be one of following'
+                                 'https://ndex2.readthedocs.io/en/'
+                                 'latest/ndex2.html?highlight='
+                                 'list_of_string#supported-'
+                                 'data-types',
+                            default='string')
+        parser.add_argument('--value',
+                            help='Value of attribute, if unset then '
+                                 'attribute is removed. NOTE: '
+                                 'If --type is list.. then quote and escape '
+                                 'list like so: '
+                                 '"[\\"pathway\\",\\"interactome\\"]"')
+        return parser
+
 def _parse_arguments(desc, args):
     """Parses command line arguments using argparse.
     """
