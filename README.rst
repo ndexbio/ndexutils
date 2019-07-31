@@ -1,9 +1,21 @@
 ndex-python-utilities
-=====================
+======================
 
 **Warning: This repository is for development and features may change.
 Please use this at your own risk.**
 
+.. image:: https://img.shields.io/pypi/v/ndexutils.svg
+        :target: https://pypi.python.org/pypi/ndexutils
+
+.. image:: https://img.shields.io/travis/ndexbio/ndexutils.svg
+        :target: https://travis-ci.org/ndexbio/ndexutils
+
+.. image:: https://coveralls.io/repos/github/ndexbio/ndexutils/badge.svg?branch=master
+        :target: https://coveralls.io/github/ndexbio/ndexutils?branch=master
+
+.. image:: https://readthedocs.org/projects/ndexutils/badge/?version=latest
+        :target: https://ndexutils.readthedocs.io/en/latest/?badge=latest
+        :alt: Documentation Status
 
 Dependencies
 ------------
@@ -23,7 +35,7 @@ Dependencies
 Compatibility
 -------------
 
-* Python 3.3+
+* Python 3.5+
 
 Installation
 ------------
@@ -40,6 +52,61 @@ OR via `PyPI <https://pypi.org/ndexutils>`_
 .. code-block::
 
    pip install ndexutil
+
+ndexmisctools.py
+-----------------
+
+**WARNING:** Please consider this tool alpha and probably contains errors/bugs and could cause data corruption or loss. You have been warned
+
+**ndexmisctools.py** lets caller perform some operations on NDEx via the
+command line.
+This tool follows format of ``ndexmisctools.py <COMMAND> <args>``
+
+For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COMMAND> --help``
+
+**COMMANDS**:
+
+* **copynetwork** - copies NDEx network between accounts and even servers
+
+  For copying the source and destination credentials must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+   [mycopyprofile]
+   source_user=bob
+   source_password=6ea8f0ab0b2e
+   source_server=public.ndexbio.org
+   dest_user=smith
+   dest_password=4efe9cd8
+   dest_server=public.ndexbio.org
+
+  The following command copies the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda`` from source credentials defined in configuration to dest
+
+  .. code-block::
+
+    ndexmisctools.py --profile mycopyprofile copynetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
+
+
+* **networkattribupdate** - updates network attributes on network in NDEx
+
+  **WARNING:** Currently **name, version, and description** CANNOT be updated with this command.
+
+  Credentials must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [myattrib]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+    The following command updates **foo** network attribute on the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+
+  .. code-block::
+
+    ndexmisctools.py --profile myattrib networkattribupdate --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --name foo --type string --value 'my new value'
 
 
 TSV Loader
