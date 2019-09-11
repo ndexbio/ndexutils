@@ -4,9 +4,11 @@ import sys
 import argparse
 import logging
 import json
+from requests.exceptions import HTTPError
 import ndexutil
 from ndexutil.config import NDExUtilConfig
 from ndexutil.exceptions import NDExUtilError
+from ndex2.exceptions import NDExError
 from ndex2.client import Ndex2
 import ndex2
 
@@ -370,40 +372,7 @@ class StyleUpdator(object):
         raise NDExUtilError('Does not work yet!!!!')
 
         client = self._get_client()
-        client.get_network_as_cx_stream(self._args.uuid)
-        net = ndex2.create_nice_cx_from_server(self._srcserver,
-                                               self._srcuser,
-                                               self._srcpass,
-                                               self._args.uuid)
-        net.upload_to(self._destserver, self._destuser,
-                      self._destpass)
-        res = client.get_network_aspect_as_cx_stream(self._args.uuid,
-                                                     'networkAttributes')
-        if res.status_code != 200:
-            raise NDExUtilError('Received error status when querying'
-                                'NDEx: ' + str(res.status_code) +
-                                ' : ' + str(res.text))
-
-        net_attribs = json.loads(res.text)
-
-        # remove name description summary
-        self._remove_name_description_summary(net_attribs)
-
-        # remove existing attribute if found
-        self._remove_existing_attribute(net_attribs)
-
-        new_attribs = self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
-
-        if self._args.value is not None:
-            new_entry = {'predicateString': self._args.name}
-            if self._args.type != 'string':
-                new_entry['dataType'] = self._args.type
-            new_entry['value'] = self._args.value
-            new_attribs.append(new_entry)
-
-        logger.debug(str(new_attribs))
-        res = client.set_network_properties(self._args.uuid, new_attribs)
-        return res
+        return 1
 
     @staticmethod
     def add_subparser(subparsers):
@@ -458,6 +427,188 @@ class StyleUpdator(object):
                                  '"[\\"pathway\\",\\"interactome\\"]"')
         return parser
 
+
+class UpdateNetworkSystemProperties(object):
+    """
+    Updates system properties on network in NDEx
+    """
+    COMMAND = 'systemproperty'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+        self._user = None
+        self._pass = None
+        self._server = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def _get_uuid_list_from_args(self, client):
+        """
+        Looks at command line args in self._args and
+        if self._args.uuid is set grabs that otherwise
+        looks at self._args.networksetid and queries for all
+        networks in that networkset
+        :return: list of network UUIDs as strings
+        :rtype: list
+        """
+        # if uuid is set then just return that in a list
+        try:
+            if isinstance(self._args.uuid, str):
+                return [self._args.uuid]
+        except AttributeError:
+            pass
+
+        # if networksetid is set then query
+        # ndex for all uuids and return them in a list
+        try:
+            res = client.get_networkset(self._args.networksetid)
+            logger.debug('networks: ' + str(res['networks']))
+            return res['networks']
+        except HTTPError:
+            logger.exception('Caught exception querying for networks in networkset')
+            return None
+
+    def run(self):
+        """
+        Connects to NDEx server, downloads network(s) specified by --uuid
+        or by --networkset and applies style specified by --style flag
+        updating those networks in place on the server.
+        WARNING: This is very inefficient method since the full network
+                 is downloaded and uploaded. YOU HAVE BEEN WARNED.
+
+        :raises NDExUtilError if there is an error
+        :return: number of networks updated
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+
+        self._parse_config()
+
+        client = self._get_client()
+        uuidlist = self._get_uuid_list_from_args(client)
+        if uuidlist is None:
+            return 1
+        prop_dict = {}
+        try:
+            if self._args.showcase is True:
+                prop_dict['showcase'] = True
+        except AttributeError:
+            pass
+
+        try:
+            if self._args.disableshowcase is True:
+                prop_dict['showcase'] = False
+        except AttributeError:
+            pass
+
+        try:
+            if self._args.indexlevel is not None:
+                prop_dict['index_level'] = self._args.indexlevel.upper()
+        except AttributeError:
+            pass
+
+        try:
+            if self._args.visibility is not None:
+                prop_dict['visibility'] = self._args.visibility.upper()
+        except AttributeError:
+            pass
+        error_count = 0
+        for netid in uuidlist:
+            try:
+                logger.debug('Updating network: ' + str(netid) +
+                             ' sysprops:  ' + str(prop_dict))
+                res = client.set_network_system_properties(netid, prop_dict)
+                if res != '':
+                    error_count += 1
+            except NDExError:
+                logger.exception('Caught NDExError trying to set network props')
+                error_count += 1
+            except HTTPError:
+                logger.exception('Caught HTTPError trying to set network props')
+                error_count += 1
+        if error_count > 0:
+            return 1
+        return 0
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command updates system properties on a network 
+        specified by --uuid, or all networks under a given 
+        networkset via --networksetid 
+
+        Currently this command supports updating the following
+        attributes: showcase, visibility, and indexing.
+        
+        If no flags are set for a given attribute then that value is NOT
+        modified
+        
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=NetworkAttributeSetter.COMMAND)
+        help_formatter = argparse.RawDescriptionHelpFormatter
+
+        parser = subparsers.add_parser(UpdateNetworkSystemProperties.COMMAND,
+                                       help='Updates system properties on '
+                                            'network in NDEx',
+                                       description=desc,
+                                       formatter_class=help_formatter)
+
+        id_grp = parser.add_mutually_exclusive_group()
+
+        id_grp.add_argument('--uuid',
+                            help='The UUID of network in NDEx to update')
+        id_grp.add_argument('--networksetid',
+                            help='The UUID of networkset which will '
+                                 'update all networks within set')
+        showcase_grp = parser.add_mutually_exclusive_group()
+        showcase_grp.add_argument('--showcase', action='store_true',
+                                  help='If set, network will be showcased')
+        showcase_grp.add_argument('--disableshowcase', action='store_true',
+                                  help='If set, network will NOT be showcased')
+        parser.add_argument('--indexlevel',
+                            choices=['none', 'meta', 'all'],
+                            help='If set, network indexing will be updated')
+        parser.add_argument('--visibility',
+                            choices=['public', 'private'],
+                            help='If set, updates visibility of network')
+        return parser
+
+
 def _parse_arguments(desc, args):
     """Parses command line arguments using argparse.
     """
@@ -467,12 +618,13 @@ def _parse_arguments(desc, args):
                                      formatter_class=help_formatter)
 
     subparsers = parser.add_subparsers(dest='command', required=True,
-                                       help='Command to run.'
+                                       help='Command to run. '
                                             'Type <command> -h for '
-                                            'more information')
+                                            'more help')
 
     NetworkAttributeSetter.add_subparser(subparsers)
     CopyNetwork.add_subparser(subparsers)
+    UpdateNetworkSystemProperties.add_subparser(subparsers)
 
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity of logger to standard '
@@ -544,6 +696,8 @@ def main(arglist):
             cmd = NetworkAttributeSetter(theargs)
         if theargs.command == CopyNetwork.COMMAND:
             cmd = CopyNetwork(theargs)
+        if theargs.command == UpdateNetworkSystemProperties.COMMAND:
+            cmd = UpdateNetworkSystemProperties(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))

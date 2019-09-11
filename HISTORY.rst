@@ -2,6 +2,13 @@
 History
 =======
 
+0.7.0 2019-09-11
+-----------------
+
+* Added new command to **ndexmisctools.py** named *systemproperty* that lets
+  caller update showcase, visibility, and indexing for a single network or
+  all networks in a networkset in NDEx
+
 0.6.1 2019-07-12
 ----------------
 
