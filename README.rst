@@ -102,11 +102,38 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
     password=6ea8f0ab0b2e
     server=public.ndexbio.org
 
-    The following command updates **foo** network attribute on the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+  The following command updates **foo** network attribute on the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
 
   .. code-block::
 
     ndexmisctools.py --profile myattrib networkattribupdate --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --name foo --type string --value 'my new value'
+
+
+* **systemproperty** - updates showcase, visibility, and indexing for single network or all networks in networkset in NDEx
+
+  **NOTE:** ``--showcase`` has no effect if network visibility is ``private``
+
+  Credentials must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [myattrib]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+  The following command enables showcase and sets indexing to `meta` for network with id ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+
+  .. code-block::
+
+    ndexmisctools.py --profile myattrib systemproperty --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --showcase --indexlevel meta
+
+  The following command sets visibility to `public` for all networks in networkset with id ``e9580d43-ec14-4be8-9977-9de88e1d410a``
+
+  .. code-block::
+
+    ndexmisctools.py --profile myattrib systemproperty --networksetid e9580d43-ec14-4be8-9977-9de88e1d410a --visibility public
 
 
 TSV Loader
