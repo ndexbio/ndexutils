@@ -1,13 +1,18 @@
 #! /usr/bin/env python
 
+import os
 import sys
 import argparse
 import logging
 import json
+import tempfile
+import shutil
 from requests.exceptions import HTTPError
 import ndexutil
+from ndexutil.tsv.streamtsvloader import StreamTSVLoader
 from ndexutil.config import NDExUtilConfig
 from ndexutil.exceptions import NDExUtilError
+from ndex2.nice_cx_network import NiceCXNetwork
 from ndex2.exceptions import NDExError
 from ndex2.client import Ndex2
 import ndex2
@@ -18,6 +23,10 @@ logger = logging.getLogger('ndexutil.ndexmisctools')
 
 LOG_FORMAT = "%(asctime)-15s %(levelname)s %(relativeCreated)dms " \
              "%(filename)s::%(funcName)s():%(lineno)d %(message)s"
+
+
+class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    pass
 
 
 class CopyNetwork(object):
@@ -106,13 +115,12 @@ class CopyNetwork(object):
                      ERRORS. YOU HAVE BEEN WARNED.
 
             """.format(version=ndexutil.__version__)
-        help_formatter = argparse.RawDescriptionHelpFormatter
 
         parser = subparsers.add_parser(CopyNetwork.COMMAND,
                                        help='Copies network '
                                             'from one user to another',
                                        description=desc,
-                                       formatter_class=help_formatter)
+                                       formatter_class=Formatter)
 
         parser.add_argument('--uuid',
                             help='The UUID of network in NDEx to update')
@@ -288,12 +296,11 @@ class NetworkAttributeSetter(object):
 
         """.format(version=ndexutil.__version__,
                    cmd=NetworkAttributeSetter.COMMAND)
-        help_formatter = argparse.RawDescriptionHelpFormatter
 
         parser = subparsers.add_parser(NetworkAttributeSetter.COMMAND,
                                        help='Updates network attributes',
                                        description=desc,
-                                       formatter_class=help_formatter)
+                                       formatter_class=Formatter)
 
         parser.add_argument('--uuid',
                             help='The UUID of network in NDEx to update')
@@ -400,12 +407,11 @@ class StyleUpdator(object):
 
         """.format(version=ndexutil.__version__,
                    cmd=NetworkAttributeSetter.COMMAND)
-        help_formatter = argparse.RawDescriptionHelpFormatter
 
         parser = subparsers.add_parser(NetworkAttributeSetter.COMMAND,
                                        help='Updates network attributes',
                                        description=desc,
-                                       formatter_class=help_formatter)
+                                       formatter_class=Formatter)
 
         parser.add_argument('--uuid',
                             help='The UUID of network in NDEx to update')
@@ -580,13 +586,12 @@ class UpdateNetworkSystemProperties(object):
 
         """.format(version=ndexutil.__version__,
                    cmd=NetworkAttributeSetter.COMMAND)
-        help_formatter = argparse.RawDescriptionHelpFormatter
 
         parser = subparsers.add_parser(UpdateNetworkSystemProperties.COMMAND,
                                        help='Updates system properties on '
                                             'network in NDEx',
                                        description=desc,
-                                       formatter_class=help_formatter)
+                                       formatter_class=Formatter)
 
         id_grp = parser.add_mutually_exclusive_group()
 
@@ -609,13 +614,277 @@ class UpdateNetworkSystemProperties(object):
         return parser
 
 
+class TSVLoader(object):
+    """
+    Runs tsvloader to import data as a network into NDEx
+    """
+    COMMAND = 'tsvloader'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+        self._user = self._args.username
+        self._pass = self._args.password
+        self._server = self._args.server
+        self._tmpdir = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        if self._user == '-':
+            self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+
+        if self._pass == '-':
+            self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+
+        if self._server == '-':
+            self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def _get_cx_style(self, client=None):
+        """
+        Attempts to get :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        from -t argument which can be a path to a file or a NDEx UUID
+        that can be retrieved from NDEx server
+
+        :return: network or None if not found
+        :rtype: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        """
+        if self._args.t is None:
+            return None
+
+        # if argument is a file try loading it
+        if os.path.isfile(self._args.t):
+            return ndex2.create_nice_cx_from_file(self._args.t)
+
+        if len(self._args.t) > 40 or len(self._args.t) < 36:
+            raise NDExUtilError(str(self._args.t) + ' does not appear to be'
+                                                    ' a valid NDEx UUID')
+
+        # otherwise assume its a UUID and try getting it from server
+        net_stream = client.get_network_as_cx_stream(self._args.t)
+
+        return ndex2.create_nice_cx_from_raw_cx(json.loads(net_stream.text))
+
+    def _get_network_attributes(self, cxnetwork):
+        """
+        Gets network attributes from network passed in. The network
+        attributes are stored in the 'networkAttributes' aspect
+        :param cxnetwork: network to get network attributes
+        :type cxnetwork: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        :return: None if not found or list of dicts with each dict in format of:
+                 {'n': 'NAME','v': 'VALUE', 'd': 'DATA TYPE'}
+                 NOTE: the 'd' is optional and if missing DATA_TYPE is 'string'
+        :rtype: list
+        """
+        if cxnetwork is None:
+            temp_network = NiceCXNetwork()
+        else:
+            temp_network = cxnetwork
+
+        if self._args.description is not None:
+            temp_network.\
+                set_network_attribute('description',
+                                      self._args.description.replace('"', ''))
+        if self._args.name is not None:
+            temp_network.set_name(self._args.name.replace('"', ''))
+
+        for element in temp_network.to_cx():
+            if 'networkAttributes' in element:
+                return element['networkAttributes']
+        return None
+
+    def _upload_network(self, client, networkfile):
+        """
+        Uploads or updates network in NDEx
+        :param networkfile:
+        :return:
+        """
+        with open(networkfile, 'rb') as net_stream:
+            if self._args.u is not None:
+                return client.update_cx_network(net_stream, self._args.u)
+            return client.save_cx_stream_as_new_network(net_stream)
+
+    def _get_tsvfile(self):
+        """
+        Returns path to TSV file stored normally in self._args.tsv_file
+        unless user set --header in which case the contents of
+        header are written to a tmp file and the self._args.tsv_file is
+        appended to this tmp file so the tsv file has a header
+        :return:
+        """
+
+        if self._args.header is not None:
+            tmptsv = os.path.join(self._tmpdir, 'temp.tsv')
+            with open(self._args.t, 'r') as tsv_input:
+                with open(tmptsv, 'w') as f:
+                    f.write(self._args.header + '\n')
+                shutil.copyfile(tsv_input, f)
+            return tmptsv
+        return self._args.t
+
+    def run(self):
+        """
+
+        :raises NDExUtilError if there is an error
+        :return: 0 upon success otherwise failure
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+        self._parse_config()
+
+        client = self._get_client()
+        self._tmpdir = tempfile.mkdtemp(dir=self._args.tmpdir)
+        try:
+            # get network containing style and network attributes
+            stylenetwork = self._get_cx_style(client)
+
+            # extract network attributes from stylenetwork
+            net_attribs = self._get_network_attributes(stylenetwork)
+
+            # create tsv loader
+            tsvloader = StreamTSVLoader(self._args.load_plan, stylenetwork)
+
+            # create input stream and output stream which is fed
+            # to tsv loader to create cx
+            cxout = os.path.join(self._tmpdir, 'tsvloader.cx')
+            with open(self._get_tsvfile(), 'r') as tsv_in_stream:
+                with open(cxout, 'w') as cx_out_stream:
+                    tsvloader.write_cx_network(tsv_in_stream, cx_out_stream,
+                                               network_attributes=net_attribs)
+
+            # update or upload network stored in `cxout` file to NDEx
+            # server
+            return self._upload_network(client, cxout)
+        finally:
+            shutil.rmtree(self._tmpdir)
+
+        return 1
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command loads an edge list file in tab separated 
+        format (hence TSV) and using a load plan, loads the data as
+        a network into NDEx.
+
+        This command requires five positional parameters.
+
+        The first three (username, password, and server) are
+        credentials for
+        NDEx server to upload the network.
+
+        Any of these first three credential fields set to '-' will 
+        force this tool to obtain the information from {cfig} file 
+        under the profile specified by the --profile field in this format:
+
+        [<value of --profile>]
+        {user} = <NDEx username>
+        {password} = <NDEx password>
+        {server} = <NDEx server ie public.ndexbio.org>
+
+        The forth positional parameter (tsv_file) should be
+        set to edge list file in tab separated format and the
+        fifth or last positional parameter (load_plan) should be 
+        set to the load plan. The load plan is a JSON formatted text
+        file that maps the columns to nodes, edges, and attributes
+        in the network. 
+        
+        For more information visit: 
+        
+        https://github.com/ndexbio/ndexutils
+        
+
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=TSVLoader.COMMAND,
+                   cfig='~/' + NDExUtilConfig.CONFIG_FILE,
+                   user=NDExUtilConfig.USER,
+                   password=NDExUtilConfig.PASSWORD,
+                   server=NDExUtilConfig.SERVER)
+
+        parser = subparsers.add_parser(TSVLoader.COMMAND,
+                                       help='Parses network in TSV format '
+                                            'and loads into NDEx',
+                                       description=desc,
+                                       formatter_class=Formatter)
+        parser.add_argument('username', help='NDEx username, if set to - '
+                                             'then value from config will '
+                                             'be used')
+        parser.add_argument('password', help='NDEx password, if set to - '
+                                             'then value from config will '
+                                             'be used')
+        parser.add_argument('server', help='NDEx server, if set to - then '
+                                           'value from config will be used')
+        parser.add_argument('tsv_file', help='Path to data file')
+        parser.add_argument('load_plan', help='Path to load plan')
+        parser.add_argument('-u',
+                            help='The UUID of network in NDEx to update')
+        parser.add_argument('-t',
+                            help='Can be a path to CX file with style OR '
+                                 'NDEx UUID of a network '
+                                 '(present on the same server) '
+                                 'to use as a style template')
+        # parser.add_argument('-l', dest='layout_type', choices=['spring',
+        #                                                        'circle',
+        #                                                        'spectral'],
+        #                     help='Type of layout to use')
+        # parser.add_argument('-c', dest='use_cartesian', action='store',
+        #                     help='Use cartesian aspect from template')
+        parser.add_argument('--description',
+                            help='Sets descritpion for network (any double '
+                                 'quotes will be removed) otherwise value '
+                                 'will be taken from template network')
+        parser.add_argument('--header', dest='header', action='store',
+                            help='Header to be prepended to the file. '
+                                 'NOTE: if set this header'
+                                 'will be prepended to the file so there '
+                                 'better not be one already')
+        parser.add_argument('--name',
+                            help='Sets name for network (any double quotes '
+                                 'will be removed) otherwise value'
+                                 'will be taken from template network')
+        parser.add_argument('--tmpdir',
+                            help='Sets temp directory used for processing. If '
+                                 'not set, then directory used is the '
+                                 'default for '
+                                 'tempfile.mkdtemp() function')
+        return parser
+
+
 def _parse_arguments(desc, args):
     """Parses command line arguments using argparse.
     """
 
-    help_formatter = argparse.RawDescriptionHelpFormatter
     parser = argparse.ArgumentParser(description=desc,
-                                     formatter_class=help_formatter)
+                                     formatter_class=Formatter)
 
     subparsers = parser.add_subparsers(dest='command', required=True,
                                        help='Command to run. '
@@ -625,6 +894,7 @@ def _parse_arguments(desc, args):
     NetworkAttributeSetter.add_subparser(subparsers)
     CopyNetwork.add_subparser(subparsers)
     UpdateNetworkSystemProperties.add_subparser(subparsers)
+    TSVLoader.add_subparser(subparsers)
 
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity of logger to standard '
