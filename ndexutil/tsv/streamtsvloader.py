@@ -80,7 +80,30 @@ class CXStreamWriter:
         self._state = 2
 
 
-class StreamTSVLoader (object):
+class StreamTSVLoaderFactory(object):
+    """
+    Creates :py:class:`~StreamTSVLoader` objects
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        pass
+
+    def get_tsv_streamloader(self, loading_plan_file, style_cx):
+        """
+        Creates :py:class:`~StreamTSVLoader` object
+        :param loading_plan_file: Path to loading plan file
+        :param style_cx: object containing a style 'cyVisualProperties' as
+                         an opaque aspect
+        :type style_cx: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        :return: object to load TSV stream
+        :rtype :py:class:`~StreamTSVLoader`
+        """
+        return StreamTSVLoader(loading_plan_file, style_cx)
+
+
+class StreamTSVLoader(object):
     """
     Stream based TSV Loader
     """
@@ -90,7 +113,7 @@ class StreamTSVLoader (object):
         Constructor that loads and validates the loading_plan_file as well as extracts
         the style from the style_cx object
         :param loading_plan_file: Path to loading plan file
-        :param style_cx: NiceCXNetwork object containing a style 'cyVisualProperties' as
+        :param style_cx: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork` object containing a style 'cyVisualProperties' as
                          an opaque aspect
         """
 
@@ -170,11 +193,19 @@ class StreamTSVLoader (object):
         context = self._plan.get("context")
         if context:
             net_attrs.append({"n": "@context", "v": json.dumps(context)})
+
         if network_attributes:
             if type(network_attributes) is list:
+                if context:
+                    for net_a in network_attributes:
+                        if net_a['n'] == '@context':
+                            network_attributes.remove(net_a)
                 net_attrs.extend(network_attributes)
             else:
-                net_attrs.append(network_attributes)
+                if context and network_attributes['n'] != '@context':
+                    net_attrs.append(network_attributes)
+                else:
+                    net_attrs.append(network_attributes)
 
         # prepare metadata
         premetadata = [{
