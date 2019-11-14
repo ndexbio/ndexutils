@@ -2,6 +2,11 @@
 History
 =======
 
+0.8.0
+------------------
+
+* Fixed bug where passing in network attributes with @context set along with a load plan that has \@context resulted in 2 \@context network attributes
+
 0.7.0 2019-09-11
 -----------------
 
