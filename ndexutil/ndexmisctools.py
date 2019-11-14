@@ -10,6 +10,7 @@ import shutil
 from requests.exceptions import HTTPError
 import ndexutil
 from ndexutil.tsv.streamtsvloader import StreamTSVLoader
+from ndexutil.tsv.streamtsvloader import StreamTSVLoaderFactory
 from ndexutil.config import NDExUtilConfig
 from ndexutil.exceptions import NDExUtilError
 from ndex2.nice_cx_network import NiceCXNetwork
@@ -620,16 +621,25 @@ class TSVLoader(object):
     """
     COMMAND = 'tsvloader'
 
-    def __init__(self, theargs):
+    def __init__(self, theargs, altclient=None,
+                 streamtsvfac=StreamTSVLoaderFactory()):
         """
         Constructor
-        :param theargs: command line arguments ie theargs.name theargs.type
+        :param theargs: command line arguments from argparse. This method
+                        expects the following to be set: theargs.username,
+                        theargs.password, theargs.server and if any of these
+                        three are '-' theargs.conf must be None or a path to
+                        directory containing a valid configuration file
+        :raises ConfigError: if there was a problem parsing the configuration file
         """
         self._args = theargs
         self._user = self._args.username
         self._pass = self._args.password
         self._server = self._args.server
-        self._tmpdir = None
+        self._tmpdir = None  # set in run() function
+        self._altclient = altclient
+        self._tsvfac = streamtsvfac
+        self._parse_config()
 
     def _parse_config(self):
         """
@@ -639,6 +649,8 @@ class TSVLoader(object):
         :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
         :return: None
         """
+        if self._user != '-' and self._pass != '-' and self._server != '-':
+            return
         ncon = NDExUtilConfig(conf_file=self._args.conf)
         con = ncon.get_config()
         if self._user == '-':
@@ -656,6 +668,8 @@ class TSVLoader(object):
         :return: Ndex2 python client
         :rtype: :py:class:`~ndex2.client.Ndex2`
         """
+        if self._altclient is not None:
+            return self._altclient
         return Ndex2(self._server, self._user, self._pass)
 
     def _get_cx_style(self, client=None):
@@ -663,15 +677,18 @@ class TSVLoader(object):
         Attempts to get :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
         from -t argument which can be a path to a file or a NDEx UUID
         that can be retrieved from NDEx server
-
+        :raises JSONDecodeError: if CX file is not valid JSON
         :return: network or None if not found
         :rtype: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
         """
         if self._args.t is None:
+            logger.info('Template network is not set')
             return None
 
         # if argument is a file try loading it
-        if os.path.isfile(self._args.t):
+        if os.path.isfile(os.path.abspath(self._args.t)):
+            self._args.t = os.path.abspath(self._args.t)
+            logger.info('Loading template network from file: ' + self._args.t)
             return ndex2.create_nice_cx_from_file(self._args.t)
 
         if len(self._args.t) > 40 or len(self._args.t) < 36:
@@ -679,6 +696,7 @@ class TSVLoader(object):
                                                     ' a valid NDEx UUID')
 
         # otherwise assume its a UUID and try getting it from server
+        logger.info('Downloading template network from NDEx')
         net_stream = client.get_network_as_cx_stream(self._args.t)
 
         return ndex2.create_nice_cx_from_raw_cx(json.loads(net_stream.text))
@@ -699,13 +717,14 @@ class TSVLoader(object):
         else:
             temp_network = cxnetwork
 
-        if self._args.description is not None:
-            temp_network.\
-                set_network_attribute('description',
-                                      self._args.description.replace('"', ''))
         if self._args.name is not None:
             temp_network.set_name(self._args.name.replace('"', ''))
 
+        if self._args.description is not None:
+            temp_network.set_network_attribute('description',
+                                               values=self._args.description.
+                                               replace('"', ''),
+                                               type='string')
         for element in temp_network.to_cx():
             if 'networkAttributes' in element:
                 return element['networkAttributes']
@@ -717,10 +736,31 @@ class TSVLoader(object):
         :param networkfile:
         :return:
         """
+
         with open(networkfile, 'rb') as net_stream:
-            if self._args.u is not None:
-                return client.update_cx_network(net_stream, self._args.u)
-            return client.save_cx_stream_as_new_network(net_stream)
+            try:
+                if self._args.u is not None:
+                    logger.info('Updating network in NDEx')
+                    logger.info('Output from updating network in NDEx: ' +
+                                client.update_cx_network(net_stream,
+                                                         self._args.u))
+                    return 0
+                logger.info('Saving new network to NDEx')
+                logger.info('Output from saving network to NDEx: ' +
+                            client.save_cx_stream_as_new_network(net_stream))
+            except HTTPError as he:
+                if '401 Client Error' in str(he):
+                    logger.fatal('Error uploading network. '
+                                 'Invalid username "' + str(self._user) +
+                                 '" and/or password '
+                                 'for server "' + str(self._server) + '"')
+                    return 2
+                else:
+                    logger.exception('Caught exception trying to '
+                                     'upload network: ' + str(he))
+                return 3
+
+        return 0
 
     def _get_tsvfile(self):
         """
@@ -732,13 +772,32 @@ class TSVLoader(object):
         """
 
         if self._args.header is not None:
+            logger.info('Prepending custom header to tsv file')
             tmptsv = os.path.join(self._tmpdir, 'temp.tsv')
-            with open(self._args.t, 'r') as tsv_input:
+            with open(os.path.abspath(self._args.tsv_file), 'r') as tsv_input:
                 with open(tmptsv, 'w') as f:
                     f.write(self._args.header + '\n')
-                shutil.copyfile(tsv_input, f)
+                    shutil.copyfileobj(tsv_input, f)
             return tmptsv
-        return self._args.t
+        if self._args.uppercaseheader is True:
+            logger.info('Upper casing header line in tsv file')
+            tmptsv = os.path.join(self._tmpdir, 'temp.tsv')
+            with open(os.path.abspath(self._args.tsv_file), 'r') as tsv_input:
+                with open(tmptsv, 'w') as f:
+                    f.write(tsv_input.readline().upper())
+                    for line in tsv_input:
+                        f.write(line)
+            return tmptsv
+
+        return self._args.tsv_file
+
+    def _get_streamtsvloader(self, stylenetwork):
+        """
+        Gets streamtsvloader from factory
+        :return:
+        """
+        return self._tsvfac.get_tsv_streamloader(self._args.load_plan,
+                                                 stylenetwork)
 
     def run(self):
         """
@@ -748,7 +807,6 @@ class TSVLoader(object):
         """
         logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
                        'AND MAY CONTAIN ERRORS')
-        self._parse_config()
 
         client = self._get_client()
         self._tmpdir = tempfile.mkdtemp(dir=self._args.tmpdir)
@@ -760,7 +818,7 @@ class TSVLoader(object):
             net_attribs = self._get_network_attributes(stylenetwork)
 
             # create tsv loader
-            tsvloader = StreamTSVLoader(self._args.load_plan, stylenetwork)
+            tsvloader = self._get_streamtsvloader(stylenetwork)
 
             # create input stream and output stream which is fed
             # to tsv loader to create cx
@@ -769,6 +827,14 @@ class TSVLoader(object):
                 with open(cxout, 'w') as cx_out_stream:
                     tsvloader.write_cx_network(tsv_in_stream, cx_out_stream,
                                                network_attributes=net_attribs)
+
+            if self._args.outputcx is not None:
+                logger.info('Writing CX to file: ' + self._args.outputcx)
+                shutil.copyfile(cxout, self._args.outputcx)
+
+            if self._args.skipupload is True:
+                logger.info('--skipupload is set. Skipping upload to NDEx')
+                return 0
 
             # update or upload network stored in `cxout` file to NDEx
             # server
@@ -790,8 +856,15 @@ class TSVLoader(object):
         Version {version}
 
         The {cmd} command loads an edge list file in tab separated 
-        format (hence TSV) and using a load plan, loads the data as
+        format (hence TSV) and using a load plan, loads that data as
         a network into NDEx.
+        
+        This tool attempts to mimic behavior of the older 
+        tsv_uploader.py script located 
+        here: https://github.com/ndexbio/load-content
+         
+        This new version uses the more memory efficient
+        streamtsvloader.
 
         This command requires five positional parameters.
 
@@ -814,6 +887,28 @@ class TSVLoader(object):
         set to the load plan. The load plan is a JSON formatted text
         file that maps the columns to nodes, edges, and attributes
         in the network. 
+                
+        By default this tool does not generate much output to 
+        standard out/error. For more verbosity add one or more -v parameters
+        to left of command name tsvloader as seen in examples below.
+        
+        
+        Example usage:
+
+        ndexmisctools.py -vvvv tsvloader - - - datafile.tsv load.plan
+                
+        ndexmisctools.py -vv tsvloader bob xx public.ndexbio.org \\
+                         datafile.tsv loadplan.json --uppercaseheader  \\
+                         -t dafe07ca-0676-11ea-93e0-525400c25d22 \\
+                         --name mynetwork --description 'some text'
+
+        ndexmisctools.py -v --profile foo tsvloader - - public.ndexbio.org \\
+                         datafile.tsv loadplan.json \\
+                         --header 'col1\tcol2\tcol3' \\
+                         -t some_cx_file.cx \\
+                         -u 48a26aa0-0677-11ea-93e0-525400c25d22
+
+        If successful 0 is returned otherwise there was an error.
         
         For more information visit: 
         
@@ -846,12 +941,18 @@ class TSVLoader(object):
         parser.add_argument('tsv_file', help='Path to data file')
         parser.add_argument('load_plan', help='Path to load plan')
         parser.add_argument('-u',
-                            help='The UUID of network in NDEx to update')
+                            help='If set, the UUID of network in NDEx '
+                                 'to update. If not set,a new network '
+                                 'will be added')
         parser.add_argument('-t',
-                            help='Can be a path to CX file with style OR '
+                            help='Style template network. In addition to '
+                                 'copying the style, this loader also '
+                                 'copies all the network attributes to '
+                                 'the newly generated network. '
+                                 'This parameter can '
+                                 'be a path to CX file OR '
                                  'NDEx UUID of a network '
-                                 '(present on the same server) '
-                                 'to use as a style template')
+                                 '(present on the same server)')
         # parser.add_argument('-l', dest='layout_type', choices=['spring',
         #                                                        'circle',
         #                                                        'spectral'],
@@ -859,23 +960,32 @@ class TSVLoader(object):
         # parser.add_argument('-c', dest='use_cartesian', action='store',
         #                     help='Use cartesian aspect from template')
         parser.add_argument('--description',
-                            help='Sets descritpion for network (any double '
-                                 'quotes will be removed) otherwise value '
+                            help='Sets description for network (any double '
+                                 'quotes will be removed) otherwise '
+                                 'description (if any) '
                                  'will be taken from template network')
-        parser.add_argument('--header', dest='header', action='store',
-                            help='Header to be prepended to the file. '
-                                 'NOTE: if set this header'
-                                 'will be prepended to the file so there '
-                                 'better not be one already')
+        parser.add_argument('--uppercaseheader', action='store_true',
+                            help='If set, the first line in tsv_file '
+                                 'is upper cased before being processed.'
+                                 'This has no effect if --header is set.')
+        parser.add_argument('--header', dest='header',
+                            help='Header to prepend to the tsv_file. '
+                                 'WARNING: this Does NOT replace an existing '
+                                 'header')
         parser.add_argument('--name',
                             help='Sets name for network (any double quotes '
-                                 'will be removed) otherwise value'
+                                 'will be removed) otherwise '
+                                 'name (if any) '
                                  'will be taken from template network')
         parser.add_argument('--tmpdir',
                             help='Sets temp directory used for processing. If '
                                  'not set, then directory used is the '
-                                 'default for '
+                                 'default for Python\'s '
                                  'tempfile.mkdtemp() function')
+        parser.add_argument('--skipupload', action='store_true',
+                            help='If set, network will NOT be uploaded to NDEx')
+        parser.add_argument('--outputcx',
+                            help='If set, CX will be written to this file')
         return parser
 
 
@@ -968,6 +1078,8 @@ def main(arglist):
             cmd = CopyNetwork(theargs)
         if theargs.command == UpdateNetworkSystemProperties.COMMAND:
             cmd = UpdateNetworkSystemProperties(theargs)
+        if theargs.command == TSVLoader.COMMAND:
+            cmd = TSVLoader(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
