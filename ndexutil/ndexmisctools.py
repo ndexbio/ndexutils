@@ -9,7 +9,6 @@ import tempfile
 import shutil
 from requests.exceptions import HTTPError
 import ndexutil
-from ndexutil.tsv.streamtsvloader import StreamTSVLoader
 from ndexutil.tsv.streamtsvloader import StreamTSVLoaderFactory
 from ndexutil.config import NDExUtilConfig
 from ndexutil.exceptions import NDExUtilError
@@ -26,7 +25,8 @@ LOG_FORMAT = "%(asctime)-15s %(levelname)s %(relativeCreated)dms " \
              "%(filename)s::%(funcName)s():%(lineno)d %(message)s"
 
 
-class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+class Formatter(argparse.ArgumentDefaultsHelpFormatter,
+                argparse.RawDescriptionHelpFormatter):
     pass
 
 
@@ -97,12 +97,12 @@ class CopyNetwork(object):
 
             Version {version}
 
-            The copynetwork command copies an NDEx network specified by --uuid 
-            to another user account. 
-            
+            The copynetwork command copies an NDEx network specified by --uuid
+            to another user account.
+
             The source and destination accounts are specified by configuration
             in --conf under section set via --profile field
-            
+
             Expected format in configuration file:
             [<value of --profile>]
             source_user = <user>
@@ -111,7 +111,7 @@ class CopyNetwork(object):
             dest_user = = <user>
             dest_pass = <password>
             dest_server = <server>
-            
+
             WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                      ERRORS. YOU HAVE BEEN WARNED.
 
@@ -258,7 +258,8 @@ class NetworkAttributeSetter(object):
         # remove existing attribute if found
         self._remove_existing_attribute(net_attribs)
 
-        new_attribs = self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+        new_attribs =\
+            self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
 
         if self._args.value is not None:
             new_entry = {'predicateString': self._args.name}
@@ -279,18 +280,20 @@ class NetworkAttributeSetter(object):
         :return:
         """
         desc = """
-        
+
         Version {version}
-        
+
         The {cmd} command updates network attributes on a network
         specified by --uuid with values set in --name, --type, and --value
-        
+
         NOTE: Currently only 1 attribute can be updated at a time. Invoke
               multiple times to update several attributes at once.
-        
-        BIGPROBLEM: Due to issues on server (we would need to make different call)
-                    the network attributes name, version, and description CANNOT
-                    be updated by this call and will currently return an error
+
+        BIGPROBLEM: Due to issues on server
+                    (we would need to make different call)
+                    the network attributes name, version, and description
+                    CANNOT be updated by this call and will currently
+                    return an error
 
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
@@ -379,7 +382,7 @@ class StyleUpdator(object):
         self._parse_config()
         raise NDExUtilError('Does not work yet!!!!')
 
-        client = self._get_client()
+        self._get_client()
         return 1
 
     @staticmethod
@@ -399,9 +402,11 @@ class StyleUpdator(object):
         NOTE: Currently only 1 attribute can be updated at a time. Invoke
               multiple times to update several attributes at once.
 
-        BIGPROBLEM: Due to issues on server (we would need to make different call)
-                    the network attributes name, version, and description CANNOT
-                    be updated by this call and will currently return an error
+        BIGPROBLEM: Due to issues on server
+                    (we would need to make different call)
+                    the network attributes name, version, and description
+                    CANNOT be updated by this call and will currently
+                    return an error
 
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
@@ -496,7 +501,8 @@ class UpdateNetworkSystemProperties(object):
             logger.debug('networks: ' + str(res['networks']))
             return res['networks']
         except HTTPError:
-            logger.exception('Caught exception querying for networks in networkset')
+            logger.exception('Caught exception querying for networks in '
+                             'networkset')
             return None
 
     def run(self):
@@ -552,10 +558,12 @@ class UpdateNetworkSystemProperties(object):
                 if res != '':
                     error_count += 1
             except NDExError:
-                logger.exception('Caught NDExError trying to set network props')
+                logger.exception('Caught NDExError trying to set '
+                                 'network props')
                 error_count += 1
             except HTTPError:
-                logger.exception('Caught HTTPError trying to set network props')
+                logger.exception('Caught HTTPError trying to set '
+                                 'network props')
                 error_count += 1
         if error_count > 0:
             return 1
@@ -572,16 +580,16 @@ class UpdateNetworkSystemProperties(object):
 
         Version {version}
 
-        The {cmd} command updates system properties on a network 
-        specified by --uuid, or all networks under a given 
-        networkset via --networksetid 
+        The {cmd} command updates system properties on a network
+        specified by --uuid, or all networks under a given
+        networkset via --networksetid
 
         Currently this command supports updating the following
         attributes: showcase, visibility, and indexing.
-        
+
         If no flags are set for a given attribute then that value is NOT
         modified
-        
+
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
 
@@ -630,7 +638,8 @@ class TSVLoader(object):
                         theargs.password, theargs.server and if any of these
                         three are '-' theargs.conf must be None or a path to
                         directory containing a valid configuration file
-        :raises ConfigError: if there was a problem parsing the configuration file
+        :raises ConfigError: if there was a problem parsing the
+                             configuration file
         """
         self._args = theargs
         self._user = self._args.username
@@ -672,6 +681,73 @@ class TSVLoader(object):
             return self._altclient
         return Ndex2(self._server, self._user, self._pass)
 
+    def _get_aspect_from_server(self, client, aspect):
+        """
+
+        :param client:
+        :return:
+        """
+        try:
+            logger.debug('Downloading ' + aspect + ' for network ' +
+                         str(self._args.t) + ' from NDEx')
+            res = client.get_network_aspect_as_cx_stream(self._args.t,
+                                                         aspect)
+            return json.loads(res.text)
+        except HTTPError as e:
+            logger.exception('Got error trying to get ' + aspect + ' ' +
+                             str(e))
+        return None
+
+    def _get_stripped_down_style_cx_from_server(self, client):
+        """
+        Downloads only network attributes and visual properties from
+        the template network on NDEx and creates a network from this
+        data. This is done to reduce IO if a large network was used
+        as a template.
+
+        :param client: NDEx2 python client object with valid credentials
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :return: network object with only networkAttributes
+                 and cyVisualProperties set
+        :rtype: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        """
+        net_a = self._get_aspect_from_server(client,
+                                             'networkAttributes')
+
+        style_a = self._get_aspect_from_server(client,
+                                               'cyVisualProperties')
+        if style_a is None:
+            style_a = self._get_aspect_from_server(client,
+                                                   'visualProperties')
+
+        cx_dict = [{'numberVerification': [{'longNumber': 281474976710655}]}]
+        meta_dict = dict()
+        meta_dict['metaData'] = []
+        cx_dict.append(meta_dict)
+
+        if net_a is not None:
+            meta_dict['metaData'].append({'name': 'networkAttributes',
+                                          'elementCount': len(net_a),
+                                          'idCounter': len(net_a),
+                                          'version': "1.0",
+                                          'consistencyGroup': 1,
+                                          'properties': []})
+            cx_dict.append({'networkAttributes': net_a})
+
+        if style_a is not None:
+            meta_dict['metaData'].append({'name': 'cyVisualProperties',
+                                          'elementCount': len(style_a),
+                                          'idCounter': len(style_a),
+                                          'version': "1.0",
+                                          'consistencyGroup': 1,
+                                          'properties': []})
+            cx_dict.append({'cyVisualProperties': style_a})
+        if style_a is None:
+            raise NDExUtilError('No style found on template network: ' +
+                                self._args.t)
+
+        return ndex2.create_nice_cx_from_raw_cx(cx_dict)
+
     def _get_cx_style(self, client=None):
         """
         Attempts to get :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
@@ -697,9 +773,7 @@ class TSVLoader(object):
 
         # otherwise assume its a UUID and try getting it from server
         logger.info('Downloading template network from NDEx')
-        net_stream = client.get_network_as_cx_stream(self._args.t)
-
-        return ndex2.create_nice_cx_from_raw_cx(json.loads(net_stream.text))
+        return self._get_stripped_down_style_cx_from_server(client)
 
     def _get_network_attributes(self, cxnetwork):
         """
@@ -707,12 +781,14 @@ class TSVLoader(object):
         attributes are stored in the 'networkAttributes' aspect
         :param cxnetwork: network to get network attributes
         :type cxnetwork: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
-        :return: None if not found or list of dicts with each dict in format of:
+        :return: None if not found or list of dicts with each dict in
+                 format of:
                  {'n': 'NAME','v': 'VALUE', 'd': 'DATA TYPE'}
-                 NOTE: the 'd' is optional and if missing DATA_TYPE is 'string'
+                 NOTE: the 'd' is optional and if missing DATA_TYPE is
+                 'string'
         :rtype: list
         """
-        if cxnetwork is None:
+        if cxnetwork is None or self._args.copyattribs is False:
             temp_network = NiceCXNetwork()
         else:
             temp_network = cxnetwork
@@ -725,8 +801,14 @@ class TSVLoader(object):
                                                values=self._args.description.
                                                replace('"', ''),
                                                type='string')
+
+        # this is not efficient cause it converts
+        # the whole network to CX in memory
         for element in temp_network.to_cx():
             if 'networkAttributes' in element:
+                for net_a in element['networkAttributes']:
+                    if net_a['n'] == '@context':
+                        element['networkAttributes'].remove(net_a)
                 return element['networkAttributes']
         return None
 
@@ -855,14 +937,14 @@ class TSVLoader(object):
 
         Version {version}
 
-        The {cmd} command loads an edge list file in tab separated 
+        The {cmd} command loads an edge list file in tab separated
         format (hence TSV) and using a load plan, loads that data as
         a network into NDEx.
-        
-        This tool attempts to mimic behavior of the older 
-        tsv_uploader.py script located 
+
+        This tool attempts to mimic behavior of the older
+        tsv_uploader.py script located
         here: https://github.com/ndexbio/load-content
-         
+
         This new version uses the more memory efficient
         streamtsvloader.
 
@@ -872,8 +954,8 @@ class TSVLoader(object):
         credentials for
         NDEx server to upload the network.
 
-        Any of these first three credential fields set to '-' will 
-        force this tool to obtain the information from {cfig} file 
+        Any of these first three credential fields set to '-' will
+        force this tool to obtain the information from {cfig} file
         under the profile specified by the --profile field in this format:
 
         [<value of --profile>]
@@ -883,20 +965,20 @@ class TSVLoader(object):
 
         The forth positional parameter (tsv_file) should be
         set to edge list file in tab separated format and the
-        fifth or last positional parameter (load_plan) should be 
+        fifth or last positional parameter (load_plan) should be
         set to the load plan. The load plan is a JSON formatted text
         file that maps the columns to nodes, edges, and attributes
-        in the network. 
-                
-        By default this tool does not generate much output to 
+        in the network.
+
+        By default this tool does not generate much output to
         standard out/error. For more verbosity add one or more -v parameters
         to left of command name tsvloader as seen in examples below.
-        
-        
+
+
         Example usage:
 
         ndexmisctools.py -vvvv tsvloader - - - datafile.tsv load.plan
-                
+
         ndexmisctools.py -vv tsvloader bob xx public.ndexbio.org \\
                          datafile.tsv loadplan.json --uppercaseheader  \\
                          -t dafe07ca-0676-11ea-93e0-525400c25d22 \\
@@ -909,11 +991,11 @@ class TSVLoader(object):
                          -u 48a26aa0-0677-11ea-93e0-525400c25d22
 
         If successful 0 is returned otherwise there was an error.
-        
-        For more information visit: 
-        
+
+        For more information visit:
+
         https://github.com/ndexbio/ndexutils
-        
+
 
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
@@ -945,20 +1027,15 @@ class TSVLoader(object):
                                  'to update. If not set,a new network '
                                  'will be added')
         parser.add_argument('-t',
-                            help='Style template network. In addition to '
-                                 'copying the style, this loader also '
-                                 'copies all the network attributes to '
-                                 'the newly generated network. '
+                            help='Style template network. '
                                  'This parameter can '
                                  'be a path to CX file OR '
                                  'NDEx UUID of a network '
                                  '(present on the same server)')
-        # parser.add_argument('-l', dest='layout_type', choices=['spring',
-        #                                                        'circle',
-        #                                                        'spectral'],
-        #                     help='Type of layout to use')
-        # parser.add_argument('-c', dest='use_cartesian', action='store',
-        #                     help='Use cartesian aspect from template')
+        parser.add_argument('--copyattribs', action='store_true',
+                            help='If set, copies all network attributes '
+                                 '(minus @context) '
+                                 'from template network set via -t flag')
         parser.add_argument('--description',
                             help='Sets description for network (any double '
                                  'quotes will be removed) otherwise '
@@ -983,7 +1060,8 @@ class TSVLoader(object):
                                  'default for Python\'s '
                                  'tempfile.mkdtemp() function')
         parser.add_argument('--skipupload', action='store_true',
-                            help='If set, network will NOT be uploaded to NDEx')
+                            help='If set, network will NOT be uploaded '
+                                 'to NDEx')
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
         return parser
