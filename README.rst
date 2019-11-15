@@ -160,7 +160,7 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
   The forth positional parameter ``tsv_file`` (see _`TSV Loader` section below) should be
   set to edge list file in tab separated format and the
-  fifth or last positional parameter (load_plan) should be
+  fifth or last positional parameter ``load_plan`` should be
   set to the load plan. The load plan is a JSON formatted text
   file that maps the columns to nodes, edges, and attributes
   in the network.
@@ -204,7 +204,7 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
   If successful ``0`` is returned otherwise there was an error.
 
-.. _TSV_Loader:
+.. _TSV_Loader: .
 
 TSV Loader
 ----------
