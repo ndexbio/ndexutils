@@ -2,7 +2,7 @@
 History
 =======
 
-0.8.0
+0.8.0 2019-11-15
 ------------------
 
 * Fixed bug in StreamTSVLoader where 2 \@context network attributes were added to network if \@context was set in load plan and \@context was passed in the network attributes parameter for `write_cx_network()`
