@@ -5,7 +5,9 @@ History
 0.8.0
 ------------------
 
-* Fixed bug where passing in network attributes with @context set along with a load plan that has \@context resulted in 2 \@context network attributes
+* Fixed bug in StreamTSVLoader where 2 \@context network attributes were added to network if \@context was set in load plan and \@context was passed in the network attributes parameter for `write_cx_network()`
+
+* Added new command to **ndexmisctools.py** named *tsvloader* that lets caller load TSV files as networks into NDEx
 
 0.7.0 2019-09-11
 -----------------
