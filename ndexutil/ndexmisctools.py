@@ -1026,7 +1026,7 @@ class TSVLoader(object):
                             help='If set, the UUID of network in NDEx '
                                  'to update. If not set,a new network '
                                  'will be added')
-        parser.add_argument('-t',
+        parser.add_argument('-t', '--style', dest='t',
                             help='Style template network. '
                                  'This parameter can '
                                  'be a path to CX file OR '
@@ -1047,7 +1047,7 @@ class TSVLoader(object):
                                  'This has no effect if --header is set.')
         parser.add_argument('--header', dest='header',
                             help='Header to prepend to the tsv_file. '
-                                 'WARNING: this Does NOT replace an existing '
+                                 'WARNING: Does NOT replace an existing '
                                  'header')
         parser.add_argument('--name',
                             help='Sets name for network (any double quotes '
