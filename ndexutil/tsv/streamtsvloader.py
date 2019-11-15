@@ -188,24 +188,27 @@ class StreamTSVLoader(object):
         # initialize the writer
         self.cxWriter = CXStreamWriter(output_file_descriptor)
 
-        # write the conext as network attribute
+        # write the context as network attribute
         net_attrs = []
         context = self._plan.get("context")
-        if context:
-            net_attrs.append({"n": "@context", "v": json.dumps(context)})
 
         if network_attributes:
             if type(network_attributes) is list:
-                if context:
-                    for net_a in network_attributes:
-                        if net_a['n'] == '@context':
-                            network_attributes.remove(net_a)
                 net_attrs.extend(network_attributes)
             else:
-                if context and network_attributes['n'] != '@context':
-                    net_attrs.append(network_attributes)
-                else:
-                    net_attrs.append(network_attributes)
+                net_attrs.append(network_attributes)
+
+        if context:
+            context_found = False
+            for net_a in net_attrs:
+                if net_a['n'] == '@context':
+                    logger.warning('Overriding @context from load '
+                                   'plan with @context passed into '
+                                   'constructor of StreamTSVLoader')
+                    context_found = True
+                    break
+            if context_found is False:
+                net_attrs.append({"n": "@context", "v": json.dumps(context)})
 
         # prepare metadata
         premetadata = [{

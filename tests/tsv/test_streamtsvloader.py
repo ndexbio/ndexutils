@@ -7,6 +7,7 @@ import tempfile
 import shutil
 import os
 import io
+import json
 import unittest
 from ndexutil.tsv.streamtsvloader import StreamTSVLoader
 from ndexutil.tsv.streamtsvloader import CXStreamWriter
@@ -80,7 +81,8 @@ class TeststreamTSVLoader(unittest.TestCase):
                 tmpcx = 'out.cx'
                 with open(tmpcx, "w") as out:
                     nicecx = ndex2.create_nice_cx_from_file(os.path.join(here, 'gene-disease-style.cx'))
-                    loader = StreamTSVLoader(os.path.join(here, 'ctd-gene-disease-2019-norm-plan-collapsed.json'),nicecx)
+                    loader = StreamTSVLoader(os.path.join(here, 'ctd-gene-disease-2019-norm-plan-collapsed.json'),
+                                             nicecx)
                     loader.write_cx_network(tsvfile, out, [{'n': 'name', 'v': "CTD: gene-disease association (Human)"},
                                                            {'n': 'version', 'v': "0.0.1"}], batchsize=4)
 
@@ -97,6 +99,34 @@ class TeststreamTSVLoader(unittest.TestCase):
                     edge_attr_cnt += len(value)
                 self.assertEqual(edge_attr_cnt, 147)
                 self.assertEqual(len(nicecx.opaqueAspects.get("cyVisualProperties")), 3)
+                with open(os.path.join(here, 'ctd-gene-disease-2019-'
+                                             'norm-plan-collapsed.json'), 'r') as f:
+                    load_plan = json.load(f)
+                cdata = json.loads(nicecx.get_network_attribute('@context')['v'])
+
+                self.assertEqual(load_plan['context'], cdata)
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_creating_network_context_passed_in_net_attribs(self):
+        temp_dir = tempfile.mkdtemp()
+        try:
+            here = os.path.dirname(__file__)
+            tsvfile = os.path.join(here, 'ctd_test.tsv')
+            with open (tsvfile, 'r') as tsvfile:
+                tmpcx = 'out.cx'
+                with open(tmpcx, "w") as out:
+                    nicecx = ndex2.create_nice_cx_from_file(os.path.join(here, 'gene-disease-style.cx'))
+                    loader = StreamTSVLoader(os.path.join(here, 'ctd-gene-disease-2019-norm-plan-collapsed.json'),
+                                             nicecx)
+                    loader.write_cx_network(tsvfile, out, [{'n': 'name', 'v': "CTD: gene-disease association (Human)"},
+                                                           {'n': 'version', 'v': "0.0.1"},
+                                                           {'n': '@context', 'v': '{"hi": "there"}'}], batchsize=4)
+
+                nicecx = ndex2.create_nice_cx_from_file(tmpcx)
+                cdata = json.loads(nicecx.get_network_attribute('@context')['v'])
+                self.assertEqual({'hi': 'there'}, cdata)
+
         finally:
             shutil.rmtree(temp_dir)
 
