@@ -1074,10 +1074,11 @@ def _parse_arguments(desc, args):
     parser = argparse.ArgumentParser(description=desc,
                                      formatter_class=Formatter)
 
-    subparsers = parser.add_subparsers(dest='command', required=True,
+    subparsers = parser.add_subparsers(dest='command',
                                        help='Command to run. '
                                             'Type <command> -h for '
                                             'more help')
+    subparsers.required = True
 
     NetworkAttributeSetter.add_subparser(subparsers)
     CopyNetwork.add_subparser(subparsers)

@@ -2,6 +2,11 @@
 History
 =======
 
+0.8.1 2019-11-15
+------------------
+
+* Fixed bug where **ndexmisctools.py** failed to run due to argparse bug in Python versions below 3.7
+
 0.8.0 2019-11-15
 ------------------
 
