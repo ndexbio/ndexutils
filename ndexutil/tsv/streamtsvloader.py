@@ -18,6 +18,7 @@ class CXStreamWriter:
     def __init__(self, f):
         """
         Constructor
+
         :param f: Output stream
         """
         self._outputstream = f
@@ -29,7 +30,9 @@ class CXStreamWriter:
     def write_pre_metadata(self, metadata):
         """
         Writes the pre meta data aspect
-        :param metadata:
+
+        :param metadata: one or more dicts containing metadata
+        :type metadata: list
         :raises NdexUtilError: if write_aspect_fragment or
                                write_post_metadata has already been called or
                                if output stream set in constructor is None
@@ -50,10 +53,12 @@ class CXStreamWriter:
     def write_aspect_fragment(self, fragment):
         """
         Writes aspect fragment.
-        If the fragment have values of type list_of_double,
-        list_of_boolean, list_of_long or list_of_integer
+        If the fragment have values of type 'list_of_double',
+        'list_of_boolean', 'list_of_long' or 'list_of_integer'
         the values in the list need to be quoted
-        :param fragment: Fragment as list or dict to convert to JSON via json.dump
+
+        :param fragment: Fragment as list or dict to convert to JSON via :py:func:`json.dump`
+        :type fragment: list or dict
         :raises NdexUtilError: if write_pre_metadata has not been called first
         :return: None
         """
@@ -67,6 +72,7 @@ class CXStreamWriter:
         """
         Writes the post meta data aspect. Once this is called this object
         can no longer be used cause all methods will raise an error.
+
         :param metadata:
         :return:
         """
@@ -93,12 +99,14 @@ class StreamTSVLoaderFactory(object):
     def get_tsv_streamloader(self, loading_plan_file, style_cx):
         """
         Creates :py:class:`~StreamTSVLoader` object
+
         :param loading_plan_file: Path to loading plan file
+        :type loading_plan_file: str
         :param style_cx: object containing a style 'cyVisualProperties' as
                          an opaque aspect
         :type style_cx: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
         :return: object to load TSV stream
-        :rtype :py:class:`~StreamTSVLoader`
+        :rtype: :py:class:`~StreamTSVLoader`
         """
         return StreamTSVLoader(loading_plan_file, style_cx)
 
@@ -161,18 +169,21 @@ class StreamTSVLoader(object):
         the attributes in the networkAttributes parameter need to be in the format
         of cx. eg: quoted values in list.
 
-        NOTE: If @context is passed into 'network_attributes' parameter it will be used
-              instead of any value in the load plan and a warning level message will
-              be emitted to the logger.
+        NOTE: If **@context** is passed into 'network_attributes' parameter it will be used
+        instead of any value in the load plan and a warning level message will
+        be emitted to the logger.
 
-        :param tsv_file_discriptor:
-        :param output_file_descriptor:
+        :param tsv_file_discriptor: input stream/descriptor that supports read and readline calls
+        :type tsv_file_discriptor: stream
+        :param output_file_descriptor: output stream/descriptor that supports write calls
+        :type output_file_descriptor: stream
         :param network_attributes: should be a list of dicts() following CX spec for
                                    network attributes so each dict() should look like
                                    this: {'n': '<NAME>', 'v': '<VALUE>', 'd': '<TYPE>'}
                                    where 'd':... is assumed to 'string' if omitted
         :type network_attributes: list
-        :param batchsize:
+        :param batchsize: Number of rows to process before writing to 'output_file_descriptor'
+        :type batchsize: int
         :return:
         """
         # initialize the environment
