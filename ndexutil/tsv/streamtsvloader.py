@@ -161,9 +161,17 @@ class StreamTSVLoader(object):
         the attributes in the networkAttributes parameter need to be in the format
         of cx. eg: quoted values in list.
 
+        NOTE: If @context is passed into 'network_attributes' parameter it will be used
+              instead of any value in the load plan and a warning level message will
+              be emitted to the logger.
+
         :param tsv_file_discriptor:
         :param output_file_descriptor:
-        :param network_attributes:
+        :param network_attributes: should be a list of dicts() following CX spec for
+                                   network attributes so each dict() should look like
+                                   this: {'n': '<NAME>', 'v': '<VALUE>', 'd': '<TYPE>'}
+                                   where 'd':... is assumed to 'string' if omitted
+        :type network_attributes: list
         :param batchsize:
         :return:
         """
