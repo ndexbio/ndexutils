@@ -7,17 +7,17 @@ ndexutil
 **Warning: This repository is for development and features may change.
 Please use this at your own risk.**
 
-.. image:: https://img.shields.io/pypi/v/ndexutils.svg
-        :target: https://pypi.python.org/pypi/ndexutils
+.. image:: https://img.shields.io/pypi/v/ndexutil.svg
+        :target: https://pypi.python.org/pypi/ndexutil
 
-.. image:: https://img.shields.io/travis/ndexbio/ndexutils.svg
-        :target: https://travis-ci.org/ndexbio/ndexutils
+.. image:: https://img.shields.io/travis/ndexbio/ndexutil.svg
+        :target: https://travis-ci.org/ndexbio/ndexutil
 
 .. image:: https://coveralls.io/repos/github/ndexbio/ndexutils/badge.svg?branch=master
         :target: https://coveralls.io/github/ndexbio/ndexutils?branch=master
 
 .. image:: https://readthedocs.org/projects/ndexutils/badge/?version=latest
-        :target: https://ndexutils.readthedocs.io/en/latest/?badge=latest
+        :target: https://ndexutil.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
 Dependencies
