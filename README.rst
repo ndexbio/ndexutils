@@ -140,16 +140,16 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 * **tsvloader** - Loads TSV files as networks into `NDEx`_
 
 The **tsvloader** command loads an edge list file in tab separated format (hence TSV) and using a load plan, loads that data as a network into `NDEx <https://ndexbio.org>`_.
-This tool attempts to mimic behavior of the older `tsv_uploader.py` script located here: https://github.com/ndexbio/load-content
+This tool attempts to mimic behavior of the older ``tsv_uploader.py`` script located here: https://github.com/ndexbio/load-content
 This new version uses the more memory efficient StreamTSVLoader.
 
 This command requires five positional parameters.
-The first three (`username`, `password`, and `server`) are credentials for
+The first three (``username`, ``password``, and ``server``) are credentials for
 `NDEx`_ server to upload the network.
 
 Any of these first three credential fields set to **'-'** will
-force this tool to obtain the information from (default `~/.ndexutils.conf`) configuration file
-under the profile specified by the `--profile` field in this format:
+force this tool to obtain the information from (default ``~/.ndexutils.conf``) configuration file
+under the profile specified by the ``--profile`` field in this format:
 
 .. code-block::
 
@@ -158,7 +158,7 @@ under the profile specified by the `--profile` field in this format:
     password = <NDEx password>
     server = <NDEx server ie public.ndexbio.org>
 
-The forth positional parameter `tsv_file` (see _`TSV Loader` section below) should be
+The forth positional parameter ``tsv_file`` (see _`TSV Loader` section below) should be
 set to edge list file in tab separated format and the
 fifth or last positional parameter (load_plan) should be
 set to the load plan. The load plan is a JSON formatted text
@@ -166,11 +166,11 @@ file that maps the columns to nodes, edges, and attributes
 in the network.
 
 By default this tool does not generate much output to
-standard out/error. For more verbosity add three to five `-v` parameters
+standard out/error. For more verbosity add three to five ``-v`` parameters
 to left of command name **tsvloader** as seen in examples below.
 
 
-In example below the `- - -` tells the program to read the credentials
+In example below the ``- - -`` tells the program to read the credentials
 from the configuration file
 
 .. code-block::
@@ -178,8 +178,8 @@ from the configuration file
     ndexmisctools.py -vvvv tsvloader - - - datafile.tsv load.plan
 
 Here is an example where the name and description of the network is set
-and the `-t` specifies a template network used to get style and in this case
-since `--copyattribs` is set the network attributes (minus `@context`) are
+and the ``-t`` specifies a template network used to get style and in this case
+since ``--copyattribs`` is set the network attributes (minus ``@context``) are
 also copied to the new network
 
 .. code-block::
@@ -190,9 +190,9 @@ also copied to the new network
                      --name mynetwork --description 'some text' --copyattribs
 
 
-In this example an alternate header is prepended via the `--header` flag.
+In this example an alternate header is prepended via the ``--header`` flag.
 
-**NOTE:** The `--header` flag does **NOT** remove an existing header
+**NOTE:** The ``--header`` flag does **NOT** remove an existing header
 
 .. code-block::
 
@@ -202,7 +202,7 @@ In this example an alternate header is prepended via the `--header` flag.
                      -t some_cx_file.cx \
                      -u 48a26aa0-0677-11ea-93e0-525400c25d22
 
-If successful 0 is returned otherwise there was an error.
+If successful ``0`` is returned otherwise there was an error.
 
 .. _TSV_Loader:
 
