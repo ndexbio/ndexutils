@@ -74,7 +74,7 @@ setup(
     packages=find_packages(exclude=[]),
     data_files=[('schema', ['ndexutil/tsv/loading_plan_schema.json'])],
     install_requires = [
-        'ndex2>=3.3.0,<=4.0.0',
+        'ndex2>=3.3.0,<4.0.0',
         'requests',
         'requests_toolbelt',
         'networkx',

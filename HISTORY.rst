@@ -2,6 +2,18 @@
 History
 =======
 
+0.8.1 2019-11-15
+------------------
+
+* Fixed bug where **ndexmisctools.py** failed to run due to argparse bug in Python versions below 3.7
+
+0.8.0 2019-11-15
+------------------
+
+* Fixed bug in StreamTSVLoader where 2 \@context network attributes were added to network if \@context was set in load plan and \@context was passed in the network attributes parameter for `write_cx_network()`
+
+* Added new command to **ndexmisctools.py** named *tsvloader* that lets caller load TSV files as networks into NDEx
+
 0.7.0 2019-09-11
 -----------------
 
