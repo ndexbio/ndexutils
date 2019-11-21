@@ -225,6 +225,11 @@ class NetworkAttributeSetter(object):
             new_attribs.append(newentry)
         return new_attribs
 
+    def _change_attribute_type(self, net_attribs):
+        for entry in net_attribs:
+            if entry['n'] == self._args.name:
+                entry['d'] = self._args.type
+
     def run(self):
         """
         Connects to NDEx server, gets network attributes for network
@@ -255,18 +260,25 @@ class NetworkAttributeSetter(object):
         # remove name description summary
         self._remove_name_description_summary(net_attribs)
 
-        # remove existing attribute if found
-        self._remove_existing_attribute(net_attribs)
+        # Change attribute type only
+        if self._args.typeonly:
+            self._change_attribute_type(net_attribs)
+            
+            new_attribs =\
+                self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+        else:
+            # remove existing attribute if found
+            self._remove_existing_attribute(net_attribs)
 
-        new_attribs =\
-            self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+            new_attribs =\
+                self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
 
-        if self._args.value is not None:
-            new_entry = {'predicateString': self._args.name}
-            if self._args.type != 'string':
-                new_entry['dataType'] = self._args.type
-            new_entry['value'] = self._args.value
-            new_attribs.append(new_entry)
+            if self._args.value is not None:
+                new_entry = {'predicateString': self._args.name}
+                if self._args.type != 'string':
+                    new_entry['dataType'] = self._args.type
+                new_entry['value'] = self._args.value
+                new_attribs.append(new_entry)
 
         logger.debug(str(new_attribs))
         res = client.set_network_properties(self._args.uuid, new_attribs)
@@ -324,6 +336,9 @@ class NetworkAttributeSetter(object):
                                  'If --type is list.. then quote and escape '
                                  'list like so: '
                                  '"[\\"pathway\\",\\"interactome\\"]"')
+        parser.add_argument('--typeonly', default=False, action='store_true',
+                            help='If set, only the type of the attribute will '
+                                 'be updated, and the value will not be changed')
         return parser
 
 
