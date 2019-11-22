@@ -263,7 +263,7 @@ class NetworkAttributeSetter(object):
         # Change attribute type only
         if self._args.typeonly:
             self._change_attribute_type(net_attribs)
-            
+
             new_attribs =\
                 self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
         else:
@@ -1081,6 +1081,132 @@ class TSVLoader(object):
                             help='If set, CX will be written to this file')
         return parser
 
+class NetworkDeleter(object):
+    """
+    Deletes network or network set in NDEx
+    """
+    COMMAND = 'deletenetwork'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.uuid
+        """
+        self._args = theargs
+        self._user = None
+        self._pass = None
+        self._server = None
+        self._client = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def _delete_network(self, uuid):
+        return self._client.delete_network(uuid)
+
+    def _delete_networkset(self, uuid):
+        info = self._client.get_networkset(uuid)
+        errors = {}
+        for network in info['networks']:
+            return_string = self._client.delete_network(network)
+            if return_string != '':
+                errors[network] = return_string
+        return errors
+
+    def run(self):
+        """
+        Connects to NDEx server, deletes network(s) specified by --uuid
+        or by --networkset
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+
+        self._parse_config()
+        self._client = self._get_client()
+
+        # Delete networks
+        network_return_string = ''
+        errors = {}
+        if self._args.uuid:
+            network_return_string = self._delete_network(self._args.uuid)
+        if self._args.networkset:
+            errors = self._delete_networkset(self._args.networkset)
+
+        # Handle errors
+        if network_return_string != '':
+            errors[self._args.uuid] = network_return_string
+
+        if len(errors) > 0:
+            error_string = ''
+            for uuid, error in errors.values():
+                error_string = error_string + 'Received error status when ' +\
+                               'deleting network ' + uuid + ': ' + error + '\n'
+            raise NDExUtilError(error_string)
+        
+        return 1
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        Adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command updates network attributes on a network
+        specified by --uuid with values set in --name, --type, and --value
+
+        NOTE: Currently only 1 attribute can be updated at a time. Invoke
+              multiple times to update several attributes at once.
+
+        BIGPROBLEM: Due to issues on server
+                    (we would need to make different call)
+                    the network attributes name, version, and description
+                    CANNOT be updated by this call and will currently
+                    return an error
+
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=NetworkDeleter.COMMAND)
+
+        parser = subparsers.add_parser(NetworkDeleter.COMMAND,
+                                       help='Deletes networks and networksets',
+                                       description=desc,
+                                       formatter_class=Formatter)
+        parser.add_argument('--uuid',
+                            default=None,
+                            help='The UUID of the network in NDEx to delete')
+        parser.add_argument('--networkset',
+                            default=None,
+                            help='The UUID of the network set in NDEx to '
+                            'delete. Note that this will delete all the '
+                            'networks in the network set but not the network '
+                            'set itself')
+        return parser
 
 def _parse_arguments(desc, args):
     """Parses command line arguments using argparse.
@@ -1099,6 +1225,7 @@ def _parse_arguments(desc, args):
     CopyNetwork.add_subparser(subparsers)
     UpdateNetworkSystemProperties.add_subparser(subparsers)
     TSVLoader.add_subparser(subparsers)
+    NetworkDeleter.add_subparser(subparsers)
 
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity of logger to standard '
@@ -1174,6 +1301,8 @@ def main(arglist):
             cmd = UpdateNetworkSystemProperties(theargs)
         if theargs.command == TSVLoader.COMMAND:
             cmd = TSVLoader(theargs)
+        if theargs.command == NetworkDeleter.COMMAND:
+            cmd = NetworkDeleter(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
