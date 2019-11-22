@@ -354,10 +354,15 @@ class StyleUpdator(object):
         :param theargs: command line arguments ie theargs.name theargs.type
         """
         self._args = theargs
+
         self._user = None
         self._pass = None
         self._server = None
         self._client = None
+
+        self._count = None
+        self._style = None
+        self._old_to_new = None
 
     def _parse_config(self):
         """
@@ -381,30 +386,12 @@ class StyleUpdator(object):
         """
         return Ndex2(self._server, self._user, self._pass)
 
-    def _get_networks_from_networkset(self, uuid):
-        info = self._client.get_networkset(uuid)
-        return info['networks']
-
     def _get_style_file(self, file):
         return ndex2.create_nice_cx_from_file(file)
 
-    def _apply_style_from_file(self, network_uuid, style):
-        network = self._get_network(network_uuid)
-        network.apply_style_from_network(style)
-        self._update_network(network_uuid, network)
-
-    def _update_network(self, network_uuid, network):
-        self._client.update_cx_network(network.to_cx_stream(), network_uuid)
-
-    def _apply_style_from_uuid(self, network_uuid, uuid):
-        network = self._get_network(network_uuid)
-        network.apply_template(
-            server=self._server,
-            username=self._user,
-            password=self._pass,
-            uuid=uuid
-        )
-        self._update_network(network_uuid, network)
+    def _get_networks_from_networkset(self, uuid):
+        info = self._client.get_networkset(uuid)
+        return info['networks']
 
     def _get_network(self, uuid):
         return ndex2.create_nice_cx_from_server(
@@ -413,6 +400,104 @@ class StyleUpdator(object):
             password=self._pass,
             uuid=uuid
         )
+
+    def _get_network_visibility(self, uuid):
+        return self._client.get_network_summary(uuid)['visibility']
+
+    def _get_network_and_visibility(self, uuid):
+        return self._get_network(uuid), self._get_network_visibility(uuid)
+    
+    def _create_new_network(self, old_uuid, network, visibility):
+        uri = self._client.save_new_network(network.to_cx(), visibility)
+        new_uuid = self._get_id_from_uri(uri)
+        self._old_to_new[old_uuid] = new_uuid
+
+    def _apply_style_from_file_to_new_network(self, uuid):
+        network, visibility = self._get_network_and_visibility(uuid)
+        network.apply_style_from_network(self._style)
+        self._create_new_network(uuid, network, visibility)
+        self._count += 1
+
+    def _apply_style_from_uuid_to_new_network(self, uuid):
+        network, visibility = self._get_network_and_visibility(uuid)
+        network.apply_template(
+            server=self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+        self._create_new_network(uuid, network, visibility)
+        self._count += 1
+
+    def _apply_style_from_file_to_original_network(self, uuid):
+        network = self._get_network(uuid)
+        network.apply_style_from_network(self._style)
+        self._client.update_cx_network(network.to_cx_stream(), uuid)
+        self._count += 1
+
+    def _apply_style_from_uuid_to_original_network(self, uuid):
+        network = self._get_network(uuid)
+        network.apply_template(
+            server=self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+        self._client.update_cx_network(network.to_cx_stream(), uuid)
+        self._count += 1
+
+    def _get_id_from_uri(self, uri):
+        return uri.split('/')[-1]
+
+    def _copy_networkset(self, networkset_uuid):
+        # Make new network set
+        info = self._client.get_networkset(networkset_uuid)
+        name = info['name']
+        description = info['description']
+
+        # Make sure network set name is unique
+        copy_number = 0
+        done = False
+        while not done:
+            try:
+                if copy_number == 0:
+                    copy_string = ''
+                else:
+                    copy_string = ' (' + str(copy_number) + ')'
+                uri = self._client.create_networkset(
+                    'Copy of ' + name + copy_string, 
+                    description)
+                done = True
+            except HTTPError as e:
+                copy_number += 1
+
+        # Copy put new networks in new network set
+        networkset_id = self._get_id_from_uri(uri)
+        networks = list(self._old_to_new.values())
+        self._client.add_networks_to_networkset(networkset_id, networks)
+        
+        return networkset_id
+
+    def _get_new_uuid_string(self, old_uuid, new_uuid):
+        return ('Network with uuid {old_uuid} was copied to network with '
+               'uuid {new_uuid}').format(
+                   old_uuid=old_uuid, 
+                   new_uuid=new_uuid)
+
+    def _print_new_networkset_uuids(self, old_networkset_id, new_networkset_id):
+        old_name = self._client.get_networkset(old_networkset_id)['name']
+        new_name = self._client.get_networkset(new_networkset_id)['name']
+        print_string = ('\nNetworks in old networkset "{old_name}" ({old_uuid}) '
+                       'have been copied to new networkset "{new_name}" '
+                       '({new_uuid}) with new style:').format(
+                           old_name=old_name, 
+                           old_uuid=old_networkset_id,
+                           new_name=new_name,
+                           new_uuid=new_networkset_id)
+        for old_network, new_network in self._old_to_new.items():
+            print_string += '\n\t' + self._get_new_uuid_string(
+                                        old_network, new_network)
+        print(print_string + '\n')
 
     def run(self):
         """
@@ -435,25 +520,51 @@ class StyleUpdator(object):
         if self._args.stylefile is None and self._args.styleuuid is None:
             raise NDExUtilError('Either --stylefile or --styleuuid must be '
                                 'specified')
+        if self._args.stylefile is not None and self._args.styleuuid is not None:
+            raise NDExUtilError('Only one of --stylefile or --styleuuid may be'
+                                'specified')
 
-        # Get list of networks
-        network_list = []
-        if self._args.uuid is not None:
-            network_list.append(self._args.uuid)
-        if self._args.networkset is not None:
-            network_list += self._get_networks_from_networkset(self._args.networkset)
+        # Set up counter
+        self._count = 0
 
-        # Apply style to each network
+        # Find function to use
         if self._args.stylefile:
-            style = self._get_style_file(self._args.stylefile)
-            for network_uuid in network_list:
-                self._apply_style_from_file(network_uuid, style)
+            self._style = self._get_style_file(self._args.stylefile)
+            if self._args.newcopy:
+                self._old_to_new = {}
+                style_function = self._apply_style_from_file_to_new_network
+            else:
+                style_function = self._apply_style_from_file_to_original_network
         else:
-            for network_uuid in network_list:
-                self._apply_style_from_uuid(network_uuid, self._args.styleuuid)
+            if self._args.newcopy:
+                self._old_to_new = {}
+                style_function = self._apply_style_from_uuid_to_new_network
+            else:
+                style_function = self._apply_style_from_uuid_to_original_network
 
-        return 1
+        # Apply style
+        if self._args.networkset is not None:
+            uuids = self._get_networks_from_networkset(self._args.networkset)
+            for uuid in uuids:
+                style_function(uuid)
+            if self._args.newcopy:
+                # Make new networkset
+                networkset_uuid = self._copy_networkset(self._args.networkset)
+                # Print new uuids
+                self._print_new_networkset_uuids(
+                    self._args.networkset,
+                    networkset_uuid
+                )
 
+        if self._args.uuid is not None:
+            style_function(self._args.uuid)
+            if self._args.newcopy:
+                print('\n' + self._get_new_uuid_string(
+                    self._args.uuid, 
+                    self._old_to_new[self._args.uuid]) + '\n')
+        
+        return self._count
+        
     @staticmethod
     def add_subparser(subparsers):
         """
@@ -496,6 +607,12 @@ class StyleUpdator(object):
                             default=None,
                             help='The path to a cx file whose style should be '
                             'applied to the other networks')
+        parser.add_argument('--newcopy',
+                            default=False,
+                            action='store_true',
+                            help='If set, a new copy of each network or '
+                            'network set will be made, and the original '
+                            'or network set will not be changed')
         return parser
 
 class UpdateNetworkSystemProperties(object):
