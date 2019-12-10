@@ -2,6 +2,13 @@
 History
 =======
 
+0.9.0 2019-12-10
+------------------
+
+* Added *--typeonly* flag to *networkattribupdate* command in **ndexmisctools.py** that lets caller just update the datatype for a given network attribute
+
+* Added new command to **ndexmisctools.py** named *deletenetwork* that lets caller delete a network from NDEx or delete all networks in a given networkset
+
 0.8.1 2019-11-15
 ------------------
 
