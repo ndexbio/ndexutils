@@ -1370,7 +1370,7 @@ class NetworkDeleter(object):
                                'deleting network ' + uuid + ': ' + error + '\n'
             raise NDExUtilError(error_string)
         
-        return 1
+        return 0
 
     @staticmethod
     def add_subparser(subparsers):
@@ -1383,8 +1383,12 @@ class NetworkDeleter(object):
 
         Version {version}
 
-        The {cmd} command deletes the network specified by --uuid, or every 
-        network in the network set specified by --networkset
+        The {cmd} command deletes the network specified by --uuid or every 
+        network in the network set specified by --networkset. 
+        
+        NOTE: --uuid and --networkset can both be set in a single call
+        
+        Return 0 upon success otherwise failure. 
 
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
@@ -1406,6 +1410,7 @@ class NetworkDeleter(object):
                             'networks in the network set but not the network '
                             'set itself')
         return parser
+
 
 def _parse_arguments(desc, args):
     """Parses command line arguments using argparse.
