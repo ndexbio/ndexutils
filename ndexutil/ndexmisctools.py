@@ -230,6 +230,24 @@ class NetworkAttributeSetter(object):
             if entry['n'] == self._args.name:
                 entry['d'] = self._args.type
 
+    def _get_value(self, the_type, value):
+        """
+        Converts the value based on 'the_type' passed in
+
+        :param the_type: type of value
+        :type the_type: str
+        :param value:
+        :return:
+        """
+        import ast
+        if the_type == 'double':
+            return float(value)
+        if the_type == 'long' or the_type == 'integer':
+            return int(value)
+        if the_type == 'boolean':
+            return bool(value)
+        return value
+
     def run(self):
         """
         Connects to NDEx server, gets network attributes for network
@@ -262,6 +280,10 @@ class NetworkAttributeSetter(object):
 
         # Change attribute type only
         if self._args.typeonly:
+            if self._args.value is not None:
+                logger.warning('Ignoring --value ' +
+                               str(self._args.value) +
+                               ' since --typeonly flag is set')
             self._change_attribute_type(net_attribs)
 
             new_attribs =\
@@ -275,14 +297,18 @@ class NetworkAttributeSetter(object):
 
             if self._args.value is not None:
                 new_entry = {'predicateString': self._args.name}
-                if self._args.type != 'string':
-                    new_entry['dataType'] = self._args.type
-                new_entry['value'] = self._args.value
+                new_entry['dataType'] = self._args.type
+
+                # depending of value of type need to case
+                # resulting data appropriately
+                new_entry['value'] = self._get_value(self._args.type,
+                                                     self._args.value)
+
                 new_attribs.append(new_entry)
 
         logger.debug(str(new_attribs))
-        res = client.set_network_properties(self._args.uuid, new_attribs)
-        return res
+        client.set_network_properties(self._args.uuid, new_attribs)
+        return 0
 
     @staticmethod
     def add_subparser(subparsers):
@@ -307,6 +333,25 @@ class NetworkAttributeSetter(object):
                     CANNOT be updated by this call and will currently
                     return an error
 
+        To set the --value with list data follow these rules:
+        
+         If --type is 'list_of_string', use brackets and quote each
+         value like so:
+          
+           "[\\"pathway\\",\\"interactome\\"]"
+          
+         If --type is 'list_of_integer|double|boolean' then use brackets
+         and list elements as follows:
+         
+           "[1, 2, 3]"
+           
+         If --type is 'list_of_boolean' then use brackets and
+         enter 'true' and 'false' (MUST BE LOWER CASE)
+         
+           "[true, false, true]"
+ 
+        Returns 0 upon success otherwise error.
+
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
 
@@ -319,26 +364,28 @@ class NetworkAttributeSetter(object):
                                        formatter_class=Formatter)
 
         parser.add_argument('--uuid',
-                            help='The UUID of network in NDEx to update')
+                            help='The UUID of network in NDEx to update',
+                            required=True)
         parser.add_argument('--name',
-                            help='Name of attribute')
+                            help='Name of attribute',
+                            required=True)
         parser.add_argument('--type',
-                            help='Type of attribute (default string),'
-                                 'can be one of following'
-                                 'https://ndex2.readthedocs.io/en/'
-                                 'latest/ndex2.html?highlight='
-                                 'list_of_string#supported-'
-                                 'data-types',
+                            choices=['string', 'double', 'boolean',
+                                     'integer', 'long', 'list_of_integer',
+                                     'list_of_long', 'list_of_double',
+                                     'list_of_boolean',
+                                     'list_of_string'],
+                            help='Type of attribute',
                             default='string')
         parser.add_argument('--value',
                             help='Value of attribute, if unset then '
-                                 'attribute is removed. NOTE: '
-                                 'If --type is list.. then quote and escape '
-                                 'list like so: '
-                                 '"[\\"pathway\\",\\"interactome\\"]"')
+                                 'attribute is removed, unless --typeonly '
+                                 'is set. See help above for how to pass '
+                                 'a list of data')
         parser.add_argument('--typeonly', default=False, action='store_true',
                             help='If set, only the type of the attribute will '
-                                 'be updated, and the value will not be changed')
+                                 'be updated, and the value will not be '
+                                 'changed')
         return parser
 
 
@@ -614,6 +661,7 @@ class StyleUpdator(object):
                             'network set will be made, and the original '
                             'or network set will not be changed')
         return parser
+
 
 class UpdateNetworkSystemProperties(object):
     """
