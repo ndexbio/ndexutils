@@ -610,7 +610,7 @@ class StyleUpdator(object):
                     self._args.uuid, 
                     self._old_to_new[self._args.uuid]) + '\n')
         
-        return self._count
+        return 0
         
     @staticmethod
     def add_subparser(subparsers):
@@ -1288,6 +1288,7 @@ class TSVLoader(object):
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
         return parser
+
 
 class NetworkDeleter(object):
     """
