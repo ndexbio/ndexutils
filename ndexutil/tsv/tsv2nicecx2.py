@@ -214,15 +214,9 @@ def create_node(row, node_plan, nice_cx_builder, node_lookup):
         node_plan['node_name_column'] = node_name_split[0]
         node_name_type = node_name_split[1]
 
-    #=======================================
-    # IF NO REP_COLUMN USE NODE NAME COLUMN
-    #=======================================
     if not node_plan.get('rep_column'):
-        node_plan['rep_column'] = node_plan['node_name_column']
-        use_name_as_id = True
-
-    if use_name_as_id and node_plan.get('rep_prefix'):
-        raise RuntimeError("Id column needs to be defined if id_prefix is defined in your query plan.")
+        if node_plan.get('rep_prefix'):
+            raise RuntimeError("Id column needs to be defined if id_prefix is defined in your query plan.")
 
     node_name = row[node_plan['node_name_column']]
     ext_id = row[node_plan['rep_column']]
@@ -234,15 +228,11 @@ def create_node(row, node_plan, nice_cx_builder, node_lookup):
     # NAME  |  EXT ID  | ACTION
     #----------------------------------------
     # VALID |  VALID   | NORMAL
-    # VALID |  None    | SUB NAME FOR EXT ID
-    # None  |  VALID   | SUB EXT ID FOR NAME
+    # VALID |  None    | NORMAL
+    # None  |  VALID   | NORMAL
     # None  |  None    | SKIP ROW
     #========================================
-    if node_name and not ext_id:
-        ext_id = node_name
-    elif not node_name and ext_id:
-        node_name = ext_id
-    elif not node_name and not ext_id:
+    if not node_name and not ext_id:
         print('No node name or ext id.  Skipping this node (%s)' % node_plan['node_name_column'])
         return None
 

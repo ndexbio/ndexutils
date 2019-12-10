@@ -225,6 +225,11 @@ class NetworkAttributeSetter(object):
             new_attribs.append(newentry)
         return new_attribs
 
+    def _change_attribute_type(self, net_attribs):
+        for entry in net_attribs:
+            if entry['n'] == self._args.name:
+                entry['d'] = self._args.type
+
     def run(self):
         """
         Connects to NDEx server, gets network attributes for network
@@ -255,18 +260,25 @@ class NetworkAttributeSetter(object):
         # remove name description summary
         self._remove_name_description_summary(net_attribs)
 
-        # remove existing attribute if found
-        self._remove_existing_attribute(net_attribs)
+        # Change attribute type only
+        if self._args.typeonly:
+            self._change_attribute_type(net_attribs)
 
-        new_attribs =\
-            self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+            new_attribs =\
+                self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+        else:
+            # remove existing attribute if found
+            self._remove_existing_attribute(net_attribs)
 
-        if self._args.value is not None:
-            new_entry = {'predicateString': self._args.name}
-            if self._args.type != 'string':
-                new_entry['dataType'] = self._args.type
-            new_entry['value'] = self._args.value
-            new_attribs.append(new_entry)
+            new_attribs =\
+                self._convert_attributes_to_ndexpropertyvaluepair(net_attribs)
+
+            if self._args.value is not None:
+                new_entry = {'predicateString': self._args.name}
+                if self._args.type != 'string':
+                    new_entry['dataType'] = self._args.type
+                new_entry['value'] = self._args.value
+                new_attribs.append(new_entry)
 
         logger.debug(str(new_attribs))
         res = client.set_network_properties(self._args.uuid, new_attribs)
@@ -324,6 +336,9 @@ class NetworkAttributeSetter(object):
                                  'If --type is list.. then quote and escape '
                                  'list like so: '
                                  '"[\\"pathway\\",\\"interactome\\"]"')
+        parser.add_argument('--typeonly', default=False, action='store_true',
+                            help='If set, only the type of the attribute will '
+                                 'be updated, and the value will not be changed')
         return parser
 
 
@@ -339,9 +354,15 @@ class StyleUpdator(object):
         :param theargs: command line arguments ie theargs.name theargs.type
         """
         self._args = theargs
+
         self._user = None
         self._pass = None
         self._server = None
+        self._client = None
+
+        self._count = None
+        self._style = None
+        self._old_to_new = None
 
     def _parse_config(self):
         """
@@ -365,6 +386,119 @@ class StyleUpdator(object):
         """
         return Ndex2(self._server, self._user, self._pass)
 
+    def _get_style_file(self, file):
+        return ndex2.create_nice_cx_from_file(file)
+
+    def _get_networks_from_networkset(self, uuid):
+        info = self._client.get_networkset(uuid)
+        return info['networks']
+
+    def _get_network(self, uuid):
+        return ndex2.create_nice_cx_from_server(
+            self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+
+    def _get_network_visibility(self, uuid):
+        return self._client.get_network_summary(uuid)['visibility']
+
+    def _get_network_and_visibility(self, uuid):
+        return self._get_network(uuid), self._get_network_visibility(uuid)
+    
+    def _create_new_network(self, old_uuid, network, visibility):
+        uri = self._client.save_new_network(network.to_cx(), visibility)
+        new_uuid = self._get_id_from_uri(uri)
+        self._old_to_new[old_uuid] = new_uuid
+
+    def _apply_style_from_file_to_new_network(self, uuid):
+        network, visibility = self._get_network_and_visibility(uuid)
+        network.apply_style_from_network(self._style)
+        self._create_new_network(uuid, network, visibility)
+        self._count += 1
+
+    def _apply_style_from_uuid_to_new_network(self, uuid):
+        network, visibility = self._get_network_and_visibility(uuid)
+        network.apply_template(
+            server=self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+        self._create_new_network(uuid, network, visibility)
+        self._count += 1
+
+    def _apply_style_from_file_to_original_network(self, uuid):
+        network = self._get_network(uuid)
+        network.apply_style_from_network(self._style)
+        self._client.update_cx_network(network.to_cx_stream(), uuid)
+        self._count += 1
+
+    def _apply_style_from_uuid_to_original_network(self, uuid):
+        network = self._get_network(uuid)
+        network.apply_template(
+            server=self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+        self._client.update_cx_network(network.to_cx_stream(), uuid)
+        self._count += 1
+
+    def _get_id_from_uri(self, uri):
+        return uri.split('/')[-1]
+
+    def _copy_networkset(self, networkset_uuid):
+        # Make new network set
+        info = self._client.get_networkset(networkset_uuid)
+        name = info['name']
+        description = info['description']
+
+        # Make sure network set name is unique
+        copy_number = 0
+        done = False
+        while not done:
+            try:
+                if copy_number == 0:
+                    copy_string = ''
+                else:
+                    copy_string = ' (' + str(copy_number) + ')'
+                uri = self._client.create_networkset(
+                    'Copy of ' + name + copy_string, 
+                    description)
+                done = True
+            except HTTPError as e:
+                copy_number += 1
+
+        # Copy put new networks in new network set
+        networkset_id = self._get_id_from_uri(uri)
+        networks = list(self._old_to_new.values())
+        self._client.add_networks_to_networkset(networkset_id, networks)
+        
+        return networkset_id
+
+    def _get_new_uuid_string(self, old_uuid, new_uuid):
+        return ('Network with uuid {old_uuid} was copied to network with '
+               'uuid {new_uuid}').format(
+                   old_uuid=old_uuid, 
+                   new_uuid=new_uuid)
+
+    def _print_new_networkset_uuids(self, old_networkset_id, new_networkset_id):
+        old_name = self._client.get_networkset(old_networkset_id)['name']
+        new_name = self._client.get_networkset(new_networkset_id)['name']
+        print_string = ('\nNetworks in old networkset "{old_name}" ({old_uuid}) '
+                       'have been copied to new networkset "{new_name}" '
+                       '({new_uuid}) with new style:').format(
+                           old_name=old_name, 
+                           old_uuid=old_networkset_id,
+                           new_name=new_name,
+                           new_uuid=new_networkset_id)
+        for old_network, new_network in self._old_to_new.items():
+            print_string += '\n\t' + self._get_new_uuid_string(
+                                        old_network, new_network)
+        print(print_string + '\n')
+
     def run(self):
         """
         Connects to NDEx server, downloads network(s) specified by --uuid
@@ -380,11 +514,57 @@ class StyleUpdator(object):
                        'AND MAY CONTAIN ERRORS')
 
         self._parse_config()
-        raise NDExUtilError('Does not work yet!!!!')
+        self._client = self._get_client()
 
-        self._get_client()
-        return 1
+        # Check arguments
+        if self._args.stylefile is None and self._args.styleuuid is None:
+            raise NDExUtilError('Either --stylefile or --styleuuid must be '
+                                'specified')
+        if self._args.stylefile is not None and self._args.styleuuid is not None:
+            raise NDExUtilError('Only one of --stylefile or --styleuuid may be'
+                                'specified')
 
+        # Set up counter
+        self._count = 0
+
+        # Find function to use
+        if self._args.stylefile:
+            self._style = self._get_style_file(self._args.stylefile)
+            if self._args.newcopy:
+                self._old_to_new = {}
+                style_function = self._apply_style_from_file_to_new_network
+            else:
+                style_function = self._apply_style_from_file_to_original_network
+        else:
+            if self._args.newcopy:
+                self._old_to_new = {}
+                style_function = self._apply_style_from_uuid_to_new_network
+            else:
+                style_function = self._apply_style_from_uuid_to_original_network
+
+        # Apply style
+        if self._args.networkset is not None:
+            uuids = self._get_networks_from_networkset(self._args.networkset)
+            for uuid in uuids:
+                style_function(uuid)
+            if self._args.newcopy:
+                # Make new networkset
+                networkset_uuid = self._copy_networkset(self._args.networkset)
+                # Print new uuids
+                self._print_new_networkset_uuids(
+                    self._args.networkset,
+                    networkset_uuid
+                )
+
+        if self._args.uuid is not None:
+            style_function(self._args.uuid)
+            if self._args.newcopy:
+                print('\n' + self._get_new_uuid_string(
+                    self._args.uuid, 
+                    self._old_to_new[self._args.uuid]) + '\n')
+        
+        return self._count
+        
     @staticmethod
     def add_subparser(subparsers):
         """
@@ -396,49 +576,44 @@ class StyleUpdator(object):
 
         Version {version}
 
-        The {cmd} command updates network attributes on a network
-        specified by --uuid with values set in --name, --type, and --value
-
-        NOTE: Currently only 1 attribute can be updated at a time. Invoke
-              multiple times to update several attributes at once.
-
-        BIGPROBLEM: Due to issues on server
-                    (we would need to make different call)
-                    the network attributes name, version, and description
-                    CANNOT be updated by this call and will currently
-                    return an error
+        The {cmd} command updates the style of a network or networks specified 
+        by --uuid or --networkset with the style specified by --style (this can 
+        be a file or a uuid)
 
         WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                  ERRORS. YOU HAVE BEEN WARNED.
 
         """.format(version=ndexutil.__version__,
-                   cmd=NetworkAttributeSetter.COMMAND)
+                   cmd=StyleUpdator.COMMAND)
 
-        parser = subparsers.add_parser(NetworkAttributeSetter.COMMAND,
+        parser = subparsers.add_parser(StyleUpdator.COMMAND,
                                        help='Updates network attributes',
                                        description=desc,
                                        formatter_class=Formatter)
 
         parser.add_argument('--uuid',
-                            help='The UUID of network in NDEx to update')
-        parser.add_argument('--name',
-                            help='Name of attribute')
-        parser.add_argument('--type',
-                            help='Type of attribute (default string),'
-                                 'can be one of following'
-                                 'https://ndex2.readthedocs.io/en/'
-                                 'latest/ndex2.html?highlight='
-                                 'list_of_string#supported-'
-                                 'data-types',
-                            default='string')
-        parser.add_argument('--value',
-                            help='Value of attribute, if unset then '
-                                 'attribute is removed. NOTE: '
-                                 'If --type is list.. then quote and escape '
-                                 'list like so: '
-                                 '"[\\"pathway\\",\\"interactome\\"]"')
+                            default=None,
+                            help='The UUID of the network in NDEx to apply the '
+                                 'new style to')
+        parser.add_argument('--networkset',
+                            default=None,
+                            help='The UUID of the network set in NDEx to apply '
+                                 'the new style to')
+        parser.add_argument('--styleuuid',
+                            default=None,
+                            help='The UUID of the network whose style should '
+                            'be applied to the other networks')
+        parser.add_argument('--stylefile',
+                            default=None,
+                            help='The path to a cx file whose style should be '
+                            'applied to the other networks')
+        parser.add_argument('--newcopy',
+                            default=False,
+                            action='store_true',
+                            help='If set, a new copy of each network or '
+                            'network set will be made, and the original '
+                            'or network set will not be changed')
         return parser
-
 
 class UpdateNetworkSystemProperties(object):
     """
@@ -1066,6 +1241,123 @@ class TSVLoader(object):
                             help='If set, CX will be written to this file')
         return parser
 
+class NetworkDeleter(object):
+    """
+    Deletes network or network set in NDEx
+    """
+    COMMAND = 'deletenetwork'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.uuid
+        """
+        self._args = theargs
+        self._user = None
+        self._pass = None
+        self._server = None
+        self._client = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def _delete_network(self, uuid):
+        return self._client.delete_network(uuid)
+
+    def _delete_networkset(self, uuid):
+        info = self._client.get_networkset(uuid)
+        errors = {}
+        for network in info['networks']:
+            return_string = self._client.delete_network(network)
+            if return_string != '':
+                errors[network] = return_string
+        return errors
+
+    def run(self):
+        """
+        Connects to NDEx server, deletes network(s) specified by --uuid
+        or by --networkset
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+
+        self._parse_config()
+        self._client = self._get_client()
+
+        # Delete networks
+        network_return_string = ''
+        errors = {}
+        if self._args.uuid:
+            network_return_string = self._delete_network(self._args.uuid)
+        if self._args.networkset:
+            errors = self._delete_networkset(self._args.networkset)
+
+        # Handle errors
+        if network_return_string != '':
+            errors[self._args.uuid] = network_return_string
+
+        if len(errors) > 0:
+            error_string = ''
+            for uuid, error in errors.values():
+                error_string = error_string + 'Received error status when ' +\
+                               'deleting network ' + uuid + ': ' + error + '\n'
+            raise NDExUtilError(error_string)
+        
+        return 1
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        Adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command deletes the network specified by --uuid, or every 
+        network in the network set specified by --networkset
+
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=NetworkDeleter.COMMAND)
+
+        parser = subparsers.add_parser(NetworkDeleter.COMMAND,
+                                       help='Deletes networks and networksets',
+                                       description=desc,
+                                       formatter_class=Formatter)
+        parser.add_argument('--uuid',
+                            default=None,
+                            help='The UUID of the network in NDEx to delete')
+        parser.add_argument('--networkset',
+                            default=None,
+                            help='The UUID of the network set in NDEx to '
+                            'delete. Note that this will delete all the '
+                            'networks in the network set but not the network '
+                            'set itself')
+        return parser
 
 def _parse_arguments(desc, args):
     """Parses command line arguments using argparse.
@@ -1084,6 +1376,8 @@ def _parse_arguments(desc, args):
     CopyNetwork.add_subparser(subparsers)
     UpdateNetworkSystemProperties.add_subparser(subparsers)
     TSVLoader.add_subparser(subparsers)
+    NetworkDeleter.add_subparser(subparsers)
+    StyleUpdator.add_subparser(subparsers)
 
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity of logger to standard '
@@ -1159,6 +1453,10 @@ def main(arglist):
             cmd = UpdateNetworkSystemProperties(theargs)
         if theargs.command == TSVLoader.COMMAND:
             cmd = TSVLoader(theargs)
+        if theargs.command == NetworkDeleter.COMMAND:
+            cmd = NetworkDeleter(theargs)
+        if theargs.command == StyleUpdator.COMMAND:
+            cmd = StyleUpdator(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
