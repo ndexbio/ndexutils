@@ -217,9 +217,15 @@ def create_node(row, node_plan, nice_cx_builder, node_lookup):
     if not node_plan.get('rep_column'):
         if node_plan.get('rep_prefix'):
             raise RuntimeError("Id column needs to be defined if id_prefix is defined in your query plan.")
-
-    node_name = row[node_plan['node_name_column']]
-    ext_id = row[node_plan['rep_column']]
+        
+    try:
+        node_name = row[node_plan['node_name_column']]
+    except:
+        node_name = None
+    try:
+        ext_id = row[node_plan['rep_column']]
+    except:
+        ext_id = None
 
     if ext_id and node_plan.get('rep_prefix'):
         ext_id = node_plan['rep_prefix'] + ":" + str(ext_id)
