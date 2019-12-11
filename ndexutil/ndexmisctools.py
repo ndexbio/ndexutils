@@ -386,8 +386,8 @@ class StyleUpdator(object):
         """
         return Ndex2(self._server, self._user, self._pass)
 
-    def _get_style_uuid(self, uuid):
-        return self._get_network(uuid)
+    def _get_style_file(self, file):
+        return ndex2.create_nice_cx_from_file(file)
 
     def _get_networks_from_networkset(self, uuid):
         info = self._client.get_networkset(uuid)
