@@ -2,12 +2,20 @@
 History
 =======
 
+0.9.0.post1 2019-12-11
+------------------------
+
+* Updated this history file adding a note about addition of *styleupdate* command to **ndexmisctools.py** in 0.9.0 release
+
 0.9.0 2019-12-11
 ------------------
 
 * Added *--typeonly* flag to *networkattribupdate* command in **ndexmisctools.py** that lets caller just update the data type for a given network attribute
 
 * Added new command to **ndexmisctools.py** named *deletenetwork* that lets caller delete a network or delete all networks in a given networkset from NDEx
+
+* Added new command to **ndexmisctools.py** named *styleupdate* that lets caller update the style of a network or all networks in a given set on NDEx
+
 
 0.8.1 2019-11-15
 ------------------
