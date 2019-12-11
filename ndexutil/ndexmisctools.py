@@ -118,7 +118,7 @@ class CopyNetwork(object):
             """.format(version=ndexutil.__version__)
 
         parser = subparsers.add_parser(CopyNetwork.COMMAND,
-                                       help='Copies network '
+                                       help='Copies network in NDEx '
                                             'from one user to another',
                                        description=desc,
                                        formatter_class=Formatter)
@@ -359,7 +359,7 @@ class NetworkAttributeSetter(object):
                    cmd=NetworkAttributeSetter.COMMAND)
 
         parser = subparsers.add_parser(NetworkAttributeSetter.COMMAND,
-                                       help='Updates network attributes',
+                                       help='Updates network attributes on network in NDEx',
                                        description=desc,
                                        formatter_class=Formatter)
 
@@ -634,7 +634,7 @@ class StyleUpdator(object):
                    cmd=StyleUpdator.COMMAND)
 
         parser = subparsers.add_parser(StyleUpdator.COMMAND,
-                                       help='Updates network attributes',
+                                       help='Updates style of network on NDEx',
                                        description=desc,
                                        formatter_class=Formatter)
 
@@ -1398,7 +1398,7 @@ class NetworkDeleter(object):
                    cmd=NetworkDeleter.COMMAND)
 
         parser = subparsers.add_parser(NetworkDeleter.COMMAND,
-                                       help='Deletes networks and networksets',
+                                       help='Deletes networks and networksets from NDEx',
                                        description=desc,
                                        formatter_class=Formatter)
         parser.add_argument('--uuid',
