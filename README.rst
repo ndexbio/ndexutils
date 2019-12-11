@@ -89,6 +89,23 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
     ndexmisctools.py --profile mycopyprofile copynetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
 
+* **deletenetwork** - deletes a network or all networks under a given networkset from `NDEx`_
+
+  Credentials to `NDEx`_ server must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [deleteprofile]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+  The following command deletes the network with UUID ``9025480b-6fbc-4efe-9cd8-b575ce49dfda`` from `NDEx`_
+
+  .. code-block::
+
+    ndexmisctools.py --profile deleteprofile deletenetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
 
 * **networkattribupdate** - updates network attributes on network in `NDEx`_
 
@@ -136,6 +153,26 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
   .. code-block::
 
     ndexmisctools.py --profile myattrib systemproperty --networksetid e9580d43-ec14-4be8-9977-9de88e1d410a --visibility public
+
+* **styleupdate** - update style of network in `NDEx`_
+
+
+  Credentials must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [styleprofile]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+  The following command updates style of network with UUID ``9025480b-6fbc-4efe-9cd8-b575ce49dfda`` with style from network specified by this UUID ``e9580d43-ec14-4be8-9977-9de88e1d410a``
+
+  .. code-block::
+
+    ndexmisctools.py --profile styleprofile styleupdate --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --styleuuid e9580d43-ec14-4be8-9977-9de88e1d410a
+
 
 * **tsvloader** - Loads TSV files as networks into `NDEx`_
 
