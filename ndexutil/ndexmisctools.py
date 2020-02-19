@@ -395,7 +395,7 @@ class NodeAttributeAdder(object):
     """
     COMMAND = 'addnodeattrib'
 
-    def __init__(self, theargs):
+    def __init__(self, theargs, altclient=None):
         """
         Constructor
         :param theargs: command line arguments ie theargs.name theargs.type
@@ -405,7 +405,7 @@ class NodeAttributeAdder(object):
         self._user = None
         self._pass = None
         self._server = None
-        self._client = None
+        self._altclient = altclient
 
     def _parse_config(self):
         """
@@ -427,15 +427,37 @@ class NodeAttributeAdder(object):
         :return: Ndex2 python client
         :rtype: :py:class:`~ndex2.client.Ndex2`
         """
+        if self._altclient is not None:
+            return self._altclient
         return Ndex2(self._server, self._user, self._pass)
 
-    def _get_network(self, uuid):
-        return ndex2.create_nice_cx_from_server(
-            self._server,
-            username=self._user,
-            password=self._pass,
-            uuid=uuid
-        )
+    def _get_network(self, client, network_uuid):
+        """
+        Gets network from NDEx
+
+        :param client:
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :param network_uuid: id of network in NDEx
+        :type network_uuid: str
+        :raises NDExUtilError: If there is any error
+        :return: Network
+        :rtype: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        """
+        try:
+            res = client.get_network_as_cx_stream(network_uuid)
+        except Exception as e:
+            raise NDExUtilError('Caught an exception downloading'
+                                ' network: ' + str(e))
+
+        if res.status_code != 200:
+            raise NDExUtilError('Unable to download network '
+                                'with id: ' + str(network_uuid) + ' from NDEx')
+
+        try:
+            return ndex2.create_nice_cx_from_raw_cx(res.json())
+        except Exception as e:
+            raise NDExUtilError('Caught an exception converting downloaded network'
+                                'to NiceCXNetwork object: ' + str(e))
 
     def _get_nodes_to_skip(self):
         """
@@ -448,7 +470,12 @@ class NodeAttributeAdder(object):
             return []
         node_list = []
         for node_id in self._args.nodestoskip.split(','):
-            node_list.append(int(node_id))
+            try:
+                node_list.append(int(node_id))
+            except ValueError:
+                raise NDExUtilError('Non numeric node id in '
+                                    '--nodestoskip parameter: ' +
+                                    str(node_id))
         return node_list
 
     def run(self):
@@ -466,8 +493,8 @@ class NodeAttributeAdder(object):
                        'AND MAY CONTAIN ERRORS')
 
         self._parse_config()
-        self._client = self._get_client()
-        net = self._get_network(self._args.uuid)
+        client = self._get_client()
+        net = self._get_network(client, self._args.uuid)
         node_skip_list = self._get_nodes_to_skip()
         for node_id, node in net.get_nodes():
             if node_id in node_skip_list:
@@ -477,7 +504,7 @@ class NodeAttributeAdder(object):
                                    self._args.value, type=self._args.type,
                                    overwrite=True)
 
-        self._client.update_cx_network(net.to_cx_stream(), self._args.uuid)
+        client.update_cx_network(net.to_cx_stream(), self._args.uuid)
 
         return 0
 
