@@ -389,6 +389,272 @@ class NetworkAttributeSetter(object):
         return parser
 
 
+class NodeAttributeAdder(object):
+    """
+    Adds attribute to nodes on a network in NDEx
+    """
+    COMMAND = 'addnodeattrib'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+
+        self._user = None
+        self._pass = None
+        self._server = None
+        self._client = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def _get_network(self, uuid):
+        return ndex2.create_nice_cx_from_server(
+            self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+
+    def _get_nodes_to_skip(self):
+        """
+        Gets a list of nodes to skip
+
+        :return: list of node ids
+        :rtype: list
+        """
+        if self._args.nodestoskip is None:
+            return []
+        node_list = []
+        for node_id in self._args.nodestoskip.split(','):
+            node_list.append(int(node_id))
+        return node_list
+
+    def run(self):
+        """
+        Connects to NDEx server, downloads network(s) specified by --uuid
+        or by --networkset and applies style specified by --style flag
+        updating those networks in place on the server.
+        WARNING: This is very inefficient method since the full network
+                 is downloaded and uploaded. YOU HAVE BEEN WARNED.
+
+        :raises NDExUtilError if there is an error
+        :return: number of networks updated
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+
+        self._parse_config()
+        self._client = self._get_client()
+        net = self._get_network(self._args.uuid)
+        node_skip_list = self._get_nodes_to_skip()
+        for node_id, node in net.get_nodes():
+            if node_id in node_skip_list:
+                logger.info(str(node_id) + ' in skip list. Skipping...')
+                continue
+            net.set_node_attribute(node_id, self._args.name,
+                                   self._args.value, type=self._args.type,
+                                   overwrite=True)
+
+        self._client.update_cx_network(net.to_cx_stream(), self._args.uuid)
+
+        return 0
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command adds a node attribute to network specified by
+        by --uuid
+
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=NodeAttributeAdder.COMMAND)
+
+        parser = subparsers.add_parser(NodeAttributeAdder.COMMAND,
+                                       help='Adds new attribute to all nodes',
+                                       description=desc,
+                                       formatter_class=Formatter)
+
+        parser.add_argument('--uuid',
+                            default=None,
+                            help='The UUID of the network in NDEx to add the '
+                                 'node attribute to')
+
+        parser.add_argument('--name',
+                            default=None, required=True,
+                            help='Name of node attribute')
+        parser.add_argument('--value',
+                            default=None, required=True,
+                            help='Value of node attribute')
+        parser.add_argument('--type',
+                            default=None,
+                            help='Data type, if unset, it assumed to be '
+                                 'string')
+        parser.add_argument('--nodestoskip',
+                            help='Comma delimited list of node ids '
+                                 'to SKIP or NOT add attribute to')
+        return parser
+
+
+class NodeAttributeRemover(object):
+    """
+    Removes attribute from nodes on a network in NDEx
+    """
+    COMMAND = 'removenodeattrib'
+
+    def __init__(self, theargs):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+
+        self._user = None
+        self._pass = None
+        self._server = None
+        self._client = None
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile, NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile, NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile, NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def _get_network(self, uuid):
+        return ndex2.create_nice_cx_from_server(
+            self._server,
+            username=self._user,
+            password=self._pass,
+            uuid=uuid
+        )
+
+    def _get_nodes_to_include(self):
+        """
+        Gets a list of nodes to include
+
+        :return: list of node ids
+        :rtype: list
+        """
+        if self._args.nodestoinclude is None:
+            return []
+        node_list = []
+        for node_id in self._args.nodestoinclude.split(','):
+            node_list.append(int(node_id))
+        return node_list
+
+    def run(self):
+        """
+        Connects to NDEx server, downloads network(s) specified by --uuid
+        or by --networkset and applies style specified by --style flag
+        updating those networks in place on the server.
+        WARNING: This is very inefficient method since the full network
+                 is downloaded and uploaded. YOU HAVE BEEN WARNED.
+
+        :raises NDExUtilError if there is an error
+        :return: number of networks updated
+        """
+        logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
+                       'AND MAY CONTAIN ERRORS')
+
+        self._parse_config()
+        self._client = self._get_client()
+        net = self._get_network(self._args.uuid)
+        node_include_list = self._get_nodes_to_include()
+        for node_id, node in net.get_nodes():
+            if node_include_list is None or node_id in node_include_list:
+                logger.info(str(node_id) + ' removing attribute')
+                net.remove_node_attribute(node_id, self._args.name)
+
+        self._client.update_cx_network(net.to_cx_stream(), self._args.uuid)
+
+        return 0
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+        Version {version}
+
+        The {cmd} command removes a node attribute to network specified by
+        by --uuid
+
+        WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                 ERRORS. YOU HAVE BEEN WARNED.
+
+        """.format(version=ndexutil.__version__,
+                   cmd=NodeAttributeRemover.COMMAND)
+
+        parser = subparsers.add_parser(NodeAttributeRemover.COMMAND,
+                                       help='Removes attribute from all nodes',
+                                       description=desc,
+                                       formatter_class=Formatter)
+
+        parser.add_argument('--uuid',
+                            default=None,
+                            help='The UUID of the network in NDEx to add the '
+                                 'node attribute to')
+
+        parser.add_argument('--name',
+                            default=None, required=True,
+                            help='Name of node attribute')
+        parser.add_argument('--nodestoinclude',
+                            help='Comma delimited list of node ids '
+                                 'to remove attribute from')
+        return parser
+
+
 class StyleUpdator(object):
     """
     Updates style on a network in NDEx
@@ -1432,6 +1698,8 @@ def _parse_arguments(desc, args):
     TSVLoader.add_subparser(subparsers)
     NetworkDeleter.add_subparser(subparsers)
     StyleUpdator.add_subparser(subparsers)
+    NodeAttributeAdder.add_subparser(subparsers)
+    NodeAttributeRemover.add_subparser(subparsers)
 
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity of logger to standard '
@@ -1511,6 +1779,10 @@ def main(arglist):
             cmd = NetworkDeleter(theargs)
         if theargs.command == StyleUpdator.COMMAND:
             cmd = StyleUpdator(theargs)
+        if theargs.command == NodeAttributeAdder.COMMAND:
+            cmd = NodeAttributeAdder(theargs)
+        if theargs.command == NodeAttributeRemover.COMMAND:
+            cmd = NodeAttributeRemover(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
