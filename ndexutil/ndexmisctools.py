@@ -533,13 +533,13 @@ class NodeAttributeRemover(object):
     """
     COMMAND = 'removenodeattrib'
 
-    def __init__(self, theargs):
+    def __init__(self, theargs, altclient=None):
         """
         Constructor
         :param theargs: command line arguments ie theargs.name theargs.type
         """
         self._args = theargs
-
+        self._altclient = altclient
         self._user = None
         self._pass = None
         self._server = None
@@ -565,38 +565,68 @@ class NodeAttributeRemover(object):
         :return: Ndex2 python client
         :rtype: :py:class:`~ndex2.client.Ndex2`
         """
+        if self._altclient is not None:
+            return self._altclient
         return Ndex2(self._server, self._user, self._pass)
 
-    def _get_network(self, uuid):
-        return ndex2.create_nice_cx_from_server(
-            self._server,
-            username=self._user,
-            password=self._pass,
-            uuid=uuid
-        )
+    def _get_network(self, client, network_uuid):
+        """
+        Gets network from NDEx
+
+        :param client:
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :param network_uuid: id of network in NDEx
+        :type network_uuid: str
+        :raises NDExUtilError: If there is any error
+        :return: Network
+        :rtype: :py:class:`~ndex2.nice_cx_network.NiceCXNetwork`
+        """
+        try:
+            res = client.get_network_as_cx_stream(network_uuid)
+        except Exception as e:
+            raise NDExUtilError('Caught an exception downloading'
+                                ' network: ' + str(e))
+
+        if res.status_code != 200:
+            raise NDExUtilError('Unable to download network '
+                                'with id: ' + str(network_uuid) + ' from NDEx')
+
+        try:
+            return ndex2.create_nice_cx_from_raw_cx(res.json())
+        except Exception as e:
+            raise NDExUtilError('Caught an exception converting downloaded network'
+                                'to NiceCXNetwork object: ' + str(e))
 
     def _get_nodes_to_include(self):
         """
-        Gets a list of nodes to include
+        Gets a list of nodes to include from
+        --nodestoinclude parameter
 
-        :return: list of node ids
+        :raises NDExUtilError: If a node id is non numeric
+        :return: list of node ids or None if there are none
         :rtype: list
         """
         if self._args.nodestoinclude is None:
-            return []
-        node_list = []
+            return None
+        node_list = None
         for node_id in self._args.nodestoinclude.split(','):
-            node_list.append(int(node_id))
+            try:
+                if node_list is None:
+                    node_list = []
+                node_list.append(int(node_id))
+            except ValueError as ve:
+                raise NDExUtilError('Non numeric node id in '
+                                    '--nodestoinclude parameter: ' +
+                                    str(node_id))
         return node_list
 
     def run(self):
         """
         Connects to NDEx server, downloads network(s) specified by --uuid
-        or by --networkset and applies style specified by --style flag
-        updating those networks in place on the server.
+        and removes all node attributes matching name set via --name
+        flag and updating that network in place on the server.
         WARNING: This is very inefficient method since the full network
                  is downloaded and uploaded. YOU HAVE BEEN WARNED.
-
         :raises NDExUtilError if there is an error
         :return: number of networks updated
         """
@@ -604,15 +634,15 @@ class NodeAttributeRemover(object):
                        'AND MAY CONTAIN ERRORS')
 
         self._parse_config()
-        self._client = self._get_client()
-        net = self._get_network(self._args.uuid)
+        client = self._get_client()
+        net = self._get_network(client, self._args.uuid)
         node_include_list = self._get_nodes_to_include()
         for node_id, node in net.get_nodes():
             if node_include_list is None or node_id in node_include_list:
                 logger.info(str(node_id) + ' removing attribute')
                 net.remove_node_attribute(node_id, self._args.name)
 
-        self._client.update_cx_network(net.to_cx_stream(), self._args.uuid)
+        client.update_cx_network(net.to_cx_stream(), self._args.uuid)
 
         return 0
 
