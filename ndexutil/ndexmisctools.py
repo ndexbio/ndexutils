@@ -478,6 +478,27 @@ class NodeAttributeAdder(object):
                                     str(node_id))
         return node_list
 
+    def _get_value_in_correct_type(self):
+        """
+        Casts the value set via --value to correct type and
+        return it
+        :return:
+        """
+        if self._args.type is None or self._args.type == 'string':
+            return self._args.value
+
+        try:
+            if self._args.type == 'integer' or self._args.type == 'long':
+                return int(self._args.value)
+            if self._args.type == 'double':
+                return float(self._args.value)
+            if self._args.type == 'boolean':
+                return bool(self._args.value)
+        except ValueError as ve:
+            raise NDExUtilError('Unable to convert --value ' +
+                                str(self._args.value) + ' to ' +
+                                self._args.type + ' : ' + str(ve))
+
     def run(self):
         """
         Connects to NDEx server, downloads network(s) specified by --uuid
@@ -492,6 +513,7 @@ class NodeAttributeAdder(object):
         logger.warning('THIS IS AN UNTESTED ALPHA IMPLEMENTATION '
                        'AND MAY CONTAIN ERRORS')
 
+        value_with_correct_type = self._get_value_in_correct_type()
         self._parse_config()
         client = self._get_client()
         net = self._get_network(client, self._args.uuid)
@@ -501,7 +523,7 @@ class NodeAttributeAdder(object):
                 logger.info(str(node_id) + ' in skip list. Skipping...')
                 continue
             net.set_node_attribute(node_id, self._args.name,
-                                   self._args.value, type=self._args.type,
+                                   value_with_correct_type, type=self._args.type,
                                    overwrite=True)
 
         client.update_cx_network(net.to_cx_stream(), self._args.uuid)
@@ -546,8 +568,11 @@ class NodeAttributeAdder(object):
                             help='Value of node attribute')
         parser.add_argument('--type',
                             default=None,
+                            choices=[None, 'string', 'integer',
+                                     'long', 'boolean', 'double'],
                             help='Data type, if unset, it assumed to be '
-                                 'string')
+                                 'string. '
+                                 'Currently list attributes are NOT supported')
         parser.add_argument('--nodestoskip',
                             help='Comma delimited list of node ids '
                                  'to SKIP or NOT add attribute to')
