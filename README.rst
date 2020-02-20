@@ -68,6 +68,29 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
 **COMMANDS**:
 
+* **addnodeattrib** - adds an attribute to all nodes in a network
+
+  Credentials to `NDEx`_ server must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [addprofile]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+  The following command adds **foo** node attribute with value
+  ``my new value`` to all nodes in the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+
+  .. code-block::
+
+    ndexmisctools.py --profile addprofile addnodeattrib --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --name foo --value 'my new value'
+
+  .. warning::
+
+     This command changes the network in place, so it is a destructive call with NO undo
+
 * **copynetwork** - copies `NDEx`_ network between accounts and even servers
 
   For copying the source and destination credentials must be stored in the configuration (default ``~/.ndexutils.conf``)
@@ -127,6 +150,28 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
     ndexmisctools.py --profile myattrib networkattribupdate --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --name foo --type string --value 'my new value'
 
+* **removenodeattrib** - removes an attribute from all nodes in a network
+
+  Credentials to `NDEx`_ server must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [removeprofile]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+  The following command removes **foo** node attribute from all nodes
+  in the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+
+  .. code-block::
+
+    ndexmisctools.py --profile removeprofile removenodeattrib --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --name foo
+
+  .. warning::
+
+     This command changes the network in place, so it is a destructive call with NO undo
 
 * **systemproperty** - updates showcase, visibility, and indexing for single network or all networks in networkset in `NDEx`_
 

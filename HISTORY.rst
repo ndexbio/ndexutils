@@ -2,6 +2,13 @@
 History
 =======
 
+0.10.0 2020-02-19
+------------------------
+
+* Added new command to **ndexmisctools.py** named *addnodeattrib* that lets caller add an attribute to all nodes in a network
+
+* Added new command to **ndexmisctools.py** named *removenodeattrib* that lets caller remove an attribute from all nodes in a network
+
 0.9.0.post1 2019-12-11
 ------------------------
 
