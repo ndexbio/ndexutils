@@ -34,6 +34,13 @@ Dependencies
 * `jsonschema <https://pypi.org/project/jsonschema>`_
 * `urllib3 <https://pypi.org/project/urllib3>`_
 
+Optional Dependencies
+---------------------
+
+Installed if `pip install ndexutil[cytoscape]` is run
+
+* `py4cytoscape` <https://pypi.org/project/py4cytoscape>`_
+
 Compatibility
 -------------
 

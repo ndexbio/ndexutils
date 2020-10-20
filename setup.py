@@ -73,7 +73,7 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
     data_files=[('schema', ['ndexutil/tsv/loading_plan_schema.json'])],
-    install_requires = [
+    install_requires=[
         'ndex2>=3.3.0,<4.0.0',
         'requests',
         'requests_toolbelt',
@@ -81,13 +81,13 @@ setup(
         'urllib3>=1.16',
         'pandas',
         'mygene',
-        'enum34',
         'pandas',
-        'enum; python_version == "2.6" or python_version=="2.7"',
         'jsonschema',
-        'biothings_client'
+        'biothings_client',
+        'ijson'
     ],
-    scripts = [ 'ndexutil/ndexmisctools.py' ],
+    extra_requires={'cytoscape': ['py4cytoscape']},
+    scripts=['ndexutil/ndexmisctools.py' ],
     test_suite='tests',
     test_requires=[
         'requests-mock',
