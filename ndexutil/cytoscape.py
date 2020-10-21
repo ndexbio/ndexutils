@@ -157,8 +157,18 @@ class CytoscapeLayoutCommand(object):
             download_network_from_ndex(client=client, networkid=self._args.uuid,
                                        destfile=input_cx_file)
             net_dict = self.load_network_in_cytoscape(input_cx_file)
+            if 'networks' not in net_dict:
+                logger.fatal('Error network view could not '
+                             'be created, this could be cause '
+                             'this network is larger then '
+                             '100,000 edges. Try increasing '
+                             'viewThreshold property in '
+                             'Cytoscape preferences')
+                return 1
             net_suid = net_dict['networks'][0]
+
             self.apply_layout(network_suid=net_suid)
+
             res_cx_file = self.export_network_to_tmpdir(network_suid=net_suid)
 
             if self._args.skipupload is True:
@@ -198,7 +208,12 @@ class CytoscapeLayoutCommand(object):
         if network_suid is None:
             return
 
+        if self._args.skipdelete is True:
+            return
+
         try:
+            logger.info('Deleting network with id ' +
+                        str(network_suid) + ' from Cytoscape')
             py4.delete_network(network=network_suid,
                                base_url=self._args.cyresturl)
         except Exception as e:
@@ -235,7 +250,9 @@ class CytoscapeLayoutCommand(object):
         :param cxfile:
         :return:
         """
-
+        logger.info('Update network with id: ' +
+                    str(self._args.uuid) + ' on NDEx server: ' +
+                    str(self._server))
         with open(cxfile, 'rb') as f:
             res = client.update_cx_network(f, self._args.uuid)
             logger.debug('Result from update: ' + str(res))
@@ -277,6 +294,9 @@ class CytoscapeLayoutCommand(object):
         :param network_suid:
         :return:
         """
+        logger.info('Applying layout ' + self._args.layout +
+                    ' on network with suid: ' +
+                    str(network_suid) + ' in Cytoscape')
         res = py4.layout_network(layout_name=self._args.layout,
                                  network=network_suid,
                                  base_url=self._args.cyresturl)
@@ -290,6 +310,10 @@ class CytoscapeLayoutCommand(object):
         :param input_cx_file:
         :return:
         """
+        file_size = os.path.getsize(input_cx_file)
+
+        logger.info('Importing network from file: ' + input_cx_file +
+                    ' (' + str(file_size) +' bytes) into Cytoscape')
         return py4.import_network_from_file(input_cx_file,
                                             base_url=self._args.cyresturl)
 
@@ -436,6 +460,9 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
         parser.add_argument('--skipupload', action='store_true',
                             help='If set, layout will NOT updated for '
                                  'network in NDEx')
+        parser.add_argument('--skipdelete', action='store_true',
+                            help='If set, skips delete of network from '
+                                 'Cytoscape')
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
         parser.add_argument('--cyresturl', default=DEFAULT_CYREST_API,
