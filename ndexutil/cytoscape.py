@@ -7,7 +7,10 @@ import logging
 import tempfile
 import ndexutil
 import shutil
+import ijson
+import json
 from ndexutil.config import NDExUtilConfig
+
 from ndexutil.exceptions import NDExUtilError
 from ndex2.nice_cx_network import NiceCXNetwork
 from ndex2.exceptions import NDExError
@@ -148,48 +151,104 @@ class CytoscapeLayoutCommand(object):
         self._parse_config()
         client = self._get_client()
         self._tmpdir = tempfile.mkdtemp(prefix=self._args.tmpdir)
+        net_suid = None
         try:
             input_cx_file = os.path.join(self._tmpdir, self._args.uuid + '.cx')
             download_network_from_ndex(client=client, networkid=self._args.uuid,
                                        destfile=input_cx_file)
             net_dict = self.load_network_in_cytoscape(input_cx_file)
-            self.apply_layout(network_suid=net_dict['networks'][0])
-            res_cx_file = self.export_network_to_tmpdir(network_suid=net_dict['networks'][0])
-
-            # remove network from Cytoscape
-            self.delete_network(network_suid=net_dict['networks'][0])
+            net_suid = net_dict['networks'][0]
+            self.apply_layout(network_suid=net_suid)
+            res_cx_file = self.export_network_to_tmpdir(network_suid=net_suid)
 
             if self._args.skipupload is True:
                 return 0
 
-            self.update_layout_aspect_on_ndex(cxfile=res_cx_file)
+            if os.path.isfile(res_cx_file) and \
+                    os.path.getsize(res_cx_file) > 0:
+                self.update_network_on_ndex(client=client, cxfile=res_cx_file)
 
             return 0
         finally:
+            # remove network from Cytoscape
+            self.delete_network(network_suid=net_suid)
             shutil.rmtree(self._tmpdir)
+
+    def get_node_id_map(self, input_cx=None,
+                        updated_cx=None):
+        """
+        Given an input CX file 'input_cx' and
+        a Cytoscape updated CX file. Generate
+        a dict with key set to id of node in 'updated_cx'
+        set to id of node in 'input_cx'
+        The lookup is done by examining the 'name' field if those
+        values are unique otherwise
+        :param input_cx:
+        :param updated_cx:
+        :return:
+        """
 
     def delete_network(self, network_suid=None):
         """
+        Deletes network from Cytoscape
 
-        :param network_suid:
+        :param network_suid: id of network
         :return:
         """
-        py4.delete_network(network=network_suid,
-                           base_url=self._args.cyresturl)
+        if network_suid is None:
+            return
 
-    def update_layout_aspect_on_ndex(self, cxfile=None):
+        try:
+            py4.delete_network(network=network_suid,
+                               base_url=self._args.cyresturl)
+        except Exception as e:
+            logger.error('Caught exception trying to delete network: ' +
+                         str(e))
+
+    def update_layout_aspect_on_ndex(self, client=None,
+                                     cxfile=None):
         """
 
         :param cxfile:
         :return:
         """
+        with open(cxfile, 'r') as f:
+            jdata = json.load(f)
+
+        net = NiceCXNetwork()
+        net.set_opaque_aspect('cartesianLayout', jdata)
+
+        theurl = '/network/' + self._args.uuid + '/aspects'
+        logger.info(theurl)
+        logger.info(net.to_cx())
+        res = client.put(theurl,
+                         put_json=json.dumps(net.to_cx()))
+        logger.info('Result from put: ' + str(res))
+
         return
+
+    def update_network_on_ndex(self, client=None,
+                               cxfile=None):
+        """
+
+        :param client:
+        :param cxfile:
+        :return:
+        """
+
+        with open(cxfile, 'rb') as f:
+            res = client.update_cx_network(f, self._args.uuid)
+            logger.debug('Result from update: ' + str(res))
+            return res
 
     def export_network_to_tmpdir(self, network_suid=None):
         """
+        Exports network with id `network_suid` to temp directory
+        in CX format.
 
         :param network_suid:
-        :return:
+        :return: path to exported file
+        :rtype: str
         """
         if self._args.outputcx is not None:
             destfile = os.path.abspath(self._args.outputcx)
@@ -213,6 +272,7 @@ class CytoscapeLayoutCommand(object):
 
     def apply_layout(self, network_suid=None):
         """
+        Apply layout to network in Cytoscape
 
         :param network_suid:
         :return:
@@ -225,12 +285,42 @@ class CytoscapeLayoutCommand(object):
 
     def load_network_in_cytoscape(self, input_cx_file):
         """
+        Loads network from file into Cytoscape
 
         :param input_cx_file:
         :return:
         """
         return py4.import_network_from_file(input_cx_file,
                                             base_url=self._args.cyresturl)
+
+    def extract_layout_aspect_from_cx(self, input_cx_file):
+        """
+        Given a CX file, this method find the, cartesianLayout,
+        if any, and writes it to a file in the temp directory.
+
+        :param input_cx_file:
+        :type input_cx_file: str
+        :return: path to file containing cartesianLayout aspect
+                 or `None` if that aspect is NOT found
+        :rtype: str
+        """
+        output_cx_file = os.path.join(self._tmpdir, 'cartlayout.json')
+        with open(output_cx_file, 'w') as outfp:
+            with open(input_cx_file, 'rb') as f:
+                for object in ijson.items(f, 'item.cartesianLayout'):
+                    # an inefficient fix to ijson setting the node
+                    # coordinates to type Decimal which breaks json.dump
+                    for node in object:
+                        # need to remap node ids
+                        if 'x' in node:
+                            node['x'] = float(node['x'])
+                        if 'y' in node:
+                            node['y'] = float(node['y'])
+                        if 'z' in node:
+                            node['z'] = float(node['z'])
+                    json.dump(object, outfp)
+
+        return output_cx_file
 
     @staticmethod
     def get_cytoscape_check_message():
