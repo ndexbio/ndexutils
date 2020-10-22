@@ -17,6 +17,7 @@ from ndex2.exceptions import NDExError
 from ndex2.client import Ndex2
 import ndex2
 from ndexutil.cytoscape import CytoscapeLayoutCommand
+from ndexutil.networkx import NetworkxLayoutCommand
 
 # create logger
 logger = logging.getLogger('ndexutil.ndexmisctools')
@@ -1784,6 +1785,7 @@ def _parse_arguments(desc, args):
     NodeAttributeAdder.add_subparser(subparsers)
     NodeAttributeRemover.add_subparser(subparsers)
     CytoscapeLayoutCommand.add_subparser(subparsers)
+    NetworkxLayoutCommand.add_subparser(subparsers)
 
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity of logger to standard '
@@ -1869,6 +1871,8 @@ def main(arglist):
             cmd = NodeAttributeRemover(theargs)
         if theargs.command == CytoscapeLayoutCommand.COMMAND:
             cmd = CytoscapeLayoutCommand(theargs)
+        if theargs.command == NetworkxLayoutCommand.COMMAND:
+            cmd = NetworkxLayoutCommand(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
