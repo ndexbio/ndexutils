@@ -8,8 +8,6 @@ import shutil
 import os
 import unittest
 from unittest.mock import MagicMock
-import requests
-import requests_mock
 import networkx
 from ndexutil.networkx import NetworkxLayoutWrapper
 from ndexutil.exceptions import NDExUtilError
