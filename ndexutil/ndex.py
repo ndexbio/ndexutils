@@ -1,5 +1,8 @@
 
+import json
 import logging
+
+from ndex2.nice_cx_network import NiceCXNetwork
 from ndexutil.exceptions import NDExUtilError
 
 logger = logging.getLogger('ndexutil.ndex')
@@ -15,6 +18,56 @@ class NDExExtraUtils(object):
         Constructor
         """
         pass
+
+    def update_network_on_ndex(self, client=None,
+                               networkid=None,
+                               cxfile=None):
+        """
+        Updates complete network on NDEx
+
+        :param client: NDEx server client connection
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :param cxfile: Path to file containing network in CX
+                       format to update on NDEx
+        :type cxfile: str
+        :return: any response from update call
+        """
+        logger.debug('Updating entire network with id: ' +
+                    str(networkid))
+        with open(cxfile, 'rb') as f:
+            res = client.update_cx_network(f, networkid)
+            logger.debug('Result from update: ' + str(res))
+            return res
+
+    def update_aspect_on_ndex(self, client=None,
+                              networkid=None,
+                              aspect_name=None,
+                              aspect_data=None):
+        """
+        Updates just the cartesianLayout aspect via PUT call on NDEx
+
+        :param client: NDEx server client connection
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :return: anything returned from put call
+        """
+        if client is None:
+            raise NDExUtilError('NDEx client is None')
+        if networkid is None:
+            raise NDExUtilError('Network UUID is None')
+        if aspect_name is None:
+            raise NDExUtilError('Aspect name is None')
+        if aspect_data is None:
+            raise NDExUtilError('Aspect data is None')
+        logger.debug('Updating ' + str(aspect_name) +
+                     ' aspect on NDEx for network with uuid: ' +
+                     networkid)
+        net = NiceCXNetwork()
+        net.set_opaque_aspect('cartesianLayout', aspect_data)
+
+        theurl = '/network/' + networkid + '/aspects'
+        res = client.put(theurl,
+                         put_json=json.dumps(net.to_cx()))
+        return res
 
     def download_network_from_ndex(self, client=None,
                                    networkid=None,
