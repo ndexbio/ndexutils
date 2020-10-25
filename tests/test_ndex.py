@@ -48,6 +48,27 @@ class TestNDExExtraUtils(unittest.TestCase):
         except NDExUtilError as ne:
             self.assertEqual('Destfile is None', str(ne))
 
+    def test_download_network_from_ndex_invalidfile(self):
+        temp_dir = tempfile.mkdtemp()
+        util = NDExExtraUtils()
+        client = MagicMock()
+        try:
+            destfile = temp_dir
+            with requests_mock.Mocker() as m:
+                m.get('http://foo.com', content=b'hello')
+                client.get_network_as_cx_stream = MagicMock(return_value=requests.get('http://foo.com', stream=True))
+                try:
+                    util.download_network_from_ndex(client=client,
+                                                    networkid='1234',
+                                                    destfile=destfile)
+                    self.fail('Expected an error')
+                except Exception as e:
+                    pass
+
+            client.get_network_as_cx_stream.assert_called_with('1234')
+        finally:
+            shutil.rmtree(temp_dir)
+
     def test_download_network_from_ndex_success(self):
         temp_dir = tempfile.mkdtemp()
         util = NDExExtraUtils()
