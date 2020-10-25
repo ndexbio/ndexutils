@@ -203,7 +203,7 @@ class NetworkxLayoutCommand(object):
                 logger.info('Skipping upload to NDEx')
                 return 0
 
-            if self._args.updatenetwork is True:
+            if self._args.updatefullnetwork is True:
                 self.update_network_on_ndex(client=client, cxfile=output_cx_file)
             else:
                 self.update_layout_aspect_on_ndex(client=client,
@@ -307,9 +307,9 @@ class NetworkxLayoutCommand(object):
         netx_fac = DefaultNetworkXFactory()
         netx_graph = netx_fac.get_graph(net)
 
-        logger.info('Applying layout Networkx layout' +
+        logger.info('Applying Networkx ' +
                     self._args.layout +
-                    ' on network')
+                    ' network on network')
 
         pos = self._run_layout_algorithm(netx_graph=netx_graph)
 
@@ -374,7 +374,8 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                                              'then value from config will '
                                              'be used')
         parser.add_argument('server', help='NDEx server, if set to - then '
-                                           'value from config will be used')
+                                           'value from config will be used,'
+                                           'For production, use public.ndexbio.org')
         parser.add_argument('--uuid', required=True,
                             help='The UUID of network in NDEx to update')
         parser.add_argument('--scale', type=float, default=300.0,
@@ -402,7 +403,7 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                                  'network in NDEx')
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
-        parser.add_argument('--updatenetwork', action='store_true',
+        parser.add_argument('--updatefullnetwork', action='store_true',
                             help='If set, update entire network instead '
                                  'of just the cartesianLayout aspect')
         return parser
