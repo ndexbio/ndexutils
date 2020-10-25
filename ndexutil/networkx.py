@@ -154,15 +154,18 @@ class NetworkxLayoutCommand(object):
             download_network_from_ndex(client=client, networkid=self._args.uuid,
                                        destfile=input_cx_file)
 
-            aspect_data = self.apply_layout(cxfile=input_cx_file)
+            aspect_data, output_cx_file = self.apply_layout(cxfile=input_cx_file)
 
             if self._args.skipupload is True:
                 logger.info('Skipping upload to NDEx')
                 return 0
 
+            if self._args.updatelayoutonly is True:
+                self.update_layout_aspect_on_ndex(client=client,
+                                                  aspect_data=aspect_data)
+            else:
+                self.update_network_on_ndex(client=client, cxfile=output_cx_file)
 
-            self.update_layout_aspect_on_ndex(client=client,
-                                              aspect_data=aspect_data)
             return 0
         finally:
             shutil.rmtree(self._tmpdir)
@@ -174,8 +177,8 @@ class NetworkxLayoutCommand(object):
         :param cxfile:
         :return:
         """
-        logger.info('Updating layout on NDEx for network with uuid: ' +
-                    self._args.uuid)
+        logger.info('Updating layout aspect on NDEx for network with uuid: ' +
+                    self._args.uuid + ' on NDEx server: ' + str(self._server))
         net = NiceCXNetwork()
         net.set_opaque_aspect('cartesianLayout', aspect_data)
 
@@ -268,13 +271,17 @@ class NetworkxLayoutCommand(object):
 
         logger.debug('Converting coordinates from networkx to CX format')
         cart_aspect = convert_networkx_pos_to_cartesian_aspect(pos)
-        if self._args.outputcx is not None:
-            logger.info('Writing out CX file: ' + self._args.outputcx)
-            net.set_opaque_aspect('cartesianLayout', cart_aspect)
-            with open(self._args.outputcx, 'w') as f:
-                json.dump(net.to_cx(), f)
 
-        return cart_aspect
+        if self._args.outputcx is not None:
+            output_cx_file = self._args.outputcx
+        else:
+            output_cx_file = os.path.join(self._tmpdir, 'output.cx')
+        logger.info('Writing out CX file: ' + output_cx_file)
+        net.set_opaque_aspect('cartesianLayout', cart_aspect)
+        with open(output_cx_file, 'w') as f:
+            json.dump(net.to_cx(), f)
+
+        return cart_aspect, output_cx_file
 
     @staticmethod
     def add_subparser(subparsers):
@@ -288,12 +295,17 @@ class NetworkxLayoutCommand(object):
 Version {version}
 
 The {cmd} command updates layout on a network in NDEx using Networkx.
-The network can be specified by NDEx UUID via --uuid flag.
+The network must be specified by NDEx UUID via --uuid flag. 
+
+The flags --scale and --center work for all layouts. Some flags
+only are relevant for certain layouts. Those flags will start
+with --<LAYOUT NAME>_<FLAG> like --spring_k and --spring_iterations
+flags whic only work for spring layout.
 
 
 Example:
 
-ndexmisctools.py networkxlayout spring - - - --uuid XXXX-XXX
+ndexmisctools.py networkxlayout spring - - - --uuid XXXX-XXX --spring_k 0.5
 
 WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
          ERRORS. YOU HAVE BEEN WARNED.
@@ -321,9 +333,8 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                                              'be used')
         parser.add_argument('server', help='NDEx server, if set to - then '
                                            'value from config will be used')
-        parser.add_argument('--uuid',
-                            help='The UUID of network in NDEx to update',
-                            required=True)
+        parser.add_argument('--uuid', required=True,
+                            help='The UUID of network in NDEx to update')
         parser.add_argument('--scale', type=float, default=300.0,
                             help='Scale to pass to layout algorithm.')
         parser.add_argument('--center', type=str,
@@ -331,7 +342,8 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                                  'center for layout. Should be in format'
                                  'of X,Y or Y,X not sure which way networkx'
                                  'does coordinates')
-        parser.add_argument('--' + SPRING_LAYOUT + '_iterations', type=int, default=50,
+        parser.add_argument('--' + SPRING_LAYOUT + '_iterations', type=int,
+                            default=50,
                             help='Maximum number of iterations taken ')
         parser.add_argument('--' + SPRING_LAYOUT + '_k', type=float,
                             help='Optimal distance between nodes. '
@@ -346,9 +358,12 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
         parser.add_argument('--skipupload', action='store_true',
                             help='If set, layout will NOT updated for '
                                  'network in NDEx')
-        parser.add_argument('--skipdelete', action='store_true',
-                            help='If set, skips delete of network from '
-                                 'Cytoscape')
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
+        parser.add_argument('--updatelayoutonly', action='store_true',
+                            help='If set, update the cartesianLayout '
+                                 'aspect only for network on NDEx, otherwise '
+                                 'update the entire network. This flag is '
+                                 'here due to bugs with updating layout '
+                                 'aspect only in NDEx v2.5.0 beta version')
         return parser
