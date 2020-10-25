@@ -18,6 +18,8 @@ from ndex2.client import Ndex2
 import ndex2
 from ndexutil.cytoscape import CytoscapeLayoutCommand
 from ndexutil.networkx import NetworkxLayoutCommand
+from ndexutil.reports import FeaturedNetworkReportCommand
+
 
 # create logger
 logger = logging.getLogger('ndexutil.ndexmisctools')
@@ -1784,6 +1786,7 @@ def _parse_arguments(desc, args):
     StyleUpdator.add_subparser(subparsers)
     NodeAttributeAdder.add_subparser(subparsers)
     NodeAttributeRemover.add_subparser(subparsers)
+    FeaturedNetworkReportCommand.add_subparser(subparsers)
     CytoscapeLayoutCommand.add_subparser(subparsers)
     NetworkxLayoutCommand.add_subparser(subparsers)
 
@@ -1869,6 +1872,8 @@ def main(arglist):
             cmd = NodeAttributeAdder(theargs)
         if theargs.command == NodeAttributeRemover.COMMAND:
             cmd = NodeAttributeRemover(theargs)
+        if theargs.command == FeaturedNetworkReportCommand.COMMAND:
+            cmd = FeaturedNetworkReportCommand(theargs)
         if theargs.command == CytoscapeLayoutCommand.COMMAND:
             cmd = CytoscapeLayoutCommand(theargs)
         if theargs.command == NetworkxLayoutCommand.COMMAND:
