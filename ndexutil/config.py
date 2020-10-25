@@ -2,7 +2,6 @@
 
 import os
 import configparser
-import logging
 from ndexutil.exceptions import ConfigError
 
 
