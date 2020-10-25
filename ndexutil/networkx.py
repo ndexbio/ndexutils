@@ -116,7 +116,8 @@ class NetworkxLayoutCommand(object):
 
     def __init__(self, theargs,
                  layout_wrapper=NetworkxLayoutWrapper(),
-                 ndexextra=NDExExtraUtils()):
+                 ndexextra=NDExExtraUtils(),
+                 altclient=None):
         """
         Constructor
 
@@ -130,6 +131,7 @@ class NetworkxLayoutCommand(object):
         self._tmpdir = None  # set in run() function
         self._layoutwrapper = layout_wrapper
         self._ndexextra = ndexextra
+        self._altclient = altclient
 
     def _parse_config(self):
         """
@@ -169,6 +171,8 @@ class NetworkxLayoutCommand(object):
         :return: Ndex2 python client
         :rtype: :py:class:`~ndex2.client.Ndex2`
         """
+        if self._altclient is not None:
+            return self._altclient
         return Ndex2(self._server, self._user, self._pass)
 
     def run(self):
