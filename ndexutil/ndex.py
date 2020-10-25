@@ -1,4 +1,5 @@
 
+import os
 import json
 import logging
 
@@ -32,19 +33,28 @@ class NDExExtraUtils(object):
         :type cxfile: str
         :return: any response from update call
         """
+        if client is None:
+            raise NDExUtilError('NDEx client is None')
+        if networkid is None:
+            raise NDExUtilError('Network UUID is None')
+        if cxfile is None:
+            raise NDExUtilError('cxfile is None')
+
+        if not os.path.isfile(cxfile):
+            raise NDExUtilError(str(cxfile) + ' is not a file')
+
         logger.debug('Updating entire network with id: ' +
-                    str(networkid))
+                     str(networkid))
         with open(cxfile, 'rb') as f:
             res = client.update_cx_network(f, networkid)
-            logger.debug('Result from update: ' + str(res))
             return res
 
-    def update_aspect_on_ndex(self, client=None,
-                              networkid=None,
-                              aspect_name=None,
-                              aspect_data=None):
+    def update_network_aspect_on_ndex(self, client=None,
+                                      networkid=None,
+                                      aspect_name=None,
+                                      aspect_data=None):
         """
-        Updates just the cartesianLayout aspect via PUT call on NDEx
+        Updates just the aspect via PUT call on NDEx
 
         :param client: NDEx server client connection
         :type client: :py:class:`~ndex2.client.Ndex2`
