@@ -10,11 +10,11 @@ from ndexutil.argparseutil import ArgParseFormatter
 from ndexutil.config import NDExUtilConfig
 from ndexutil.ndex import NDExExtraUtils
 from ndexutil.exceptions import NDExUtilError
-from ndex2.nice_cx_network import NiceCXNetwork
 from ndex2.client import Ndex2
 from ndex2.nice_cx_network import DefaultNetworkXFactory
 import ndex2
 import networkx
+from requests.exceptions import HTTPError
 
 # create logger
 logger = logging.getLogger('ndexutil.networkx')
@@ -204,57 +204,28 @@ class NetworkxLayoutCommand(object):
                 return 0
 
             if self._args.updatefullnetwork is True:
-                self.update_network_on_ndex(client=client, cxfile=output_cx_file)
+                logger.info('Updating entire network with id: ' +
+                            str(self._args.uuid) + ' on NDEx server: ' +
+                            str(self._server) +
+                            ' since --updatenetwork flag is set')
+                self._ndexextra.update_network_on_ndex(client=client,
+                                                       networkid=self._args.uuid,
+                                                       cxfile=output_cx_file)
             else:
-                self.update_layout_aspect_on_ndex(client=client,
-                                                  aspect_data=aspect_data)
-
+                self._ndexextra.update_aspect_on_ndex(client=client,
+                                                      networkid=self._args.uuid,
+                                                      aspect_name='cartesianLayout',
+                                                      aspect_data=aspect_data)
             return 0
+        except HTTPError as he:
+            logger.fatal('Received error code: ' +
+                         str(he.response.status_code) +
+                         ' from NDEx server', he)
+            if 'message' in he.response.json():
+                logger.fatal('Message from NDEx server: ' + str(he.response.json()['message']))
+            return 1
         finally:
             shutil.rmtree(self._tmpdir)
-
-    def update_layout_aspect_on_ndex(self, client=None,
-                                     aspect_data=None):
-        """
-        Updates just the cartesianLayout aspect via PUT call on NDEx
-
-        :param client: NDEx server client connection
-        :type client: :py:class:`~ndex2.client.Ndex2`
-        :return: None
-        """
-        logger.info('Updating layout aspect on NDEx for network with uuid: ' +
-                    self._args.uuid + ' on NDEx server: ' + str(self._server))
-        net = NiceCXNetwork()
-        net.set_opaque_aspect('cartesianLayout', aspect_data)
-
-        theurl = '/network/' + self._args.uuid + '/aspects'
-        logger.info(theurl)
-        res = client.put(theurl,
-                         put_json=json.dumps(net.to_cx()))
-        logger.info('Result from put: ' + str(res))
-
-        return None
-
-    def update_network_on_ndex(self, client=None,
-                               cxfile=None):
-        """
-        Updates complete network on NDEx
-
-        :param client: NDEx server client connection
-        :type client: :py:class:`~ndex2.client.Ndex2`
-        :param cxfile: Path to file containing network in CX
-                       format to update on NDEx
-        :type cxfile: str
-        :return: any response from update call
-        """
-        logger.info('Updating entire network with id: ' +
-                    str(self._args.uuid) + ' on NDEx server: ' +
-                    str(self._server) +
-                    ' since --updatenetwork flag is set')
-        with open(cxfile, 'rb') as f:
-            res = client.update_cx_network(f, self._args.uuid)
-            logger.debug('Result from update: ' + str(res))
-            return res
 
     def get_center_as_list(self):
         """
