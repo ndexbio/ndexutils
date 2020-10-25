@@ -212,10 +212,10 @@ class NetworkxLayoutCommand(object):
                                                        networkid=self._args.uuid,
                                                        cxfile=output_cx_file)
             else:
-                self._ndexextra.update_aspect_on_ndex(client=client,
-                                                      networkid=self._args.uuid,
-                                                      aspect_name='cartesianLayout',
-                                                      aspect_data=aspect_data)
+                self._ndexextra.update_network_aspect_on_ndex(client=client,
+                                                              networkid=self._args.uuid,
+                                                              aspect_name='cartesianLayout',
+                                                              aspect_data=aspect_data)
             return 0
         except HTTPError as he:
             logger.fatal('Received error code: ' +
