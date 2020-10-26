@@ -238,8 +238,18 @@ class NetworkxLayoutCommand(object):
         """
         if self._args.center is None:
             return None
-
-        return self._args.center.split(',')
+        split_val = self._args.center.split(',')
+        if len(split_val) != 2:
+            raise NDExUtilError('Expecting single comma delimited '
+                                'string. Value passed to --center '
+                                'must be two numbers '
+                                'delimited by comma ie 4,5')
+        try:
+            return [float(split_val[0]), float(split_val[1])]
+        except Exception as e:
+            raise NDExUtilError('Value passed to --center must be two'
+                                'numbers delimited by comma: ' +
+                                str(e))
 
     def _run_layout_algorithm(self, netx_graph=None):
         """
@@ -259,7 +269,7 @@ class NetworkxLayoutCommand(object):
                                                      center=center_val,
                                                      scale=self._args.scale)
 
-        raise NDExUtilError(self(self._args.layout) +
+        raise NDExUtilError(str(self._args.layout) +
                             ' does not match supported layout')
 
     def apply_layout(self, cxfile=None):
@@ -314,16 +324,27 @@ Version {version}
 The {cmd} command updates layout on a network in NDEx using Networkx.
 The network must be specified by NDEx UUID via --uuid flag. 
 
-The flags --scale and --center work for all layouts. Some flags
-only are relevant for certain layouts. Those flags will start
-with --<LAYOUT NAME>_<FLAG> like --spring_k and --spring_iterations
-flags whic only work for spring layout.
+By default this command only updates the cartesianLayout 
+aspect. To update full network add --updatefullnetwork 
+flag to command line.
+
+The flags --scale and --center work for all layouts. 
+
+Some flags only are relevant for certain layouts. 
+Layout specific flags will start with --<LAYOUT NAME>_<FLAG> 
+like --spring_k and --spring_iterations flags.
 
 Upon success script will exit with code 0 otherwise error.
 
 Example:
 
-ndexmisctools.py networkxlayout spring - - - --uuid XXXX-XXX --spring_k 0.5
+# to load NDEx connection info from [foo] profile in ~/.ndexutil.conf
+file add --profile flag and use - - - in lieu of user, password, and server
+ndexmisctools.py --profile foo networkxlayout spring - - - --uuid XXXX-XXX --spring_k 0.5
+
+# to specify NDEx connection info on command line
+ndexmisctools.py networkxlayout spring jdoe badpassword public.ndexbio.org --uuid XXXX-XXX
+
 
 WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
          ERRORS. YOU HAVE BEEN WARNED.
