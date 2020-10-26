@@ -2,6 +2,16 @@
 History
 =======
 
+0.11.0 2020-10-26
+------------------------
+
+* Added new command to **ndexmisctools.py** named *networkxlayout* that lets caller apply networkx layouts to network on NDEx
+
+* Added new command to **ndexmisctools.py** named *cytoscapelayout* that lets caller apply Cytoscape layouts to network on NDEx
+
+* Added new command to **ndexmisctools.py** named *featurednetworkreport* that generates a report about featured networks on NDEx
+
+
 0.10.0 2020-02-19
 ------------------------
 
