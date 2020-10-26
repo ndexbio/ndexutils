@@ -2,7 +2,6 @@
 
 import os
 import sys
-import argparse
 import logging
 import tempfile
 import ndexutil
@@ -10,7 +9,8 @@ import shutil
 import ijson
 import json
 from ndexutil.config import NDExUtilConfig
-
+from ndexutil.ndex import NDExExtraUtils
+from ndexutil.argparseutil import ArgParseFormatter
 from ndexutil.exceptions import NDExUtilError
 from ndex2.nice_cx_network import NiceCXNetwork
 from ndex2.exceptions import NDExError
@@ -24,13 +24,14 @@ logger = logging.getLogger('ndexutil.cytoscape')
 
 try:
     import py4cytoscape as py4
+
     PY4CYTOSCAPE_LOADED = True
     py4.py4cytoscape_logger.summary_logger.setLevel(logging.FATAL)
     py4.py4cytoscape_notebook.detail_logger.setLevel(logging.FATAL)
 except ImportError as ie:
     PY4CYTOSCAPE_LOADED = False
-    logger.warning('Unable to load py4cytoscape. Utilities '
-                   'relying on Cytoscape will not work')
+    logger.debug('Unable to load py4cytoscape. Utilities '
+                 'relying on Cytoscape will not work : ' + str(ie))
 
 
 DEFAULT_CYREST_API = 'http://localhost:1234/v1'
@@ -39,41 +40,81 @@ Default CyREST API URL
 """
 
 
-def is_py4cytoscape_loaded():
+class Py4CytoscapeWrapper(object):
+    """
+    Wrapper for py4cytoscape calls
     """
 
-    :return:
-    """
-    return PY4CYTOSCAPE_LOADED
+    def __init__(self):
+        """
+        Constructor
+        """
+        self._py4loaded = PY4CYTOSCAPE_LOADED
 
+    def is_py4cytoscape_loaded(self):
+        """
 
-class Formatter(argparse.ArgumentDefaultsHelpFormatter,
-                argparse.RawDescriptionHelpFormatter):
-    pass
+        :return:
+        """
+        return self._py4loaded
 
+    def cytoscape_ping(self, base_url=DEFAULT_CYREST_API):
+        """
 
-def download_network_from_ndex(client=None,
-                               networkid=None,
-                               destfile=None):
-    """
-    Downloads network from ndex storing in `destfile` in CX
-    format
-    :param client: NDEx 2 client
-    :type client: `:py:class:~ndex2.client.Ndex2`
-    :param networkid: UUID of network as
-    :type networkid: str
-    :param destfile: destination file for network
-    :type destfile: str
-    :return: None
-    """
-    logger.info('Downloading ' + destfile + ' with netid: ' + networkid)
-    client_resp = client.get_network_as_cx_stream(networkid)
-    with open(destfile, 'wb') as f:
-        for chunk in client_resp.iter_content(chunk_size=8096):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
-                f.flush()
-    return destfile
+        :return:
+        """
+        return py4.cytoscape_ping(base_url=base_url)
+
+    def delete_network(self, network=None,
+                       base_url=DEFAULT_CYREST_API):
+        return py4.delete_network(network=network,
+                                  base_url=base_url)
+
+    def export_network(self, filename=None,
+                       type=None, network=None,
+                       base_url=DEFAULT_CYREST_API):
+        """
+
+        :param filename:
+        :param type:
+        :param network:
+        :param base_url:
+        :return:
+        """
+        return py4.export_network(filename=filename,
+                       type=type, network=network,
+                       base_url=base_url)
+
+    def layout_network(self, layout_name=None,
+                       network=None, base_url=DEFAULT_CYREST_API):
+        """
+
+        :param layout_name:
+        :param network:
+        :param base_url:
+        :return:
+        """
+        return py4.layout_network(layout_name=layout_name,
+                                  network=network, base_url=base_url)
+
+    def import_network_from_file(self, input_cx_file,
+                                 base_url=DEFAULT_CYREST_API):
+        """
+
+        :param input_cx_file:
+        :param base_url:
+        :return:
+        """
+        return py4.import_network_from_file(input_cx_file,
+                                            base_url=base_url)
+
+    def get_layout_name_mapping(self, base_url=DEFAULT_CYREST_API):
+        """
+
+        :param base_url:
+        :return:
+        """
+        return py4.get_layout_name_mapping(base_url=base_url)
 
 
 class CytoscapeLayoutCommand(object):
@@ -84,7 +125,10 @@ class CytoscapeLayoutCommand(object):
     LIST_LAYOUT = 'listlayout'
     LIST_LAYOUTS = LIST_LAYOUT + 's'
 
-    def __init__(self, theargs):
+    def __init__(self, theargs,
+                 ndexextra=NDExExtraUtils(),
+                 py4cyto=Py4CytoscapeWrapper(),
+                 altclient=None):
         """
         Constructor
         :param theargs: command line arguments ie theargs.name theargs.type
@@ -94,6 +138,9 @@ class CytoscapeLayoutCommand(object):
         self._pass = self._args.password
         self._server = self._args.server
         self._tmpdir = None  # set in run() function
+        self._ndexextra = ndexextra
+        self._altclient = altclient
+        self._py4 = py4cyto
 
     def _parse_config(self):
         """
@@ -122,6 +169,8 @@ class CytoscapeLayoutCommand(object):
         :return: Ndex2 python client
         :rtype: :py:class:`~ndex2.client.Ndex2`
         """
+        if self._altclient is not None:
+            return self._altclient
         return Ndex2(self._server, self._user, self._pass)
 
     def run(self):
@@ -134,7 +183,7 @@ class CytoscapeLayoutCommand(object):
         :raises NDExUtilError if there is an error
         :return: number of attributes updated upon success
         """
-        if is_py4cytoscape_loaded() is False:
+        if self._py4.is_py4cytoscape_loaded() is False:
             logger.fatal('py4cytoscape library not found. cytoscapelayout '
                          'command cannot be run')
             return 1
@@ -154,8 +203,9 @@ class CytoscapeLayoutCommand(object):
         net_suid = None
         try:
             input_cx_file = os.path.join(self._tmpdir, self._args.uuid + '.cx')
-            download_network_from_ndex(client=client, networkid=self._args.uuid,
-                                       destfile=input_cx_file)
+            self._ndexextra.download_network_from_ndex(client=client,
+                                                       networkid=self._args.uuid,
+                                                       destfile=input_cx_file)
             net_dict = self.load_network_in_cytoscape(input_cx_file)
             if 'networks' not in net_dict:
                 logger.fatal('Error network view could not '
@@ -214,8 +264,8 @@ class CytoscapeLayoutCommand(object):
         try:
             logger.info('Deleting network with id ' +
                         str(network_suid) + ' from Cytoscape')
-            py4.delete_network(network=network_suid,
-                               base_url=self._args.cyresturl)
+            self._py4.delete_network(network=network_suid,
+                                     base_url=self._args.cyresturl)
         except Exception as e:
             logger.error('Caught exception trying to delete network: ' +
                          str(e))
@@ -281,9 +331,9 @@ class CytoscapeLayoutCommand(object):
             os.unlink(destfile)
 
         logger.info('Writing cx to: ' + destfile)
-        res = py4.export_network(filename=destfile, type='CX',
-                                 network=network_suid,
-                                 base_url=self._args.cyresturl)
+        res = self._py4.export_network(filename=destfile, type='CX',
+                                       network=network_suid,
+                                       base_url=self._args.cyresturl)
         logger.info(res)
         return destfile
 
@@ -297,9 +347,9 @@ class CytoscapeLayoutCommand(object):
         logger.info('Applying layout ' + self._args.layout +
                     ' on network with suid: ' +
                     str(network_suid) + ' in Cytoscape')
-        res = py4.layout_network(layout_name=self._args.layout,
-                                 network=network_suid,
-                                 base_url=self._args.cyresturl)
+        res = self._py4.layout_network(layout_name=self._args.layout,
+                                       network=network_suid,
+                                       base_url=self._args.cyresturl)
         logger.debug(res)
         return None
 
@@ -314,8 +364,8 @@ class CytoscapeLayoutCommand(object):
 
         logger.info('Importing network from file: ' + input_cx_file +
                     ' (' + str(file_size) +' bytes) into Cytoscape')
-        return py4.import_network_from_file(input_cx_file,
-                                            base_url=self._args.cyresturl)
+        return self._py4.import_network_from_file(input_cx_file,
+                                                  base_url=self._args.cyresturl)
 
     def extract_layout_aspect_from_cx(self, input_cx_file):
         """
@@ -347,18 +397,18 @@ class CytoscapeLayoutCommand(object):
         return output_cx_file
 
     @staticmethod
-    def get_cytoscape_check_message():
+    def get_cytoscape_check_message(py4_wrapper=Py4CytoscapeWrapper()):
         """
 
         :return:
         """
-        if is_py4cytoscape_loaded() is False:
+        if py4_wrapper.is_py4cytoscape_loaded() is False:
             return '\nERROR: It appears py4cytoscape is NOT installed ' \
                    'to use this tool run pip install py4cytoscape ' \
                    'and run this tool again.\n'
 
         try:
-            py4.cytoscape_ping()
+            py4_wrapper.cytoscape_ping()
         except Exception as e:
             return '\nWARNING: A locally running Cytoscape was not found ' \
                    'so unable to list layouts. Please start ' \
@@ -369,7 +419,8 @@ class CytoscapeLayoutCommand(object):
         return ''
 
     @staticmethod
-    def get_supported_layouts(cyresturl=DEFAULT_CYREST_API):
+    def get_supported_layouts(cyresturl=DEFAULT_CYREST_API,
+                              py4_wrapper=Py4CytoscapeWrapper()):
         """
         Gets supported layouts as list of `str`
         :return: list of supported layouts or `None` if unable to
@@ -377,15 +428,14 @@ class CytoscapeLayoutCommand(object):
                  found
         :rtype: list
         """
-
         try:
-            py4.cytoscape_ping(base_url=cyresturl)
+            py4_wrapper.cytoscape_ping(base_url=cyresturl)
         except Exception as e:
             return '\nA running Cytoscape was not found at: ' + \
                    cyresturl + ' Please start Cytoscape or ' \
-                               'check value of --cyresturl\n'
+                               'check value of --cyresturl : ' + str(e) + '\n'
         try:
-            layout_mapping = py4.get_layout_name_mapping(base_url=cyresturl)
+            layout_mapping = py4_wrapper.get_layout_name_mapping(base_url=cyresturl)
             if layout_mapping is None:
                 logger.debug('Layout mapping was None')
                 return '\nNo layouts found\n'
@@ -432,9 +482,9 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                                        help='Updates layout of network via '
                                             'Cytoscape',
                                        description=desc,
-                                       formatter_class=Formatter)
+                                       formatter_class=ArgParseFormatter)
         parser.add_argument('layout',
-                            help='Name of layout to run. Set layout name'
+                            help='Name of layout to run. Set layout name '
                                  'to ' +
                                  CytoscapeLayoutCommand.LIST_LAYOUT +
                                  ' to see all options')
@@ -465,7 +515,8 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                                  'Cytoscape')
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
-        parser.add_argument('--cyresturl', default=DEFAULT_CYREST_API,
+        parser.add_argument('--cyresturl',
+                            default=DEFAULT_CYREST_API,
                             help='URL of CyREST API. Default value'
                                  'is default for locally running Cytoscape')
 
