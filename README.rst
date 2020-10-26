@@ -39,7 +39,7 @@ Optional Dependencies
 
 Installed if `pip install ndexutil[cytoscape]` is run
 
-* `py4cytoscape` <https://pypi.org/project/py4cytoscape>`_
+* `py4cytoscape <https://pypi.org/project/py4cytoscape>`_
 
 Compatibility
 -------------
@@ -119,6 +119,43 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
     ndexmisctools.py --profile mycopyprofile copynetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
 
+* **cytoscapelayout** - updates layout for network in `NDEx`_ using Cytoscape
+
+  **NOTE:** This tool requires installation of `py4cytoscape <https://pypi.org/project/py4cytoscape>`_
+            and Cytoscape to be activately running (tested with Cytsocape 3.8+)
+
+  This command requires four positional parameters. The first is the layout algorithm
+  to use followed by (``username``, ``password``, and ``server``) which are credentials for
+  `NDEx`_ server to update the layout on the network.
+
+  Any of these credential fields set to **'-'** will
+  force this tool to obtain the information from (default ``~/.ndexutils.conf``) configuration file
+  under the profile specified by the ``--profile`` field in this format:
+
+  .. code-block::
+
+      [<value of --profile>]
+      user = <NDEx username>
+      password = <NDEx password>
+      server = <NDEx server ie public.ndexbio.org>
+
+  **NOTE:** For version 0.11.0a1 this command will fully replace the network on NDEx.
+
+  Using credentials from `myattrib` profile, the following command adds grid
+  layout to the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+
+  .. code-block::
+
+    ndexmisctools.py --profile myattrib networkxlayout grid - - - --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
+
+  To get a list of available layouts printed to standard out, replace the layout with ``listlayout``. Just put
+  fake values in for credentials and any text for the --uuid flag:
+
+  .. code-block::
+
+    ndexmisctools.py cytoscapelayout listlayout x y z --uuid ignored
+
+
 * **deletenetwork** - deletes a network or all networks under a given networkset from `NDEx`_
 
   Credentials to `NDEx`_ server must be stored in the configuration (default ``~/.ndexutils.conf``)
@@ -136,6 +173,32 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
   .. code-block::
 
     ndexmisctools.py --profile deleteprofile deletenetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
+
+* **featurednetworkreport** - generates report about featurend networks on `NDEx`_
+
+  This command requires one positional parameter ``server``.
+  For production use ``public.ndexbio.org``
+
+
+  If the positional parameter is set to **'-'**, it will
+  force this tool to obtain the information from (default ``~/.ndexutils.conf``) configuration file
+  under the profile specified by the ``--profile`` field in this format:
+
+  .. code-block::
+
+      [<value of --profile>]
+      server = <NDEx server ie public.ndexbio.org>
+
+
+  The command below queries the production server for the featured networks json file
+  and then queries `NDEx`_ for all networks that are part of the featured networks.
+
+  .. code-block::
+
+    ndexmisctools.py featurednetworkreport public.ndexbio.org --output foo.csv
+
+  **NOTE:** If a networkset contains more then 500 networks, only the first 500 are examined
+
 
 * **networkattribupdate** - updates network attributes on network in `NDEx`_
 
@@ -156,6 +219,35 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
   .. code-block::
 
     ndexmisctools.py --profile myattrib networkattribupdate --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda --name foo --type string --value 'my new value'
+
+* **networkxlayout** - updates layout for network in `NDEx`_ using networkx library
+
+
+  This command requires four positional parameters. The first is the layout algorithm
+  to use followed by (``username``, ``password``, and ``server``) which are credentials for
+  `NDEx`_ server to update the layout on the network.
+
+  Any of these credential fields set to **'-'** will
+  force this tool to obtain the information from (default ``~/.ndexutils.conf``) configuration file
+  under the profile specified by the ``--profile`` field in this format:
+
+  .. code-block::
+
+      [<value of --profile>]
+      user = <NDEx username>
+      password = <NDEx password>
+      server = <NDEx server ie public.ndexbio.org>
+
+  By default this tool only updates the ``cartesianLayout`` aspect. To update the full network
+  use add the ``--updatefullnetwork`` flag.
+
+  Using credentials from `myattrib` profile, the following command adds spring
+  layout to the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
+
+  .. code-block::
+
+    ndexmisctools.py --profile myattrib networkxlayout spring - - - --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
+
 
 * **removenodeattrib** - removes an attribute from all nodes in a network
 
