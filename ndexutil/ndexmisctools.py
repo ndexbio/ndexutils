@@ -19,6 +19,7 @@ import ndex2
 from ndexutil.cytoscape import CytoscapeLayoutCommand
 from ndexutil.networkx import NetworkxLayoutCommand
 from ndexutil.reports import FeaturedNetworkReportCommand
+from ndexutil.networkx import NetworkxLayoutWrapper
 
 
 # create logger
@@ -1205,7 +1206,8 @@ class TSVLoader(object):
     COMMAND = 'tsvloader'
 
     def __init__(self, theargs, altclient=None,
-                 streamtsvfac=StreamTSVLoaderFactory()):
+                 streamtsvfac=StreamTSVLoaderFactory(),
+                 layout_wrapper=NetworkxLayoutWrapper()):
         """
         Constructor
         :param theargs: command line arguments from argparse. This method
@@ -1223,6 +1225,7 @@ class TSVLoader(object):
         self._tmpdir = None  # set in run() function
         self._altclient = altclient
         self._tsvfac = streamtsvfac
+        self._layoutwrapper = layout_wrapper
         self._parse_config()
 
     def _parse_config(self):
@@ -1485,6 +1488,14 @@ class TSVLoader(object):
                     tsvloader.write_cx_network(tsv_in_stream, cx_out_stream,
                                                network_attributes=net_attribs)
 
+            if self._args.layout is not None:
+                logger.info('Applying ' + str(self._args.layout) +
+                            ' layout to network')
+                self._layoutwrapper.apply_layout(layout=self._args.layout,
+                                                 input_cx_file=cxout,
+                                                 output_cx_file=cxout,
+                                                 center=self._args.center,
+                                                 scale=self._args.scale)
             if self._args.outputcx is not None:
                 logger.info('Writing CX to file: ' + self._args.outputcx)
                 shutil.copyfile(cxout, self._args.outputcx)
@@ -1637,6 +1648,32 @@ class TSVLoader(object):
         parser.add_argument('--skipupload', action='store_true',
                             help='If set, network will NOT be uploaded '
                                  'to NDEx')
+        parser.add_argument('--layout', choices=[ndexutil.networkx.SPRING_LAYOUT],
+                            help='If set, specifies networkx layout '
+                                 'algorithm to run')
+        parser.add_argument('--scale', type=float, default=300.0,
+                            help='Scale to pass to layout algorithm. Only '
+                                 'applies if --layout flag is set')
+        parser.add_argument('--center', type=str,
+                            help='Comma delimited coordinate denoting '
+                                 'center for layout. Should be in format '
+                                 'of X,Y or Y,X not sure which way networkx '
+                                 'does coordinates. Only apples if --layout '
+                                 'flag is set')
+        parser.add_argument('--' + ndexutil.networkx.SPRING_LAYOUT +
+                            '_iterations', type=int,
+                            default=50,
+                            help='Maximum number of iterations taken. '
+                                 'Only apples if --layout flag is '
+                                 'set to ' + ndexutil.networkx.SPRING_LAYOUT)
+        parser.add_argument('--' + ndexutil.networkx.SPRING_LAYOUT +
+                            '_k', type=float,
+                            help='Optimal distance between nodes. '
+                                 'If unset the distance is set to 1/sqrt(n) '
+                                 'where n is the number of nodes. Increase '
+                                 'this value to move nodes farther apart. '
+                                 'Only apples if --layout flag is '
+                                 'set to ' + ndexutil.networkx.SPRING_LAYOUT)
         parser.add_argument('--outputcx',
                             help='If set, CX will be written to this file')
         return parser

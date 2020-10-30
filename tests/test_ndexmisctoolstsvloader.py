@@ -38,6 +38,7 @@ class TestTSVLoader(unittest.TestCase):
         p.username = 'bob'
         p.password = 'password'
         p.server = 'ndex'
+        p.layout = None
         return p
 
     def setUp(self):
