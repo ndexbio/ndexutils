@@ -2,7 +2,7 @@
 History
 =======
 
-0.12.0 (TBD)
+0.12.0 (2020-10-30)
 ------------------------
 
 * Added ``--layout`` flag to **ndexmisctools.py** *tsvloader* command to enable layouts
