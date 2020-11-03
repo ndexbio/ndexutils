@@ -42,7 +42,8 @@ Default CyREST API URL
 
 class Py4CytoscapeWrapper(object):
     """
-    Wrapper for py4cytoscape calls
+    Wrapper for `py4cytoscape <https://py4cytoscape.readthedocs.io/en/latest>`_
+    library
     """
 
     def __init__(self):
@@ -53,20 +54,36 @@ class Py4CytoscapeWrapper(object):
 
     def is_py4cytoscape_loaded(self):
         """
+        Checks if ``import py4cytoscape`` was successful
 
-        :return:
+        :return: True if py4cytoscape is loaded False otherwise
+        :rtype: bool
         """
         return self._py4loaded
 
     def cytoscape_ping(self, base_url=DEFAULT_CYREST_API):
         """
+        Calls :py:func:`py4cytoscape.cytoscape_system.cytoscape_ping`
 
-        :return:
+        :param base_url:
+        :type base_url: str
+        :return: See return value of
+                 :py:func:`py4cytoscape.cytoscape_system.cytoscape_ping`
         """
         return py4.cytoscape_ping(base_url=base_url)
 
     def delete_network(self, network=None,
                        base_url=DEFAULT_CYREST_API):
+        """
+        Calls :py:func:`py4cytoscape.networks.delete_network`
+
+        :param network:
+        :type network: SUID or str or None
+        :param base_url:
+        :type base_url: str
+        :return: See return value of
+                 :py:func:`py4cytoscape.networks.delete_network`
+        """
         return py4.delete_network(network=network,
                                   base_url=base_url)
 
@@ -74,25 +91,29 @@ class Py4CytoscapeWrapper(object):
                        type=None, network=None,
                        base_url=DEFAULT_CYREST_API):
         """
+        Calls :py:func:`py4cytoscape.networks.export_network`
 
         :param filename:
         :param type:
         :param network:
         :param base_url:
-        :return:
+        :return: See return value of
+                 :py:func:`py4cytoscape.networks.export_network`
         """
         return py4.export_network(filename=filename,
-                       type=type, network=network,
-                       base_url=base_url)
+                                  type=type, network=network,
+                                  base_url=base_url)
 
     def layout_network(self, layout_name=None,
                        network=None, base_url=DEFAULT_CYREST_API):
         """
+        Calls :py:func:`py4cytoscape.networks.layout_network`
 
         :param layout_name:
         :param network:
         :param base_url:
-        :return:
+        :return: See return value of
+                 :py:func:`py4cytoscape.networks.layout_network`
         """
         return py4.layout_network(layout_name=layout_name,
                                   network=network, base_url=base_url)
@@ -100,19 +121,23 @@ class Py4CytoscapeWrapper(object):
     def import_network_from_file(self, input_cx_file,
                                  base_url=DEFAULT_CYREST_API):
         """
+        Calls :py:func:`py4cytoscape.networks.import_network_from_file`
 
         :param input_cx_file:
         :param base_url:
-        :return:
+        :return: See return value of
+                 :py:func:`py4cytoscape.networks.import_network_from_file`
         """
         return py4.import_network_from_file(input_cx_file,
                                             base_url=base_url)
 
     def get_layout_name_mapping(self, base_url=DEFAULT_CYREST_API):
         """
+        Calls :py:func:`py4cytoscape.layouts.get_layout_name_mapping`
 
         :param base_url:
-        :return:
+        :return: See return value of
+                 :py:func:`py4cytoscape.layouts.get_layout_name_mapping`
         """
         return py4.get_layout_name_mapping(base_url=base_url)
 
