@@ -357,7 +357,6 @@ class CytoscapeLayoutCommand(object):
         """
         self._ndexextra.add_node_id_as_node_attribute(cxfile=input_cx_file,
                                                       outcxfile=input_cx_file)
-        shutil.copyfile(input_cx_file, '/Users/churas/Desktop/well.cx')
 
     def load_network_in_cytoscape(self, input_cx_file):
         """
