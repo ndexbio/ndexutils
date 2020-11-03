@@ -33,6 +33,7 @@ Dependencies
 * `enum34 <https://pypi.org/project/enum34>`_
 * `jsonschema <https://pypi.org/project/jsonschema>`_
 * `urllib3 <https://pypi.org/project/urllib3>`_
+* `ijson <https://pypi.org/project/ijson>`_
 
 Optional Dependencies
 ---------------------
