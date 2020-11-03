@@ -111,7 +111,12 @@ class TestCytoscapeLayoutCommand(unittest.TestCase):
                                                             'layout name '
                                                             'to listlayout '
                                                             'to see all '
-                                                            'options')],
+                                                            'options. If set '
+                                                            'to - default '
+                                                            'layout of '
+                                                            'force-'
+                                                            'directed-cl '
+                                                            'will be used')],
                                                        any_order=True)
 
     def test_get_supported_layouts_ping_raises_exception(self):
