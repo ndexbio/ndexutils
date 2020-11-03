@@ -1223,11 +1223,18 @@ class LayoutWrapper(object):
                      base_url=ndexutil.cytoscape.DEFAULT_CYREST_API):
         """
 
-        :param layout:
+        :param layout: layout to run supports 'spring' from networkx and
+                       if Cytoscape is running with py4cytoscape installed
+                       then any cytoscape layout
+        :type layout: str
         :param input_cx_file:
+        :type input_cx_file: str
         :param output_cx_file:
+        :type output_cx_file: str
         :param center:
         :param scale:
+        :param base_url: Cytoscape REST endpoint passed to py4cytoscape
+        :type base_url: str
         :return:
         """
         if layout is None:
