@@ -17,6 +17,9 @@ class NDExExtraUtils(object):
     """
 
     ORIG_NODE_ID_ATTR = 'NDExExtraUtils::original_nodeid'
+    """
+    Name of column to hold the original node ids in Cytoscape
+    """
 
     def __init__(self):
         """
@@ -129,7 +132,7 @@ class NDExExtraUtils(object):
         the most memory efficient way to retrieve CX from NDEx
 
         :param client: NDEx 2 client
-        :type client: `:py:class:~ndex2.client.Ndex2`
+        :type client: :py:class:`~ndex2.client.Ndex2`
         :param networkid: UUID of network as
         :type networkid: str
         :param destfile: destination file for network
