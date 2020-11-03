@@ -19,7 +19,9 @@ import ndex2
 from ndexutil.cytoscape import CytoscapeLayoutCommand
 from ndexutil.networkx import NetworkxLayoutCommand
 from ndexutil.reports import FeaturedNetworkReportCommand
+from ndexutil.cytoscape import Py4CytoscapeWrapper
 from ndexutil.networkx import NetworkxLayoutWrapper
+from ndexutil.ndex import NDExExtraUtils
 
 
 # create logger
@@ -1199,6 +1201,100 @@ class UpdateNetworkSystemProperties(object):
         return parser
 
 
+class LayoutWrapper(object):
+    """
+    Wrapper class to apply a layout to a network
+    """
+    def __init__(self, netx_layout=NetworkxLayoutWrapper(),
+                 cyto_layout=Py4CytoscapeWrapper(),
+                 ndexextra=NDExExtraUtils()):
+        """
+        Constructor
+        """
+        self._netx_layout=netx_layout
+        self._cyto_layout=cyto_layout
+        self._ndexextra=ndexextra
+
+    def apply_layout(self, layout=None,
+                     input_cx_file=None,
+                     output_cx_file=None,
+                     center=None,
+                     scale=None,
+                     base_url=ndexutil.cytoscape.DEFAULT_CYREST_API):
+        """
+
+        :param layout:
+        :param input_cx_file:
+        :param output_cx_file:
+        :param center:
+        :param scale:
+        :return:
+        """
+        if layout is None:
+            raise NDExUtilError('Layout is None')
+
+        if layout == 'spring':
+            self._netx_layout.apply_layout(layout=self._args.layout,
+                                           input_cx_file=input_cx_file,
+                                           output_cx_file=output_cx_file,
+                                           center=center,
+                                           scale=scale)
+            return
+        if self._cyto_layout.is_py4cytoscape_loaded() is False:
+            raise NDExUtilError('py4cytoscape is not loaded ')
+
+        try:
+            self._cyto_layout.cytoscape_ping()
+        except Exception as e:
+            raise NDExUtilError('WARNING: A locally running Cytoscape was '
+                                'not found Please start Cytoscape on '
+                                'this machine : ' + str(e))
+        adjusted_layout = layout
+        if adjusted_layout == '-':
+            adjusted_layout = 'force-directed-cl'
+        self._ndexextra.add_node_id_as_node_attribute(cxfile=input_cx_file,
+                                                      outcxfile=output_cx_file)
+
+        net_dict = self._cyto_layout.import_network_from_file(output_cx_file,
+                                                              base_url=base_url)
+
+        if 'networks' not in net_dict:
+            raise NDExUtilError('Error network view could not '
+                                'be created, this could be cause '
+                                'this network is larger then '
+                                '100,000 edges. Try increasing '
+                                'viewThreshold property in '
+                                'Cytoscape preferences')
+
+        net_suid = net_dict['networks'][0]
+        logger.info('Applying layout ' + adjusted_layout +
+                    ' on network with suid: ' +
+                    str(net_suid) + ' in Cytoscape')
+
+        res = self._py4.layout_network(layout_name=adjusted_layout,
+                                       network=net_suid,
+                                       base_url=base_url)
+        logger.debug(res)
+
+        tmp_output = output_cx_file + '.tmp'
+        # remove destination file to prevent cytoscape hang
+        if os.path.isfile(tmp_output):
+            os.unlink(tmp_output)
+
+        tmp_output = output_cx_file + '.tmp'
+        self._cyto_layout.export_network(filename=tmp_output,
+                                         type='CX', network=net_suid,
+                                         base_url=base_url)
+        layout_data = self._ndexextra.\
+            extract_layout_aspect_from_cx(input_cx_file=tmp_output)
+        if layout_data is None:
+            raise NDExUtilError('No layout data found in result')
+        net = ndex2.create_nice_cx_from_file(input_cx_file)
+        net.set_opaque_aspect('cartesianLayout', layout_data)
+        with open(output_cx_file, 'w') as f:
+            json.dump(net.to_cx(), f)
+
+
 class TSVLoader(object):
     """
     Runs tsvloader to import data as a network into NDEx
@@ -1207,7 +1303,7 @@ class TSVLoader(object):
 
     def __init__(self, theargs, altclient=None,
                  streamtsvfac=StreamTSVLoaderFactory(),
-                 layout_wrapper=NetworkxLayoutWrapper()):
+                 layout_wrapper=LayoutWrapper()):
         """
         Constructor
         :param theargs: command line arguments from argparse. This method
@@ -1225,7 +1321,7 @@ class TSVLoader(object):
         self._tmpdir = None  # set in run() function
         self._altclient = altclient
         self._tsvfac = streamtsvfac
-        self._layoutwrapper = layout_wrapper
+        self._layout = layout_wrapper
         self._parse_config()
 
     def _parse_config(self):
@@ -1491,11 +1587,11 @@ class TSVLoader(object):
             if self._args.layout is not None:
                 logger.info('Applying ' + str(self._args.layout) +
                             ' layout to network')
-                self._layoutwrapper.apply_layout(layout=self._args.layout,
-                                                 input_cx_file=cxout,
-                                                 output_cx_file=cxout,
-                                                 center=self._args.center,
-                                                 scale=self._args.scale)
+                self._layout.apply_layout(layout=self._args.layout,
+                                          input_cx_file=cxout,
+                                          output_cx_file=cxout,
+                                          center=self._args.center,
+                                          scale=self._args.scale)
             if self._args.outputcx is not None:
                 logger.info('Writing CX to file: ' + self._args.outputcx)
                 shutil.copyfile(cxout, self._args.outputcx)
@@ -1648,9 +1744,14 @@ class TSVLoader(object):
         parser.add_argument('--skipupload', action='store_true',
                             help='If set, network will NOT be uploaded '
                                  'to NDEx')
-        parser.add_argument('--layout', choices=[ndexutil.networkx.SPRING_LAYOUT],
-                            help='If set, specifies networkx layout '
-                                 'algorithm to run')
+        parser.add_argument('--layout',
+                            help='If set, specifies layout '
+                                 'algorithm to run. If Cytoscape is running '
+                                 'and py4cytoscape is loaded any layout from '
+                                 'Cytoscape can be used. If "-" is passed in '
+                                 'force-directed-cl from Cytoscape will '
+                                 'be used. If no Cytoscape is available, '
+                                 '"spring" from networkx can be used. ')
         parser.add_argument('--scale', type=float, default=300.0,
                             help='Scale to pass to layout algorithm. Only '
                                  'applies if --layout flag is set')
