@@ -2,6 +2,18 @@
 History
 =======
 
+0.13.0 (2020-11-02)
+------------------------
+
+* Added Cytoscape layouts to **ndexmisctools.py** *tsvloader* via ``--layout`` flag
+
+* Passing ``-`` for layout to **ndexmisctools.py** *cytoscapelayout* will run ``force-directed-cl``
+  layout in Cytoscape
+
+* **ndexmisctools.py** *cytoscapelayout* by default updates only the layout aspect
+  on network in NDEx. This can be changed to perform a full network update with
+  new ``--updatefullnetwork`` flag
+
 0.12.0 (2020-10-30)
 ------------------------
 
