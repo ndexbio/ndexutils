@@ -84,6 +84,8 @@ todo_include_todos = False
 intersphinx_mapping = {
     'ndex2': ('http://ndex2.readthedocs.io/en/latest', None),
     'python': ('http://docs.python.org/3', None),
+    'py4cytoscape': ('https://py4cytoscape.readthedocs.io/en/latest/', None),
+    'networkx': ('http://networkx.org/documentation/stable/', None)
 }
 
 
