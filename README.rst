@@ -30,7 +30,6 @@ Dependencies
 * `requests-toolbelt <https://pypi.org/project/requests_toolbelt>`_
 * `pandas <https://pypi.org/project/pandas>`_
 * `mygene <https://pypi.org/project/mygene>`_
-* `enum34 <https://pypi.org/project/enum34>`_
 * `jsonschema <https://pypi.org/project/jsonschema>`_
 * `urllib3 <https://pypi.org/project/urllib3>`_
 * `ijson <https://pypi.org/project/ijson>`_
@@ -38,7 +37,7 @@ Dependencies
 Optional Dependencies
 ---------------------
 
-Installed if `pip install ndexutil[cytoscape]` is run
+Installed if ``pip install ndexutil[cytoscape]`` is run
 
 * `py4cytoscape <https://pypi.org/project/py4cytoscape>`_
 
