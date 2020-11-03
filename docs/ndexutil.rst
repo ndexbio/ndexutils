@@ -1,24 +1,10 @@
 ndexutil package
 ================
 
-Subpackages
------------
 
 .. toctree::
 
-    ndexutil.ebs
     ndexutil.tsv
-
-Submodules
-----------
-
-ndexutil.annotate module
-------------------------
-
-.. automodule:: ndexutil.annotate
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 ndexutil.argparseutil module
 ----------------------------
@@ -39,9 +25,8 @@ ndexutil.config module
 ndexutil.cytoscape module
 -------------------------
 
-.. automodule:: ndexutil.cytoscape
+.. autoclass:: ndexutil.cytoscape.Py4CytoscapeWrapper
     :members:
-    :undoc-members:
     :show-inheritance:
 
 ndexutil.exceptions module
@@ -60,42 +45,11 @@ ndexutil.ndex module
     :undoc-members:
     :show-inheritance:
 
-ndexutil.ndexmisctools module
------------------------------
-
-.. automodule:: ndexutil.ndexmisctools
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 ndexutil.networkx module
 ------------------------
 
-.. automodule:: ndexutil.networkx
+.. autoclass:: ndexutil.networkx.NetworkxLayoutWrapper
     :members:
     :show-inheritance:
 
-ndexutil.reports module
------------------------
-
-.. automodule:: ndexutil.reports
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ndexutil.tutorial\_utils module
--------------------------------
-
-.. automodule:: ndexutil.tutorial_utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: ndexutil
-    :members:
-    :undoc-members:
-    :show-inheritance:
