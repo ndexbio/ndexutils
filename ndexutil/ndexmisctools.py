@@ -1211,9 +1211,9 @@ class LayoutWrapper(object):
         """
         Constructor
         """
-        self._netx_layout=netx_layout
-        self._cyto_layout=cyto_layout
-        self._ndexextra=ndexextra
+        self._netx_layout = netx_layout
+        self._cyto_layout = cyto_layout
+        self._ndexextra = ndexextra
 
     def apply_layout(self, layout=None,
                      input_cx_file=None,
@@ -1234,7 +1234,7 @@ class LayoutWrapper(object):
             raise NDExUtilError('Layout is None')
 
         if layout == 'spring':
-            self._netx_layout.apply_layout(layout=self._args.layout,
+            self._netx_layout.apply_layout(layout=layout,
                                            input_cx_file=input_cx_file,
                                            output_cx_file=output_cx_file,
                                            center=center,
@@ -1252,10 +1252,11 @@ class LayoutWrapper(object):
         adjusted_layout = layout
         if adjusted_layout == '-':
             adjusted_layout = 'force-directed-cl'
+        tmp_output = output_cx_file + '.tmp.cx'
         self._ndexextra.add_node_id_as_node_attribute(cxfile=input_cx_file,
-                                                      outcxfile=output_cx_file)
+                                                      outcxfile=tmp_output)
 
-        net_dict = self._cyto_layout.import_network_from_file(output_cx_file,
+        net_dict = self._cyto_layout.import_network_from_file(tmp_output,
                                                               base_url=base_url)
 
         if 'networks' not in net_dict:
@@ -1271,17 +1272,15 @@ class LayoutWrapper(object):
                     ' on network with suid: ' +
                     str(net_suid) + ' in Cytoscape')
 
-        res = self._py4.layout_network(layout_name=adjusted_layout,
-                                       network=net_suid,
-                                       base_url=base_url)
+        res = self._cyto_layout.layout_network(layout_name=adjusted_layout,
+                                               network=net_suid,
+                                               base_url=base_url)
         logger.debug(res)
 
-        tmp_output = output_cx_file + '.tmp'
         # remove destination file to prevent cytoscape hang
         if os.path.isfile(tmp_output):
             os.unlink(tmp_output)
 
-        tmp_output = output_cx_file + '.tmp'
         self._cyto_layout.export_network(filename=tmp_output,
                                          type='CX', network=net_suid,
                                          base_url=base_url)
