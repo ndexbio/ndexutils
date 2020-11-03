@@ -9,8 +9,6 @@ Welcome to ndexutil's documentation!
    installation
    usage
    modules
-   contributing
-   authors
    history
 
 Indices and tables
