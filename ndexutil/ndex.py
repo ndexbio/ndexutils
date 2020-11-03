@@ -167,7 +167,7 @@ class NDExExtraUtils(object):
 
         :param input_cx_file: path to CX file
         :type input_cx_file: str
-        :return: cartesianLayout aspect or `None` if that aspect is NOT found
+        :return: cartesianLayout aspect or None if that aspect is NOT found
         :rtype: list
         """
         node_mapping = self.get_node_id_mapping_from_node_attribute(cxfile=input_cx_file)
