@@ -175,3 +175,32 @@ class TestCytoscapeLayoutCommand(unittest.TestCase):
         self.assertEqual('\nLayout Name\n\t-- Layout Name as seen in Cytoscape'
                          '\n\nvalue\n\t-- key\n\n\n', res)
 
+    def test_run_py4cytoscape_not_loaded(self):
+        mockwrapper = MagicMock()
+        p = MagicMock()
+        p.username = 'user'
+        p.password = 'pass'
+        p.server = 'server'
+        mockwrapper.is_py4cytoscape_loaded = MagicMock(return_value=False)
+        cmd = CytoscapeLayoutCommand(p, py4cyto=mockwrapper)
+        self.assertEqual(1, cmd.run())
+        mockwrapper.is_py4cytoscape_loaded.assert_called_once()
+
+    def test_run_listlayout_passed_in(self):
+        mockwrapper = MagicMock()
+        p = MagicMock()
+        p.username = 'user'
+        p.password = 'pass'
+        p.server = 'server'
+        p.layout = 'listlayout'
+        mockwrapper.is_py4cytoscape_loaded = MagicMock(return_value=True)
+        mockwrapper.cytoscape_ping = MagicMock(return_value={})
+        mockwrapper.get_layout_name_mapping = MagicMock(return_value={'key': 'value'})
+        cmd = CytoscapeLayoutCommand(p, py4cyto=mockwrapper)
+        self.assertEqual(0, cmd.run())
+        self.assertEqual(1, mockwrapper.is_py4cytoscape_loaded.call_count)
+        self.assertEqual(1, mockwrapper.get_layout_name_mapping.call_count)
+        self.assertEqual(1, mockwrapper.cytoscape_ping.call_count)
+
+
+

@@ -35,10 +35,16 @@ class NDExExtraUtils(object):
         :param nodeid_attr_name:
         :return:
         """
+        if cxfile is None:
+            raise NDExUtilError('cxfile is None')
+        if not os.path.isfile(cxfile):
+            raise NDExUtilError(cxfile + ' file not found')
+
         net = ndex2.create_nice_cx_from_file(cxfile)
         node_mapping_dict = {}
         for node_id, node_obj in net.get_nodes():
-            n_attr = net.get_node_attribute(node_id, attribute_name=nodeid_attr_name)
+            n_attr = net.get_node_attribute(node_id,
+                                            attribute_name=nodeid_attr_name)
             if n_attr is None:
                 continue
             node_mapping_dict[node_id] = n_attr['v']
@@ -58,7 +64,8 @@ class NDExExtraUtils(object):
         net = ndex2.create_nice_cx_from_file(cxfile)
 
         for node_id, node_obj in net.get_nodes():
-            net.add_node_attribute(property_of=node_id, name=nodeid_attr_name, values=node_id,
+            net.add_node_attribute(property_of=node_id, name=nodeid_attr_name,
+                                   values=node_id,
                                    type='long')
 
         with open(outcxfile, 'w') as f:

@@ -219,7 +219,8 @@ class CytoscapeLayoutCommand(object):
         if self._args.layout == CytoscapeLayoutCommand.LIST_LAYOUT or \
                 self._args.layout == CytoscapeLayoutCommand.LIST_LAYOUTS:
             sys.stdout.write(CytoscapeLayoutCommand.
-                             get_supported_layouts(self._args.cyresturl))
+                             get_supported_layouts(self._args.cyresturl,
+                                                   py4_wrapper=self._py4))
             return 0
 
         if self._args.layout == '-':

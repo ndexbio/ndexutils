@@ -30,6 +30,60 @@ class TestNDExExtraUtils(unittest.TestCase):
         """Tear down test fixtures, if any."""
         pass
 
+    def test_get_node_id_mapping_from_node_attribute_none_cx_file(self):
+        util = NDExExtraUtils()
+        try:
+            util.get_node_id_mapping_from_node_attribute(cxfile=None)
+            self.fail('Expected NDExUtilError')
+        except NDExUtilError as ne:
+            self.assertEqual('cxfile is None', str(ne))
+
+    def test_get_node_id_mapping_from_node_attribute_no_cx_file(self):
+        util = NDExExtraUtils()
+        temp_dir = tempfile.mkdtemp()
+        try:
+            nofile = os.path.join(temp_dir, 'doesnotexist.cx')
+            util.get_node_id_mapping_from_node_attribute(cxfile=nofile)
+            self.fail('Expected NDExUtilError')
+        except NDExUtilError as ne:
+            self.assertEqual(nofile + ' file not found', str(ne))
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_get_node_id_mapping_from_node_attribute_no_nodeid_attr(self):
+        util = NDExExtraUtils()
+        temp_dir = tempfile.mkdtemp()
+        try:
+            cxfile = os.path.join(temp_dir, 'foo.cx')
+            net = NiceCXNetwork()
+            net.create_node('node1')
+            net.create_node('node2')
+            net.create_node('node3')
+            with open(cxfile, 'w') as f:
+                json.dump(net.to_cx(), f)
+            res = util.get_node_id_mapping_from_node_attribute(cxfile=cxfile)
+            self.assertEqual({}, res)
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_get_node_id_mapping_from_node_attribute_success(self):
+        util = NDExExtraUtils()
+        temp_dir = tempfile.mkdtemp()
+        try:
+            cxfile = os.path.join(temp_dir, 'foo.cx')
+            net = NiceCXNetwork()
+            net.create_node('node1')
+            net.create_node('node2')
+            net.create_node('node3')
+            with open(cxfile, 'w') as f:
+                json.dump(net.to_cx(), f)
+            util.add_node_id_as_node_attribute(cxfile=cxfile,
+                                               outcxfile=cxfile)
+            res = util.get_node_id_mapping_from_node_attribute(cxfile=cxfile)
+            self.assertEqual({0: 0, 1: 1, 2: 2}, res)
+        finally:
+            shutil.rmtree(temp_dir)
+
     def test_update_network_on_ndex_invalid_args(self):
         util = NDExExtraUtils()
         try:
@@ -193,4 +247,39 @@ class TestNDExExtraUtils(unittest.TestCase):
         finally:
             shutil.rmtree(temp_dir)
 
+    def test_extract_layout_aspect_from_cx_success(self):
+        util = NDExExtraUtils()
+        temp_dir = tempfile.mkdtemp()
+        try:
+            cxfile = os.path.join(temp_dir, 'foo.cx')
+            net = NiceCXNetwork()
+            nid = net.create_node('node1')
+            net.add_node_attribute(property_of=nid,
+                                   name=NDExExtraUtils.ORIG_NODE_ID_ATTR,
+                                   values=4,
+                                   type='long')
+            nid = net.create_node('node2')
+            net.add_node_attribute(property_of=nid,
+                                   name=NDExExtraUtils.ORIG_NODE_ID_ATTR,
+                                   values=5,
+                                   type='long')
+            nid = net.create_node('node3')
+            net.add_node_attribute(property_of=nid,
+                                   name=NDExExtraUtils.ORIG_NODE_ID_ATTR,
+                                   values=6,
+                                   type='long')
+            net.set_opaque_aspect('cartesianLayout', [{'node': 0, 'x': 1, 'y': 2},
+                                                      {'node': 1, 'x': 3, 'y': 4},
+                                                      {'node': 2, 'x': 5, 'y': 6, 'z': 7}])
+            with open(cxfile, 'w') as f:
+                json.dump(net.to_cx(), f)
+            res = util.get_node_id_mapping_from_node_attribute(cxfile=cxfile)
+            self.assertEqual({0: 4, 1: 5, 2: 6}, res)
+
+            res = util.extract_layout_aspect_from_cx(input_cx_file=cxfile)
+            self.assertEqual([{'node': 4, 'x': 1.0, 'y': 2.0},
+                              {'node': 5, 'x': 3.0, 'y': 4.0},
+                              {'node': 6, 'x': 5.0, 'y': 6.0, 'z': 7.0}], res)
+        finally:
+            shutil.rmtree(temp_dir)
 
