@@ -197,6 +197,9 @@ class CytoscapeLayoutCommand(object):
                              get_supported_layouts(self._args.cyresturl))
             return 0
 
+        if self._args.layout == '-':
+            self._args.layout = 'force-directed-cl'
+
         self._parse_config()
         client = self._get_client()
         self._tmpdir = tempfile.mkdtemp(prefix=self._args.tmpdir)
@@ -206,6 +209,10 @@ class CytoscapeLayoutCommand(object):
             self._ndexextra.download_network_from_ndex(client=client,
                                                        networkid=self._args.uuid,
                                                        destfile=input_cx_file)
+
+            if self._args.updatefullnetwork is False:
+                self.add_node_id_node_attribute(input_cx_file=input_cx_file)
+
             net_dict = self.load_network_in_cytoscape(input_cx_file)
             if 'networks' not in net_dict:
                 logger.fatal('Error network view could not '
@@ -226,27 +233,20 @@ class CytoscapeLayoutCommand(object):
 
             if os.path.isfile(res_cx_file) and \
                     os.path.getsize(res_cx_file) > 0:
-                self.update_network_on_ndex(client=client, cxfile=res_cx_file)
+                if self._args.updatefullnetwork is True:
+                    self.update_network_on_ndex(client=client,
+                                                cxfile=res_cx_file)
+                else:
+                    u_cx_file = self.\
+                        extract_layout_aspect_from_cx(input_cx_file=res_cx_file)
+                    self.update_layout_aspect_on_ndex(client=client,
+                                                      cxfile=u_cx_file)
 
             return 0
         finally:
             # remove network from Cytoscape
             self.delete_network(network_suid=net_suid)
             shutil.rmtree(self._tmpdir)
-
-    def get_node_id_map(self, input_cx=None,
-                        updated_cx=None):
-        """
-        Given an input CX file 'input_cx' and
-        a Cytoscape updated CX file. Generate
-        a dict with key set to id of node in 'updated_cx'
-        set to id of node in 'input_cx'
-        The lookup is done by examining the 'name' field if those
-        values are unique otherwise
-        :param input_cx:
-        :param updated_cx:
-        :return:
-        """
 
     def delete_network(self, network_suid=None):
         """
@@ -280,15 +280,11 @@ class CytoscapeLayoutCommand(object):
         with open(cxfile, 'r') as f:
             jdata = json.load(f)
 
-        net = NiceCXNetwork()
-        net.set_opaque_aspect('cartesianLayout', jdata)
-
-        theurl = '/network/' + self._args.uuid + '/aspects'
-        logger.info(theurl)
-        logger.info(net.to_cx())
-        res = client.put(theurl,
-                         put_json=json.dumps(net.to_cx()))
-        logger.info('Result from put: ' + str(res))
+        res = self._ndexextra.update_network_aspect_on_ndex(client=client,
+                                                            networkid=self._args.uuid,
+                                                            aspect_name='cartesianLayout',
+                                                            aspect_data=jdata)
+        logger.info('Result from aspect update: ' + str(res))
 
         return
 
@@ -353,6 +349,16 @@ class CytoscapeLayoutCommand(object):
         logger.debug(res)
         return None
 
+    def add_node_id_node_attribute(self, input_cx_file):
+        """
+
+        :param input_cx_file:
+        :return:
+        """
+        self._ndexextra.add_node_id_as_node_attribute(cxfile=input_cx_file,
+                                                      outcxfile=input_cx_file)
+        shutil.copyfile(input_cx_file, '/Users/churas/Desktop/well.cx')
+
     def load_network_in_cytoscape(self, input_cx_file):
         """
         Loads network from file into Cytoscape
@@ -363,7 +369,7 @@ class CytoscapeLayoutCommand(object):
         file_size = os.path.getsize(input_cx_file)
 
         logger.info('Importing network from file: ' + input_cx_file +
-                    ' (' + str(file_size) +' bytes) into Cytoscape')
+                    ' (' + str(file_size) + ' bytes) into Cytoscape')
         return self._py4.import_network_from_file(input_cx_file,
                                                   base_url=self._args.cyresturl)
 
@@ -378,23 +384,13 @@ class CytoscapeLayoutCommand(object):
                  or `None` if that aspect is NOT found
         :rtype: str
         """
+        res = self._ndexextra.extract_layout_aspect_from_cx(input_cx_file=input_cx_file)
         output_cx_file = os.path.join(self._tmpdir, 'cartlayout.json')
-        with open(output_cx_file, 'w') as outfp:
-            with open(input_cx_file, 'rb') as f:
-                for object in ijson.items(f, 'item.cartesianLayout'):
-                    # an inefficient fix to ijson setting the node
-                    # coordinates to type Decimal which breaks json.dump
-                    for node in object:
-                        # need to remap node ids
-                        if 'x' in node:
-                            node['x'] = float(node['x'])
-                        if 'y' in node:
-                            node['y'] = float(node['y'])
-                        if 'z' in node:
-                            node['z'] = float(node['z'])
-                    json.dump(object, outfp)
-
-        return output_cx_file
+        if res is not None:
+            with open(output_cx_file, 'w') as outfp:
+                json.dump(res, outfp)
+            return output_cx_file
+        return None
 
     @staticmethod
     def get_cytoscape_check_message(py4_wrapper=Py4CytoscapeWrapper()):
@@ -487,7 +483,9 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                             help='Name of layout to run. Set layout name '
                                  'to ' +
                                  CytoscapeLayoutCommand.LIST_LAYOUT +
-                                 ' to see all options')
+                                 ' to see all options. If set to - '
+                                 'default layout of force-directed-cl '
+                                 'will be used')
         parser.add_argument('username', help='NDEx username, if set to - '
                                              'then value from config will '
                                              'be used')
@@ -519,5 +517,7 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                             default=DEFAULT_CYREST_API,
                             help='URL of CyREST API. Default value'
                                  'is default for locally running Cytoscape')
-
+        parser.add_argument('--updatefullnetwork', action='store_true',
+                            help='If set, Update entire network on NDEx instead of '
+                                 'just the cartesianLayout aspect')
         return parser
