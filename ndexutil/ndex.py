@@ -2,7 +2,8 @@
 import os
 import json
 import logging
-
+import ijson
+import ndex2
 from ndex2.nice_cx_network import NiceCXNetwork
 from ndexutil.exceptions import NDExUtilError
 
@@ -14,11 +15,51 @@ class NDExExtraUtils(object):
     Contains some extra utilities for use
     with NDEx
     """
+
+    ORIG_NODE_ID_ATTR = 'NDExExtraUtils::original_nodeid'
+
     def __init__(self):
         """
         Constructor
         """
         pass
+
+    def get_node_id_mapping_from_node_attribute(self, cxfile=None,
+                                                nodeid_attr_name=ORIG_NODE_ID_ATTR):
+        """
+
+        :param cxfile:
+        :param nodeid_attr_name:
+        :return:
+        """
+        net = ndex2.create_nice_cx_from_file(cxfile)
+        node_mapping_dict = {}
+        for node_id, node_obj in net.get_nodes():
+            n_attr = net.get_node_attribute(node_id, attribute_name=nodeid_attr_name)
+            if n_attr is None:
+                continue
+            node_mapping_dict[node_id] = n_attr['v']
+        return node_mapping_dict
+
+    def add_node_id_as_node_attribute(self, cxfile=None,
+                                      outcxfile=None,
+                                      nodeid_attr_name=ORIG_NODE_ID_ATTR):
+        """
+        Loads 'cxfile' adding a new node attribute named value
+        of 'nodeid_attr_name' with a value set to id of node.
+        The result is then saved to 'outcxfile'
+
+        :param cxfile:
+        :return: None
+        """
+        net = ndex2.create_nice_cx_from_file(cxfile)
+
+        for node_id, node_obj in net.get_nodes():
+            net.add_node_attribute(property_of=node_id, name=nodeid_attr_name, values=node_id,
+                                   type='long')
+
+        with open(outcxfile, 'w') as f:
+            json.dump(net.to_cx(), f)
 
     def update_network_on_ndex(self, client=None,
                                networkid=None,
@@ -115,3 +156,29 @@ class NDExExtraUtils(object):
                     f.write(chunk)
                     f.flush()
         return destfile
+
+    def extract_layout_aspect_from_cx(self, input_cx_file=None):
+        """
+        Given a CX file, this method find the, cartesianLayout,
+        if any, and writes it to a file in the temp directory.
+
+        :param input_cx_file: path to CX file
+        :type input_cx_file: str
+        :return: cartesianLayout aspect or `None` if that aspect is NOT found
+        :rtype: list
+        """
+        node_mapping = self.get_node_id_mapping_from_node_attribute(cxfile=input_cx_file)
+        with open(input_cx_file, 'rb') as f:
+            for object in ijson.items(f, 'item.cartesianLayout'):
+                # an inefficient fix to ijson setting the node
+                # coordinates to type Decimal which breaks json.dump
+                for node in object:
+                    # need to remap node ids
+                    node['node'] = node_mapping[node['node']]
+                    if 'x' in node:
+                        node['x'] = float(node['x'])
+                    if 'y' in node:
+                        node['y'] = float(node['y'])
+                    if 'z' in node:
+                        node['z'] = float(node['z'])
+                return object
