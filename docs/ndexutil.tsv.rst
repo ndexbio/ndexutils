@@ -4,8 +4,7 @@ ndexutil.tsv package
 ndexutil.tsv.streamtsvloader module
 -----------------------------------
 
-.. automodule:: ndexutil.tsv.streamtsvloader
+.. autoclass:: ndexutil.tsv.streamtsvloader.StreamTSVLoader
     :members:
-    :undoc-members:
     :show-inheritance:
 
