@@ -1676,7 +1676,8 @@ class TSVLoader(object):
                          datafile.tsv loadplan.json \\
                          --header 'col1\tcol2\tcol3' \\
                          -t some_cx_file.cx \\
-                         -u 48a26aa0-0677-11ea-93e0-525400c25d22
+                         -u 48a26aa0-0677-11ea-93e0-525400c25d22 \\
+                         --layout -
 
         If successful 0 is returned otherwise there was an error.
 
