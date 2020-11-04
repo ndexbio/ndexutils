@@ -2,7 +2,7 @@
 History
 =======
 
-0.13.0 (2020-11-02)
+0.13.0 (2020-11-03)
 ------------------------
 
 * Added Cytoscape layouts to **ndexmisctools.py** *tsvloader* via ``--layout`` flag
