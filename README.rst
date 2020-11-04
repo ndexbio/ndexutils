@@ -323,7 +323,7 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
   This new version uses the more memory efficient StreamTSVLoader.
 
   This command requires five positional parameters.
-  The first three (``username`, ``password``, and ``server``) are credentials for
+  The first three (``username``, ``password``, and ``server``) are credentials for
   `NDEx`_ server to upload the network.
 
   Any of these first three credential fields set to **'-'** will
