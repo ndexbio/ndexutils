@@ -139,8 +139,6 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
       password = <NDEx password>
       server = <NDEx server ie public.ndexbio.org>
 
-  **NOTE:** For version 0.11.0a1 this command will fully replace the network on NDEx.
-
   Using credentials from `myattrib` profile, the following command adds grid
   layout to the network ``9025480b-6fbc-4efe-9cd8-b575ce49dfda``
 
@@ -350,6 +348,8 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
   standard out/error. For more verbosity add three to five ``-v`` parameters
   to left of command name **tsvloader** as seen in examples below.
 
+  **NOTE:** If using ``--layout`` to run a Cytoscape layout, `py4cytoscape <https://pypi.org/project/py4cytoscape>`_
+            must be installed and Cytoscape to be activately running (tested with Cytsocape 3.8+)
 
   In example below the ``- - -`` tells the program to read the credentials
   from the configuration file
