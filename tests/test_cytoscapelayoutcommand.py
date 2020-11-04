@@ -111,11 +111,10 @@ class TestCytoscapeLayoutCommand(unittest.TestCase):
                                                             'layout name '
                                                             'to listlayout '
                                                             'to see all '
-                                                            'options. If set '
-                                                            'to - default '
+                                                            'options. If "-" '
+                                                            'is passed in, '
                                                             'layout of '
-                                                            'force-'
-                                                            'directed-cl '
+                                                            'force-directed-cl '
                                                             'will be used')],
                                                        any_order=True)
 
