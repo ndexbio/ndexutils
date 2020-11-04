@@ -235,11 +235,13 @@ class CytoscapeLayoutCommand(object):
             self._ndexextra.download_network_from_ndex(client=client,
                                                        networkid=self._args.uuid,
                                                        destfile=input_cx_file)
-
+            tmp_output = input_cx_file
             if self._args.updatefullnetwork is False:
-                self.add_node_id_node_attribute(input_cx_file=input_cx_file)
+                tmp_output = input_cx_file + '.tmp.cx'
+                self._ndexextra.add_node_id_as_node_attribute(cxfile=input_cx_file,
+                                                              outcxfile=tmp_output)
 
-            net_dict = self.load_network_in_cytoscape(input_cx_file)
+            net_dict = self.load_network_in_cytoscape(tmp_output)
             if 'networks' not in net_dict:
                 logger.fatal('Error network view could not '
                              'be created, this could be cause '
@@ -375,15 +377,6 @@ class CytoscapeLayoutCommand(object):
         logger.debug(res)
         return None
 
-    def add_node_id_node_attribute(self, input_cx_file):
-        """
-
-        :param input_cx_file:
-        :return:
-        """
-        self._ndexextra.add_node_id_as_node_attribute(cxfile=input_cx_file,
-                                                      outcxfile=input_cx_file)
-
     def load_network_in_cytoscape(self, input_cx_file):
         """
         Loads network from file into Cytoscape
@@ -488,8 +481,17 @@ The network can be specified by NDEx UUID via --uuid flag.
 
 {cytocheck}
 
-Example:
+NOTE: if '-' is set as layout then force-directed-cl will be used.
 
+Examples:
+
+# to get list of Cytoscape layouts
+ndexmisctools.py cytoscapelayout listlayout - - - --uuid foo
+
+# to run with default force-directed-cl Cytoscape layout
+ndexmisctools.py cytoscapelayout - - - - --uuid XXXX-XXX
+
+# to run with perforce Cytoscape layout
 ndexmisctools.py cytoscapelayout perforce - - - --uuid XXXX-XXX
 
 WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
@@ -508,8 +510,8 @@ WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
                             help='Name of layout to run. Set layout name '
                                  'to ' +
                                  CytoscapeLayoutCommand.LIST_LAYOUT +
-                                 ' to see all options. If set to - '
-                                 'default layout of force-directed-cl '
+                                 ' to see all options. If "-" is passed in, '
+                                 'layout of force-directed-cl '
                                  'will be used')
         parser.add_argument('username', help='NDEx username, if set to - '
                                              'then value from config will '
