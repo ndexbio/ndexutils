@@ -826,7 +826,7 @@ class StyleUpdator(object):
             server=self._server,
             username=self._user,
             password=self._pass,
-            uuid=uuid
+            uuid=self._args.styleuuid
         )
         self._create_new_network(uuid, network, visibility)
         self._count += 1
@@ -843,7 +843,7 @@ class StyleUpdator(object):
             server=self._server,
             username=self._user,
             password=self._pass,
-            uuid=uuid
+            uuid=self._args.styleuuid
         )
         self._client.update_cx_network(network.to_cx_stream(), uuid)
         self._count += 1
