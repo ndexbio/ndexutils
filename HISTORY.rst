@@ -2,7 +2,7 @@
 History
 =======
 
-0.13.1 (2020-11-09)
+0.13.1 (2020-11-11)
 ------------------------
 
 * Fixed bug where ``--styleuuid`` was failing to update network in
