@@ -9,7 +9,7 @@ import os
 import json
 import unittest
 from unittest.mock import MagicMock
-
+from requests.exceptions import HTTPError
 import ndex2
 from ndex2.nice_cx_network import NiceCXNetwork
 from ndexutil.exceptions import ConfigError
@@ -133,6 +133,51 @@ class TestStyleUpdator(unittest.TestCase):
         self.assertEqual(type(loader._apply_style_from_file_to_new_network),
                          type(sf))
         self.assertTrue('_apply_style_from_uuid_to_new_network' in str(sf))
+
+    def test_copy_networkset_works_retry_exceeded(self):
+        p = MagicMock()
+        p.networksetretry = 1
+        loader = StyleUpdator(p)
+        loader._client = MagicMock()
+        loader._client.\
+            get_networkset = MagicMock(return_value={'name': 'foo',
+                                                     'description': 'desc'})
+        loader._client.\
+            create_networkset = MagicMock(side_effect=HTTPError('err'))
+
+        try:
+            loader._copy_networkset('netsetid')
+            self.fail('Expected NDExUtilError')
+        except NDExUtilError as ne:
+            self.assertTrue('After ' in str(ne))
+
+        loader._client.get_networkset.assert_called_once_with('netsetid')
+        loader._client. \
+            create_networkset.assert_called_once_with('Copy of foo', 'desc')
+
+    def test_copy_networkset_works_first_try(self):
+        p = MagicMock()
+        p.networksetretry = 5
+        loader = StyleUpdator(p)
+        loader._client = MagicMock()
+        loader._client.\
+            get_networkset = MagicMock(return_value={'name': 'foo',
+                                                     'description': 'desc'})
+
+        loader._client.\
+            create_networkset = MagicMock(return_value='http://foo/'
+                                                       'network/uuid')
+        loader._old_to_new = {'1': '2',
+                              '2': '3'}
+        loader._client.add_networks_to_networkset = MagicMock()
+        res = loader._copy_networkset('netsetid')
+        self.assertEqual('uuid', res)
+        loader._client.get_networkset.assert_called_once_with('netsetid')
+        loader._client. \
+            create_networkset.assert_called_once_with('Copy of foo', 'desc')
+
+        loader._client.add_networks_to_networkset.assert_called_once_with('uuid',
+                                                                          ['2', '3'])
 
 
 
