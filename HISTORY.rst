@@ -5,7 +5,8 @@ History
 0.13.1 (2020-11-09)
 ------------------------
 
-* Fixed bug where ``--styleuuuid`` was failing to update network in **ndexmisctools.py** *styleupdate* command
+* Fixed bug where ``--styleuuid`` was failing to update network in
+  **ndexmisctools.py** *styleupdate* command
 
 0.13.0 (2020-11-03)
 ------------------------
