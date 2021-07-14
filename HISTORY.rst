@@ -2,6 +2,13 @@
 History
 =======
 
+0.14.0 (TBD)
+-------------------------
+
+* Added ``--indexlevel, --showcase, --visibility,`` and ``--destnetworkset`` to
+  **ndexmisctools.py** *copynetwork* command to allow caller to set copied
+  networks accessibility and to add copied network to a networkset.
+
 0.13.1 (2020-11-11)
 ------------------------
 

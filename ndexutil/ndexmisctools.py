@@ -80,6 +80,14 @@ class CopyNetwork(object):
         self._destserver = con.get(self._args.profile,
                                    'dest_' + NDExUtilConfig.SERVER)
 
+    def _get_dest_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._destserver, self._destuser, self._destpass)
+
     def run(self):
         """
         Downloads network from source and copies to destination
@@ -90,8 +98,24 @@ class CopyNetwork(object):
                                                self._srcuser,
                                                self._srcpass,
                                                self._args.uuid)
-        net.upload_to(self._destserver, self._destuser,
-                      self._destpass)
+
+        client = self._get_dest_client()
+        client.save_new_network(net.to_cx(),
+                                visibility=self._args.visibility.upper())
+        netid_raw = net.upload_to(self._destserver, self._destuser,
+                                  self._destpass)
+
+        netid = netid_raw[netid_raw.rindex+1:]
+
+        # set index level and showcase
+        client.set_network_system_properties(netid,
+                                             {'showcase': self._args.showcase,
+                                              'index_level': self._args.indexlevel})
+
+        # add to networkset
+        if self._args.destnetworkset is not None:
+            client.add_networks_to_networkset(self._args.destnetworkset,
+                                              [netid])
 
     @staticmethod
     def add_subparser(subparsers):
@@ -105,7 +129,10 @@ class CopyNetwork(object):
             Version {version}
 
             The copynetwork command copies an NDEx network specified by --uuid
-            to another user account.
+            to another user account and server. 
+            
+            The visibility and indexing of the copied network can be controlled
+            by --visibility, --showcase, and --indexlevel options.
 
             The source and destination accounts are specified by configuration
             in --conf under section set via --profile field
@@ -129,9 +156,19 @@ class CopyNetwork(object):
                                             'from one user to another',
                                        description=desc,
                                        formatter_class=Formatter)
-
         parser.add_argument('--uuid',
-                            help='The UUID of network in NDEx to update')
+                            help='The UUID of network in NDEx to copy')
+        parser.add_argument('--destnetworkset',
+                            help='UUID of destination networkset. If set,'
+                                 'adds copied network to networkset')
+        parser.add_argument('--showcase', action='store_true',
+                            help='If set, copied network will be showcased')
+        parser.add_argument('--indexlevel', default='none',
+                            choices=['none', 'meta', 'all'],
+                            help='If set, copied network indexing will be updated')
+        parser.add_argument('--visibility', default='private',
+                            choices=['public', 'private'],
+                            help='If set, updates visibility of copied network')
         return parser
 
 
