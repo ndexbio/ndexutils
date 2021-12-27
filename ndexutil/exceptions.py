@@ -8,6 +8,12 @@ class NDExUtilError(Exception):
     pass
 
 
+class NDExUtilSaveNetworkError(Exception):
+    """
+    Error saving network to NDEx
+    """
+    pass
+
 class ConfigError(NDExUtilError):
     """
     Raised if there is an error with configuration file
