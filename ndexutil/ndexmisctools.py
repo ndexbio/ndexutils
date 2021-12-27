@@ -6,8 +6,11 @@ import argparse
 import logging
 import json
 import tempfile
+import re
+from datetime import datetime
 import shutil
 from requests.exceptions import HTTPError
+from tqdm import tqdm
 import ndexutil
 from ndexutil.tsv.streamtsvloader import StreamTSVLoaderFactory
 from ndexutil.config import NDExUtilConfig
@@ -44,7 +47,8 @@ class CopyNetwork(object):
     """
     COMMAND = 'copynetwork'
 
-    def __init__(self, theargs):
+    def __init__(self, theargs,
+                 ndexextra=NDExExtraUtils()):
         """
         Constructor
         :param theargs: command line arguments ie theargs.name theargs.type
@@ -56,6 +60,7 @@ class CopyNetwork(object):
         self._destuser = None
         self._destpass = None
         self._destserver = None
+        self._ndexextra = ndexextra
 
     def _parse_config(self):
         """
@@ -100,20 +105,25 @@ class CopyNetwork(object):
                                                self._args.uuid)
 
         client = self._get_dest_client()
-        client.save_new_network(net.to_cx(),
-                                visibility=self._args.visibility.upper())
-        netid_raw = net.upload_to(self._destserver, self._destuser,
-                                  self._destpass)
-
-        netid = netid_raw[netid_raw.rindex+1:]
+        netid = self._ndexextra.save_network_to_ndex(client=client, net=net,
+                                                     visibility=
+                                                     self._args.visibility.upper())
 
         # set index level and showcase
-        client.set_network_system_properties(netid,
-                                             {'showcase': self._args.showcase,
-                                              'index_level': self._args.indexlevel})
+        logger.debug('Setting index (' + str(self._args.indexlevel) +
+                     ') and showcase (' +
+                     str(self._args.showcase) + ') on network: ' + str(netid))
+
+        self._ndexextra.set_index_and_showcase(client=client, netid=netid,
+                                               showcase=self._args.showcase,
+                                               index_level=
+                                               self._args.indexlevel.upper())
 
         # add to networkset
         if self._args.destnetworkset is not None:
+            logger.debug('Adding network (' + str(netid) +
+                         ') to networkset (' +
+                         str(self._args.destnetworkset) + ')')
             client.add_networks_to_networkset(self._args.destnetworkset,
                                               [netid])
 
@@ -165,10 +175,239 @@ class CopyNetwork(object):
                             help='If set, copied network will be showcased')
         parser.add_argument('--indexlevel', default='none',
                             choices=['none', 'meta', 'all'],
-                            help='If set, copied network indexing will be updated')
+                            help='If set, copied network indexing will '
+                                 'be updated')
         parser.add_argument('--visibility', default='private',
                             choices=['public', 'private'],
-                            help='If set, updates visibility of copied network')
+                            help='If set, updates visibility of copied '
+                                 'network')
+        return parser
+
+
+class CopyNetworkSet(object):
+    """
+    Copies NDEx networkset from one account to another
+    account
+    """
+    COMMAND = 'copynetworkset'
+
+    def __init__(self, theargs,
+                 ndexextra=NDExExtraUtils()):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+        self._srcuser = None
+        self._srcpass = None
+        self._srcserver = None
+        self._destuser = None
+        self._destpass = None
+        self._destserver = None
+        self._ndexextra = ndexextra
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._srcuser = con.get(self._args.profile,
+                                'source_' + NDExUtilConfig.USER)
+        self._srcpass = con.get(self._args.profile,
+                                'source_' + NDExUtilConfig.PASSWORD)
+        self._srcserver = con.get(self._args.profile,
+                                  'source_' + NDExUtilConfig.SERVER)
+        self._destuser = con.get(self._args.profile,
+                                 'dest_' + NDExUtilConfig.USER)
+        self._destpass = con.get(self._args.profile,
+                                 'dest_' + NDExUtilConfig.PASSWORD)
+        self._destserver = con.get(self._args.profile,
+                                   'dest_' + NDExUtilConfig.SERVER)
+
+    def _get_src_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._srcserver, self._srcuser, self._srcpass)
+
+    def _get_dest_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._destserver, self._destuser, self._destpass)
+
+    def _copy_network(self, client=None, network_uuid=None,
+                      dest_networkset_uuid=None):
+        """
+
+        :return:
+        """
+        if self._args.shallowcopy is False:
+            net = ndex2.create_nice_cx_from_server(self._srcserver,
+                                                   self._srcuser,
+                                                   self._srcpass,
+                                                   network_uuid)
+            netid = self._ndexextra.save_network_to_ndex(client=client, net=net,
+                                                         visibility=
+                                                         self._args.visibility.upper())
+        else:
+            netid = network_uuid
+
+        # set index level and showcase
+        logger.debug('Setting index (' + str(self._args.indexlevel) +
+                     ') and showcase (' +
+                     str(self._args.showcase) + ') on network: ' + str(netid))
+
+        self._ndexextra.set_index_and_showcase(client=client, netid=netid,
+                                               showcase=self._args.showcase,
+                                               index_level=
+                                               self._args.indexlevel.upper())
+
+        # add to networkset
+
+        logger.debug('Adding network (' + str(netid) +
+                     ') to networkset (' +
+                     str(dest_networkset_uuid) + ')')
+        client.add_networks_to_networkset(dest_networkset_uuid,
+                                          [netid])
+
+    def _get_dest_networkset(self, client=None,
+                             source_networkset=None):
+        """
+        Gets or creates destination networkset
+        :param client:
+        :param source_networkset:
+        :return:
+        """
+        if self._args.destnetworkset is not None:
+            try:
+                res = client.get_networkset(self._args.destnetworkset)
+                return res['externalId']
+            except HTTPError as he:
+                raise NDExUtilError('Error getting networkset ' +
+                                    str(self._args.destnetworkset) +
+                                    ' specified by --destnetworkset : ' +
+                                    str(he))
+
+        ns_url = client.create_networkset(str(source_networkset['name'] + ' - ' + str(datetime.now())),
+                                          '\n<br/>Copy of <a href="https://' + str(self._srcserver) +
+                                          '/#/networkset/' + source_networkset['externalId'] +
+                                          '">' +source_networkset['externalId'] +
+                                          '</a>\n<br/>' + str(source_networkset['description']))
+        return re.sub('^.*/', '', ns_url)
+
+    def run(self):
+        """
+        Downloads network from source and copies to destination
+        :return:
+        """
+        self._parse_config()
+
+        src_client = self._get_src_client()
+        dest_client = self._get_dest_client()
+
+        try:
+            # get source networkset and list of networks
+            source_networkset = src_client.get_networkset(self._args.sourcenetworkset)
+        except HTTPError as he:
+            raise NDExUtilError('Unable to get source networkset: ' +
+                                str(self._args.sourcenetworkset) + " : " +
+                                str(he))
+
+        # create destination networkset if does not exist
+        dest_networkset_uuid = self._get_dest_networkset(client=dest_client,
+                                                         source_networkset=source_networkset)
+
+        # iterate through networks and copy them to destination
+        for network_uuid in tqdm(source_networkset['networks'], desc='Networks'):
+            self._copy_network(client=dest_client, network_uuid=network_uuid,
+                               dest_networkset_uuid=dest_networkset_uuid)
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+            Version {version}
+
+            The copynetworkset command copies a networkset in NDEx specified
+            by --sourcenetworkset UUID to a new networkset.  
+            
+            Default behavior is to make a full copy of the networks in the
+            source networkset and add the UUID of the newly created networks 
+            to the destination networkset. The description is copied from 
+            the source networkset with a prefix denoting the source of 
+            the copy. 
+
+            The visibility and indexing of the newly copied network can be 
+            controlled by --visibility, --showcase, and --indexlevel options.
+            
+            To skip the full copy add the --shallowcopy flag, which will just
+            add the existing network UUIDs to the new network set. 
+            
+            NOTE: 
+            --visibility, --showcase, and --indexlevel are ignored if 
+            --shallowcopy is set. 
+            
+            WARNING:
+            --shallowcopy should also NOT be used across NDEx instances.
+
+            The source and destination accounts are specified by configuration
+            in --conf under section set via --profile field
+
+            Expected format in configuration file:
+            [<value of --profile>]
+            source_user = <user>
+            source_pass = <password>
+            source_server = <server>
+            dest_user = = <user>
+            dest_pass = <password>
+            dest_server = <server>
+
+            WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                     ERRORS. YOU HAVE BEEN WARNED.
+
+            """.format(version=ndexutil.__version__)
+
+        parser = subparsers.add_parser(CopyNetworkSet.COMMAND,
+                                       help='Copies networkset',
+                                       description=desc,
+                                       formatter_class=Formatter)
+        parser.add_argument('--sourcenetworkset', required=True,
+                            help='The UUID of networkset in NDEx to copy')
+        parser.add_argument('--shallowcopy', action='store_true',
+                            help='If set, only copies UUID of networks '
+                                 'to destination network set. ')
+        parser.add_argument('--destnetworkset',
+                            help='Networkset UUID of already existing '
+                                 'networkset. If omitted, a new networkset '
+                                 'will be created')
+        parser.add_argument('--showcase', action='store_true',
+                            help='If set, copied network will be showcased. '
+                                 'Ignored if --shallowcopy is set')
+        parser.add_argument('--indexlevel', default='none',
+                            choices=['none', 'meta', 'all'],
+                            help='If set, copied network indexing will '
+                                 'be updated. Ignored if '
+                                 '--shallowcopy is set.')
+        parser.add_argument('--visibility', default='private',
+                            choices=['public', 'private'],
+                            help='If set, updates visibility of copied '
+                                 'network. Ignored if '
+                                 '--shallowcopy is set.')
         return parser
 
 
@@ -2116,6 +2355,7 @@ def _parse_arguments(desc, args):
 
     NetworkAttributeSetter.add_subparser(subparsers)
     CopyNetwork.add_subparser(subparsers)
+    CopyNetworkSet.add_subparser(subparsers)
     UpdateNetworkSystemProperties.add_subparser(subparsers)
     TSVLoader.add_subparser(subparsers)
     NetworkDeleter.add_subparser(subparsers)
@@ -2214,6 +2454,8 @@ def main(arglist):
             cmd = CytoscapeLayoutCommand(theargs)
         if theargs.command == NetworkxLayoutCommand.COMMAND:
             cmd = NetworkxLayoutCommand(theargs)
+        if theargs.command == CopyNetworkSet.COMMAND:
+            cmd = CopyNetworkSet(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
