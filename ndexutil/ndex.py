@@ -3,9 +3,12 @@ import os
 import json
 import logging
 import ijson
+import time
 import ndex2
 from ndex2.nice_cx_network import NiceCXNetwork
 from ndexutil.exceptions import NDExUtilError
+from ndexutil.exceptions import NDExUtilSaveNetworkError
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger('ndexutil.ndex')
 
@@ -70,6 +73,80 @@ class NDExExtraUtils(object):
 
         with open(outcxfile, 'w') as f:
             json.dump(net.to_cx(), f)
+
+    def set_index_and_showcase(self, client=None, netid=None,
+                               showcase=False, index_level='NONE',
+                               max_retries=5, retry_wait=5):
+        """
+        Sets index level and showcase for network with NDEx UUID matching
+        ``netid`` passed in.
+
+        :param client:
+        :param netid:
+        :param showcase:
+        :param index_level:
+        :param max_retries:
+        :param retry_wait:
+        :return:
+        """
+        retry_num = 1
+        prop_dict = {'showcase': showcase,
+                     'index_level': index_level}
+        while retry_num < max_retries:
+            logger.debug('Updating network system properties try # ' +
+                         str(retry_num))
+            time.sleep(retry_wait)
+            try:
+                client.set_network_system_properties(netid,
+                                                     prop_dict)
+            except HTTPError as he:
+                logger.debug(str(he.response.text))
+                retry_num += 1
+                continue
+            break
+
+    def save_network_to_ndex(self, client=None,
+                             net=None, visibility=None,
+                             max_retries=5,
+                             retry_wait=5):
+        """
+        Saves network to NDEx
+
+        :param client:
+        :param net:
+        :param visibility:
+        :param max_retries: Number of failed retries of save before giving
+                            up
+        :type max_retries: int
+        :param retry_wait: Number of seconds to wait between retries
+        :type retry_wait: int
+        :return:
+        """
+        retry_num = 1
+        last_error = None
+        while retry_num <= max_retries:
+
+            logger.debug('Saving network to NDEx, try # ' + str(retry_num))
+            if retry_num != 1:
+                logger.debug('Sleeping ' + str(retry_wait) +
+                             ' seconds before retry of save network to NDEx')
+                time.sleep(retry_wait)
+
+            try:
+                netid_raw = client.save_new_network(net.to_cx(),
+                                                    visibility=visibility)
+                logger.debug('netid_raw' + str(netid_raw))
+                logger.debug('type: ' + str(type(netid_raw)))
+                return netid_raw[netid_raw.rindex('/') + 1:]
+            except HTTPError as he:
+                last_error = str(he)
+                logger.debug('Error during save network attempt: ' + last_error)
+            retry_num += 1
+
+        raise NDExUtilSaveNetworkError('Unable to save network after ' +
+                                       str(retry_num) +
+                                       ' tries. Last error message: ' +
+                                       str(last_error))
 
     def update_network_on_ndex(self, client=None,
                                networkid=None,
