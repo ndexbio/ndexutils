@@ -84,7 +84,8 @@ setup(
         'pandas',
         'jsonschema',
         'biothings_client',
-        'ijson'
+        'ijson',
+        'tqdm'
     ],
     extra_requires={'cytoscape': ['py4cytoscape']},
     scripts=['ndexutil/ndexmisctools.py' ],
