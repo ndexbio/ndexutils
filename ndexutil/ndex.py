@@ -74,6 +74,102 @@ class NDExExtraUtils(object):
         with open(outcxfile, 'w') as f:
             json.dump(net.to_cx(), f)
 
+    def get_network_summary(self, client=None,
+                            network_uuid=None,
+                            max_retries=5, retry_wait=5):
+        """
+
+        :param client:
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :param network_uuid:
+        :type network_uuid: str
+        :param max_retries:
+        :type max_retries: int
+        :param retry_wait:
+        :type retry_wait: int
+        :return:
+        :rtype: dict
+        """
+        retry_num = 1
+        while retry_num < max_retries:
+            logger.debug('Get network summary try # ' +
+                         str(retry_num))
+            try:
+                return client.get_network_summary(network_uuid)
+            except HTTPError as he:
+                logger.debug(str(he.response.text))
+                retry_num += 1
+            time.sleep(retry_wait)
+        raise NDExUtilError(str(max_retries) +
+                            ' attempts to get network summary ' +
+                            str(network_uuid) + ' failed')
+
+    def add_networks_to_networkset(self, client=None,
+                                   dest_networkset_uuid=None,
+                                   networks=None,
+                                   max_retries=5, retry_wait=5):
+        """
+
+        :param client:
+        :type client: :py:class:`~ndex2.client.Ndex2`
+        :param dest_networkset_uuid:
+        :param networks:
+        :param max_retries:
+        :param retry_wait:
+        :return:
+        """
+        retry_num = 1
+        while retry_num < max_retries:
+            logger.debug('Updating network system properties try # ' +
+                         str(retry_num))
+            time.sleep(retry_wait)
+            try:
+                client.add_networks_to_networkset(dest_networkset_uuid,
+                                                  networks)
+                return
+            except HTTPError as he:
+                logger.debug(str(he.response.text))
+                retry_num += 1
+                continue
+        raise NDExUtilError(str(max_retries) + ' attempts to add networks ' +
+                            ' to networkset ' +
+                            str(dest_networkset_uuid) + ' failed')
+
+    def get_nice_cx_from_server(self, server=None, user=None,
+                                password=None, network_uuid=None,
+                                max_retries=5, retry_wait=5):
+        """
+
+        :param server:
+        :type server: str
+        :param user:
+        :type user: str
+        :param password:
+        :type password: str
+        :param network_uuid:
+        :type network_uuid: str
+        :param max_retries:
+        :type max_retries: int
+        :param retry_wait:
+        :type retry_wait: int
+        :return:
+        """
+        retry_num = 1
+        while retry_num < max_retries:
+            logger.debug('Getting NicCX network try # ' +
+                         str(retry_num))
+            try:
+                return ndex2.create_nice_cx_from_server(server,
+                                                        user,
+                                                        password,
+                                                        network_uuid)
+            except HTTPError as he:
+                logger.debug(str(he.response.text))
+                retry_num += 1
+            time.sleep(retry_wait)
+        raise NDExUtilError(str(max_retries) + ' attempts to get network ' +
+                            str(network_uuid) + ' failed')
+
     def set_index_and_showcase(self, client=None, netid=None,
                                showcase=False, index_level='NONE',
                                max_retries=5, retry_wait=5):
@@ -82,6 +178,7 @@ class NDExExtraUtils(object):
         ``netid`` passed in.
 
         :param client:
+        :type client: :py:class:`~ndex2.client.Ndex2`
         :param netid:
         :param showcase:
         :param index_level:
@@ -95,15 +192,18 @@ class NDExExtraUtils(object):
         while retry_num < max_retries:
             logger.debug('Updating network system properties try # ' +
                          str(retry_num))
-            time.sleep(retry_wait)
             try:
                 client.set_network_system_properties(netid,
                                                      prop_dict)
+                return
             except HTTPError as he:
                 logger.debug(str(he.response.text))
                 retry_num += 1
-                continue
-            break
+            time.sleep(retry_wait)
+
+        raise NDExUtilError(str(max_retries) +
+                            ' attempts to set network properties ' +
+                            str(netid) + ' failed')
 
     def save_network_to_ndex(self, client=None,
                              net=None, visibility=None,
@@ -113,6 +213,7 @@ class NDExExtraUtils(object):
         Saves network to NDEx
 
         :param client:
+        :type client: :py:class:`~ndex2.client.Ndex2`
         :param net:
         :param visibility:
         :param max_retries: Number of failed retries of save before giving
