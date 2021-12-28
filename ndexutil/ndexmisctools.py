@@ -47,6 +47,8 @@ class CopyNetwork(object):
     """
     COMMAND = 'copynetwork'
 
+    ORIGINAL_UUID = '__copynetwork_orig_ndex_uuid'
+
     def __init__(self, theargs,
                  ndexextra=NDExExtraUtils()):
         """
@@ -105,6 +107,10 @@ class CopyNetwork(object):
                                                self._args.uuid)
 
         client = self._get_dest_client()
+
+        # store the UUID of the original network
+        net.set_network_attribute(CopyNetwork.ORIGINAL_UUID, values=self._args.uuid)
+
         netid = self._ndexextra.save_network_to_ndex(client=client, net=net,
                                                      visibility=
                                                      self._args.visibility.upper())
@@ -252,10 +258,14 @@ class CopyNetworkSet(object):
         :return:
         """
         if self._args.shallowcopy is False:
-            net = ndex2.create_nice_cx_from_server(self._srcserver,
-                                                   self._srcuser,
-                                                   self._srcpass,
-                                                   network_uuid)
+            net = self._ndexextra.get_nice_cx_from_server(server=self._srcserver,
+                                                          user=self._srcuser,
+                                                          password=self._srcpass,
+                                                          network_uuid=network_uuid)
+
+            # store the UUID of the original network
+            net.set_network_attribute(CopyNetwork.ORIGINAL_UUID, values=network_uuid)
+
             netid = self._ndexextra.save_network_to_ndex(client=client, net=net,
                                                          visibility=
                                                          self._args.visibility.upper())
@@ -273,12 +283,13 @@ class CopyNetworkSet(object):
                                                self._args.indexlevel.upper())
 
         # add to networkset
-
         logger.debug('Adding network (' + str(netid) +
                      ') to networkset (' +
                      str(dest_networkset_uuid) + ')')
-        client.add_networks_to_networkset(dest_networkset_uuid,
-                                          [netid])
+        self._ndexextra.add_networks_to_networkset(client=client,
+                                                   dest_networkset_uuid=
+                                                   dest_networkset_uuid,
+                                                   networks=[netid])
 
     def _get_dest_networkset(self, client=None,
                              source_networkset=None):
@@ -290,20 +301,44 @@ class CopyNetworkSet(object):
         """
         if self._args.destnetworkset is not None:
             try:
-                res = client.get_networkset(self._args.destnetworkset)
-                return res['externalId']
+                return client.get_networkset(self._args.destnetworkset)
             except HTTPError as he:
                 raise NDExUtilError('Error getting networkset ' +
                                     str(self._args.destnetworkset) +
                                     ' specified by --destnetworkset : ' +
                                     str(he))
 
-        ns_url = client.create_networkset(str(source_networkset['name'] + ' - ' + str(datetime.now())),
-                                          '\n<br/>Copy of <a href="https://' + str(self._srcserver) +
-                                          '/#/networkset/' + source_networkset['externalId'] +
-                                          '">' +source_networkset['externalId'] +
-                                          '</a>\n<br/>' + str(source_networkset['description']))
-        return re.sub('^.*/', '', ns_url)
+        ns_url = client.create_networkset(str(source_networkset['name'] +
+                                              ' - ' + str(datetime.now())),
+                                          '\n<br/>Copy of <a href="https://' +
+                                          str(self._srcserver) +
+                                          '/#/networkset/' +
+                                          source_networkset['externalId'] +
+                                          '">' +
+                                          source_networkset['externalId'] +
+                                          '</a>\n<br/>' +
+                                          str(source_networkset['description']))
+        ns_uuid = re.sub('^.*/', '', ns_url)
+        try:
+            return client.get_networkset(ns_uuid)
+        except HTTPError as he:
+            raise NDExUtilError('Error getting networkset ' +
+                                str(ns_uuid) +
+                                ' specified by --destnetworkset : ' +
+                                str(he))
+
+    def _get_networks_to_skip(self, src_client=None,
+                              dest_client=None,
+                              source_networkset=None,
+                              dest_networkset=None):
+        """
+
+        :param dest_client:
+        :param source_networkset:
+        :param dest_networkset_uuid:
+        :return:
+        """
+        return []
 
     def run(self):
         """
@@ -324,13 +359,13 @@ class CopyNetworkSet(object):
                                 str(he))
 
         # create destination networkset if does not exist
-        dest_networkset_uuid = self._get_dest_networkset(client=dest_client,
-                                                         source_networkset=source_networkset)
+        dest_networkset = self._get_dest_networkset(client=dest_client,
+                                                    source_networkset=source_networkset)
 
         # iterate through networks and copy them to destination
         for network_uuid in tqdm(source_networkset['networks'], desc='Networks'):
             self._copy_network(client=dest_client, network_uuid=network_uuid,
-                               dest_networkset_uuid=dest_networkset_uuid)
+                               dest_networkset_uuid=dest_networkset['externalId'])
 
     @staticmethod
     def add_subparser(subparsers):
@@ -393,7 +428,8 @@ class CopyNetworkSet(object):
                                  'to destination network set. ')
         parser.add_argument('--destnetworkset',
                             help='Networkset UUID of already existing '
-                                 'networkset. If omitted, a new networkset '
+                                 'networkset. '
+                                 'If omitted, a new networkset '
                                  'will be created')
         parser.add_argument('--showcase', action='store_true',
                             help='If set, copied network will be showcased. '
