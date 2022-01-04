@@ -9,6 +9,7 @@ from ndex2.nice_cx_network import NiceCXNetwork
 from ndexutil.exceptions import NDExUtilError
 from ndexutil.exceptions import NDExUtilSaveNetworkError
 from requests.exceptions import HTTPError
+from requests.exceptions import RequestException
 
 logger = logging.getLogger('ndexutil.ndex')
 
@@ -96,7 +97,7 @@ class NDExExtraUtils(object):
                          str(retry_num))
             try:
                 return client.get_network_summary(network_uuid)
-            except HTTPError as he:
+            except RequestException as he:
                 logger.debug(str(he.response.text))
                 retry_num += 1
             time.sleep(retry_wait)
@@ -127,7 +128,7 @@ class NDExExtraUtils(object):
                 client.add_networks_to_networkset(dest_networkset_uuid,
                                                   networks)
                 return
-            except HTTPError as he:
+            except RequestException as he:
                 logger.debug(str(he.response.text))
                 retry_num += 1
                 continue
@@ -163,7 +164,7 @@ class NDExExtraUtils(object):
                                                         user,
                                                         password,
                                                         network_uuid)
-            except HTTPError as he:
+            except RequestException as he:
                 logger.debug(str(he.response.text))
                 retry_num += 1
             time.sleep(retry_wait)
@@ -196,7 +197,7 @@ class NDExExtraUtils(object):
                 client.set_network_system_properties(netid,
                                                      prop_dict)
                 return
-            except HTTPError as he:
+            except RequestException as he:
                 logger.debug(str(he.response.text))
                 retry_num += 1
             time.sleep(retry_wait)
@@ -239,7 +240,7 @@ class NDExExtraUtils(object):
                 logger.debug('netid_raw' + str(netid_raw))
                 logger.debug('type: ' + str(type(netid_raw)))
                 return netid_raw[netid_raw.rindex('/') + 1:]
-            except HTTPError as he:
+            except RequestException as he:
                 last_error = str(he)
                 logger.debug('Error during save network attempt: ' + last_error)
             retry_num += 1
