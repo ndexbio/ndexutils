@@ -398,7 +398,7 @@ class CopyNetworkSet(object):
             --shallowcopy is set. 
             
             WARNING:
-            --shallowcopy should also NOT be used across NDEx instances.
+            --shallowcopy should NOT be used across NDEx instances.
 
             The source and destination accounts are specified by configuration
             in --conf under section set via --profile field
