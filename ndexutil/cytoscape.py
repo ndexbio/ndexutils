@@ -104,6 +104,22 @@ class Py4CytoscapeWrapper(object):
                                   type=type, network=network,
                                   base_url=base_url)
 
+    def set_layout_properties(self, layout_name=None,
+                              properties_dict=None, base_url=DEFAULT_CYREST_API):
+        """
+        Calls :py:func:`py4cytoscape.layouts.set_layout_properties`
+        :param layout_name: Name of the layout
+        :type layout_name: str
+        :param properties_dict: where key is property and value is
+                                the new value ``{'property': val,...}``
+        :type properties_dict: dict
+        :param base_url:
+        :return:
+        """
+        py4.layouts.set_layout_properties(layout_name=layout_name,
+                                          properties_dict=properties_dict,
+                                          base_url=base_url)
+
     def layout_network(self, layout_name=None,
                        network=None, base_url=DEFAULT_CYREST_API):
         """
