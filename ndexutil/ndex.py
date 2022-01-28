@@ -129,7 +129,7 @@ class NDExExtraUtils(object):
                                                   networks)
                 return
             except RequestException as he:
-                logger.debug(str(he.response.text))
+                logger.debug(str(he))
                 retry_num += 1
                 continue
         raise NDExUtilError(str(max_retries) + ' attempts to add networks ' +
