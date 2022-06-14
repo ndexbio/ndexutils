@@ -354,9 +354,13 @@ class CopyNetworkSet(object):
             # get source networkset and list of networks
             source_networkset = src_client.get_networkset(self._args.sourcenetworkset)
         except HTTPError as he:
-            raise NDExUtilError('Unable to get source networkset: ' +
-                                str(self._args.sourcenetworkset) + " : " +
-                                str(he))
+            try:
+                # get source networkset and list of networks
+                source_networkset = src_client.get_networkset(self._args.sourcenetworkset)
+            except HTTPError as he2:
+                raise NDExUtilError('Unable to get source networkset: ' +
+                                    str(self._args.sourcenetworkset) + " : " +
+                                    str(he2))
 
         # create destination networkset if does not exist
         dest_networkset = self._get_dest_networkset(client=dest_client,
