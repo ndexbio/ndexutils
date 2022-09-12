@@ -40,6 +40,141 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter,
     pass
 
 
+class UploadNetwork(object):
+    """
+    Uploads network to NDEx
+    """
+    COMMAND = 'uploadnetwork'
+
+    def __init__(self, theargs,
+                 ndexextra=NDExExtraUtils()):
+        """
+        Constructor
+        :param theargs: command line arguments ie theargs.name theargs.type
+        """
+        self._args = theargs
+        self._user = None
+        self._pass = None
+        self._server = None
+        self._ndexextra = ndexextra
+
+    def _parse_config(self):
+        """
+        Parses config extracting the following fields:
+        :py:const:`~ndexutil.config.NDExUtilConfig.USER`
+        :py:const:`~ndexutil.config.NDExUtilConfig.PASSWORD`
+        :py:const:`~ndexutil.config.NDExUtilConfig.SERVER`
+        :return: None
+        """
+        ncon = NDExUtilConfig(conf_file=self._args.conf)
+        con = ncon.get_config()
+        self._user = con.get(self._args.profile,
+                             NDExUtilConfig.USER)
+        self._pass = con.get(self._args.profile,
+                             NDExUtilConfig.PASSWORD)
+        self._server = con.get(self._args.profile,
+                               NDExUtilConfig.SERVER)
+
+    def _get_client(self):
+        """
+        Gets Ndex2 client
+        :return: Ndex2 python client
+        :rtype: :py:class:`~ndex2.client.Ndex2`
+        """
+        return Ndex2(self._server, self._user, self._pass)
+
+    def run(self):
+        """
+        uploads network to NDEx
+        :return:
+        """
+        self._parse_config()
+
+        client = self._get_client()
+
+        if self._args.uuid is not None:
+            netid = self._args.uuid
+            self._ndexextra.update_network_on_ndex(client=client,
+                                                   networkid=netid,
+                                                   cxfile=self._args.cx)
+        else:
+            with open(self._args.cx, 'rb') as f:
+                raw_url = client.save_cx_stream_as_new_network(f,
+                                                               visibility=self._args.visibility.upper())
+                netid = raw_url[raw_url.rindex('/')+1:]
+
+        # set index level and showcase
+        logger.debug('Setting index (' + str(self._args.indexlevel) +
+                     ') and showcase (' +
+                     str(self._args.showcase) + ') on network: ' + str(netid))
+
+        self._ndexextra.set_index_and_showcase(client=client, netid=netid,
+                                               showcase=self._args.showcase,
+                                               index_level=
+                                               self._args.indexlevel.upper())
+
+        # add to networkset
+        if self._args.destnetworkset is not None:
+            logger.debug('Adding network (' + str(netid) +
+                         ') to networkset (' +
+                         str(self._args.destnetworkset) + ')')
+            client.add_networks_to_networkset(self._args.destnetworkset,
+                                              [netid])
+
+    @staticmethod
+    def add_subparser(subparsers):
+        """
+        adds a subparser
+        :param subparsers:
+        :return:
+        """
+        desc = """
+
+            Version {version}
+
+            The uploadnetwork command uploads a network to NDEx 
+
+            The visibility and indexing of the copied network can be controlled
+            by --visibility, --showcase, and --indexlevel options.
+
+
+            Expected format in configuration file:
+            [<value of --profile>]
+            user = <user>
+            pass = <password>
+            server = <server>
+            
+
+            WARNING: THIS IS AN UNTESTED ALPHA IMPLEMENTATION AND MAY CONTAIN
+                     ERRORS. YOU HAVE BEEN WARNED.
+
+            """.format(version=ndexutil.__version__)
+
+        parser = subparsers.add_parser(UploadNetwork.COMMAND,
+                                       help='Uploads network to NDEx ',
+                                       description=desc,
+                                       formatter_class=Formatter)
+        parser.add_argument('cx',
+                            help='Network in CX file format to upload')
+        parser.add_argument('--uuid',
+                            help='The UUID of network in NDEx to replace with '
+                                 'uploaded network')
+        parser.add_argument('--destnetworkset',
+                            help='UUID of destination networkset. If set, '
+                                 'adds uploaded network to networkset')
+        parser.add_argument('--showcase', action='store_true',
+                            help='If set, copied network will be showcased')
+        parser.add_argument('--indexlevel', default='none',
+                            choices=['none', 'meta', 'all'],
+                            help='If set, copied network indexing will '
+                                 'be updated')
+        parser.add_argument('--visibility', default='private',
+                            choices=['public', 'private'],
+                            help='If set, updates visibility of uploaded '
+                                 'network')
+        return parser
+
+
 class CopyNetwork(object):
     """
     Copies NDEx network from one account to another
@@ -2399,6 +2534,7 @@ def _parse_arguments(desc, args):
     UpdateNetworkSystemProperties.add_subparser(subparsers)
     TSVLoader.add_subparser(subparsers)
     NetworkDeleter.add_subparser(subparsers)
+    UploadNetwork.add_subparser(subparsers)
     StyleUpdator.add_subparser(subparsers)
     NodeAttributeAdder.add_subparser(subparsers)
     NodeAttributeRemover.add_subparser(subparsers)
@@ -2496,6 +2632,8 @@ def main(arglist):
             cmd = NetworkxLayoutCommand(theargs)
         if theargs.command == CopyNetworkSet.COMMAND:
             cmd = CopyNetworkSet(theargs)
+        if theargs.command == UploadNetwork.COMMAND:
+            cmd = UploadNetwork(theargs)
 
         if cmd is None:
             raise NDExUtilError('Invalid command: ' + str(theargs.command))
