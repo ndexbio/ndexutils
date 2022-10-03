@@ -2,12 +2,23 @@
 History
 =======
 
-0.14.0 (TBD)
+0.14.0 (2022-09-03)
 -------------------------
+
+* `tqdm <https://pypi.org/project/tqdm>`__ and `ijson <https://pypi.org/project/ijson>`__ are now required packages
 
 * Added ``--indexlevel, --showcase, --visibility,`` and ``--destnetworkset`` to
   **ndexmisctools.py** *copynetwork* command to allow caller to set copied
-  networks accessibility and to add copied network to a networkset.
+  networks accessibility and to add copied network to a networkset. This command
+  also stores the original NDEx network UUID in ``__copynewtork_orig_ndex_uuid`` network
+  attribute
+
+* Added new command to **ndexmisctools.py** named *uploadnetwork* that lets caller upload
+  networks to NDEx
+
+* Added following methods to **ndexutil/ndex.py**:
+  ``get_network_summary(), get_nice_cx_from_server(),
+  set_index_and_showcase(), save_network_to_ndex()``
 
 0.13.1 (2020-11-11)
 ------------------------
