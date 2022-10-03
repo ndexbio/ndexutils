@@ -172,6 +172,27 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
     ndexmisctools.py --profile deleteprofile deletenetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
 
+* **uploadnetwork** - uploads network to `NDex`_
+
+  This command uploads a network to `NDEx`_
+
+  Credentials must be stored in the configuration (default ``~/.ndexutils.conf``)
+  and be formatted as follows:
+
+  .. code-block::
+
+    [myattrib]
+    user=bob
+    password=6ea8f0ab0b2e
+    server=public.ndexbio.org
+
+  The following command uploads ``foo.cx`` network to `NDEx`_
+
+  .. code-block::
+
+    ndexmisctools.py --profile myattrib uploadnetwork foo.cx
+
+
 * **featurednetworkreport** - generates report about featurend networks on `NDEx`_
 
   This command requires one positional parameter ``server``.
