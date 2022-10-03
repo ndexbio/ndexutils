@@ -172,7 +172,7 @@ For more information run ``ndexmisctools.py --help`` and ``ndexmisctools.py <COM
 
     ndexmisctools.py --profile deleteprofile deletenetwork --uuid 9025480b-6fbc-4efe-9cd8-b575ce49dfda
 
-* **uploadnetwork** - uploads network to `NDex`_
+* **uploadnetwork** - uploads network to `NDEx`_
 
   This command uploads a network to `NDEx`_
 
